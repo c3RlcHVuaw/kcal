@@ -1,0 +1,49 @@
+# Changelog
+
+## 2026-05-18
+
+- Improved barcode recognition from Telegram video notes by sampling more frames
+  and decoding enhanced, cropped, upscaled, thresholded, and rotated image variants.
+- Simplified the Telegram reply keyboard to the primary food, diary, water,
+  and more actions, moving secondary tools into an inline "More" menu.
+- Raised the Telegram Stars AI subscription price from 150 to 199 Stars.
+- Improved Telegram bot usability with `/help`, richer food confirmations,
+  quick post-save actions, and a smoother multi-item food flow.
+- Fixed lint failures found during server-side validation after deploy.
+- Tightened Russian food names in AI parsing and Open Food Facts barcode lookup.
+- Polished bot calorie labels from `kcal` to `ккал` in user-facing messages.
+- Added saved-entry editing/deletion, manual favorites, water and weight tracking.
+- Added macro targets with remaining/over target feedback in the daily summary.
+- Added configurable dinner and weight reminders, disabled by default.
+- Added multi-item AI food confirmation with add-one or add-all actions.
+- Granted Telegram user `904738198` a permanent AI subscription on the server.
+- Made successful local validation an explicit mandatory trigger for immediate server deploy.
+- Added gram editing before saving AI, barcode, and manual food estimates.
+- Added frequent foods, quick repeat for yesterday, and weekly nutrition analytics in the bot.
+- Added a configurable 3-request AI trial before subscription.
+- Improved barcode video scanning by checking several frames per video.
+- Fixed the water flow so adding water offers more water instead of switching to food,
+  and accepts water amounts with units in text.
+- Fixed barcode scanning from Telegram videos and video messages by sampling frames
+  across the full clip instead of only the beginning.
+- Added activity tracking with manual calorie burn input, AI activity estimates,
+  and daily calorie targets extended by today's activity.
+
+## 2026-05-18
+
+- Added onboarding for language, gender, age, height, weight, activity, goal, and daily calories.
+- Added profile settings from the main menu with calorie target recalculation.
+- Added Telegram Stars AI subscription at 150 Stars for 30 days.
+- Added subscription-gated AI photo/manual parsing and voice food input.
+- Added barcode scanning from photos, videos, and video notes.
+
+## 2026-05-18
+
+- Added per-user daily AI request tracking and a default 100-request daily limit.
+- Added `AI_DAILY_REQUEST_LIMIT`, `ai_usage` migration, and `/users/{telegram_id}/ai-usage/today`.
+- Bot now blocks AI photo/manual parsing after the daily limit while keeping barcode scans available.
+
+## 2026-05-17
+
+- Created initial Telegram AI Calorie Tracker backend structure.
+- Added FastAPI routes, aiogram bot handlers, async SQLAlchemy models, Alembic migration, Redis FSM, OpenAI service, Open Food Facts service, barcode decoding, Docker Compose, deployment instructions, and environment example.

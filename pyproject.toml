@@ -1,0 +1,41 @@
+[project]
+name = "kcal-tracker"
+version = "0.1.0"
+description = "Telegram AI calorie tracker bot backend"
+requires-python = ">=3.12"
+dependencies = [
+    "aiogram>=3.6,<4",
+    "alembic>=1.13,<2",
+    "asyncpg>=0.29,<1",
+    "fastapi>=0.111,<1",
+    "httpx>=0.27,<1",
+    "openai>=1.35,<2",
+    "pillow>=10,<11",
+    "psycopg[binary]>=3.2,<4",
+    "pydantic>=2.7,<3",
+    "pydantic-settings>=2.3,<3",
+    "pyzbar>=0.1.9,<1",
+    "redis>=5,<6",
+    "sqlalchemy>=2.0,<3",
+    "uvicorn[standard]>=0.30,<1",
+]
+
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8,<9",
+    "ruff>=0.5,<1",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
