@@ -38,7 +38,9 @@ from kcal_tracker.services.nutrition import (
     remaining_advice,
     smart_day_coach,
     smart_evening_hint,
+    smart_problem_signals,
     weekly_coach_note,
+    weekly_score,
 )
 from kcal_tracker.services.subscriptions import has_active_subscription
 from kcal_tracker.services.users import UserService
@@ -109,6 +111,32 @@ async def show_today_inline(callback: CallbackQuery) -> None:
         show_advanced_patterns=has_subscription,
         timezone_name=user.timezone,
         include_advice=True,
+    )
+    await callback.message.edit_text(text, reply_markup=reply_markup)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "nav:today:full")
+async def show_today_full_inline(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=callback.from_user.id,
+            username=callback.from_user.username,
+        )
+        diary = DiaryService(session)
+        summary = await diary.today_summary(user)
+        has_subscription = has_active_subscription(user)
+        patterns = await diary.nutrition_patterns(user) if has_subscription else None
+        water_ml = await WellnessService(session).today_water_ml(user)
+
+    text, reply_markup = _today_view(
+        summary,
+        water_ml,
+        patterns=patterns,
+        show_advanced_patterns=has_subscription,
+        timezone_name=user.timezone,
+        include_advice=True,
+        full_entries=True,
     )
     await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
@@ -609,16 +637,18 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
         patterns = await diary.nutrition_patterns(user) if has_subscription else None
 
     lines = [
-        "Последние 7 дней:",
+        "📈 Недельный отчёт",
         "",
+        f"Оценка: {weekly_score(analytics)}/10",
         f"Среднее: {analytics.average_kcal:.0f} / {analytics.target_kcal} ккал",
         f"Дней рядом с целью: {analytics.days_in_target}",
-        weekly_coach_note(analytics),
+        "",
+        f"🧠 {weekly_coach_note(analytics)}",
     ]
     if has_subscription:
-        lines.extend(automatic_pattern_notes(patterns))
+        lines.extend(f"📌 {note}" for note in automatic_pattern_notes(patterns))
     else:
-        lines.append(ADVANCED_PATTERNS_UPSELL)
+        lines.append(f"🔒 {ADVANCED_PATTERNS_UPSELL}")
     lines.append("")
     for day in analytics.days:
         marker = "·" if day.entries_count else " "
@@ -638,6 +668,7 @@ def _today_view(
     show_advanced_patterns: bool = False,
     timezone_name: str = settings.default_timezone,
     include_advice: bool = False,
+    full_entries: bool = False,
 ):
     target_line = f"🔥 {summary.kcal:.0f} / {summary.target_kcal} ккал"
     if summary.activity_kcal:
@@ -646,10 +677,9 @@ def _today_view(
         )
 
     lines = [
-        "Сегодня по дневнику:",
+        "📊 Сегодня",
         "",
         target_line,
-        "",
         _macro_line("Белки", summary.protein, summary.target_protein),
         _macro_line("Жиры", summary.fat, summary.target_fat),
         _macro_line("Углеводы", summary.carbs, summary.target_carbs),
@@ -657,10 +687,33 @@ def _today_view(
     ]
     entry_ids: list[int] = []
     if summary.entries:
-        lines.extend(["", "────────"])
-        for index, entry in enumerate(summary.entries, start=1):
-            entry_ids.append(entry.id)
-            lines.append(_entry_line(index, entry, timezone_name))
+        entry_ids = [entry.id for entry in summary.entries]
+        lines.extend(["", "🍽 По приёмам"])
+        lines.extend(_meal_summary_lines(summary.entries, timezone_name))
+        lines.extend(["", "🚦 Сигналы"])
+        lines.extend(smart_problem_signals(summary, water_ml))
+
+        if full_entries:
+            lines.extend(["", "📋 Все записи"])
+            for label, entries in _entries_by_meal(summary.entries, timezone_name):
+                if not entries:
+                    continue
+                lines.append("")
+                lines.append(label)
+                for entry in entries:
+                    index = summary.entries.index(entry) + 1
+                    lines.append(_entry_line(index, entry, timezone_name))
+        else:
+            latest_entries = summary.entries[-5:]
+            hidden_count = len(summary.entries) - len(latest_entries)
+            lines.extend(["", "🕘 Последние записи"])
+            for entry in latest_entries:
+                index = summary.entries.index(entry) + 1
+                lines.append(_entry_line(index, entry, timezone_name))
+            if hidden_count > 0:
+                lines.append(f"…ещё {hidden_count} записей по кнопке «Все записи»")
+    else:
+        lines.extend(["", "🚦 Сигналы", "🍽 Записей пока нет"])
 
     if include_advice:
         forecast = end_of_day_forecast(summary, patterns)
@@ -696,6 +749,46 @@ def _entry_line(index: int, entry, timezone_name: str) -> str:
         f"{index}. {_entry_time_label(entry.created_at, timezone_name)} "
         f"{food_label(entry)}{weight} — {entry.kcal:.0f} ккал"
     )
+
+
+def _meal_summary_lines(entries, timezone_name: str) -> list[str]:
+    lines: list[str] = []
+    for label, meal_entries in _entries_by_meal(entries, timezone_name):
+        kcal = sum(entry.kcal for entry in meal_entries)
+        count = len(meal_entries)
+        suffix = f"{kcal:.0f} ккал" if count else "пока нет"
+        if count:
+            suffix += f" · {count}"
+        lines.append(f"{label}: {suffix}")
+    return lines
+
+
+def _entries_by_meal(entries, timezone_name: str):
+    buckets = {
+        "breakfast": [],
+        "lunch": [],
+        "dinner": [],
+        "snacks": [],
+    }
+    for entry in entries:
+        buckets[_meal_key(entry.created_at, timezone_name)].append(entry)
+    return [
+        ("🌅 Завтрак", buckets["breakfast"]),
+        ("☀️ Обед", buckets["lunch"]),
+        ("🌙 Ужин", buckets["dinner"]),
+        ("🍿 Перекусы", buckets["snacks"]),
+    ]
+
+
+def _meal_key(created_at: datetime, timezone_name: str) -> str:
+    hour = int(_entry_time_label(created_at, timezone_name).split(":", 1)[0])
+    if 5 <= hour < 12:
+        return "breakfast"
+    if 12 <= hour < 16:
+        return "lunch"
+    if 18 <= hour < 23:
+        return "dinner"
+    return "snacks"
 
 
 def _entry_time_label(created_at: datetime, timezone_name: str) -> str:

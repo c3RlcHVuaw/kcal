@@ -2,6 +2,10 @@
 
 ## 2026-05-19
 
+- Added a short default "Today" view with meal-based totals, smart issue
+  highlights, recent entries, and a full grouped entry view on demand.
+- Turned weekly analytics into a cleaner report with a weekly score and
+  highlighted coaching notes.
 - Simplified today's food list into one-line entries and moved per-product
   advice out of the dense entry list.
 - Made today's entry action keyboard compact by default, with entry edit,

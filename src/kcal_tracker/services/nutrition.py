@@ -31,6 +31,54 @@ def diet_quality_note(summary: DiarySummary) -> str:
     return " ".join(notes)
 
 
+def smart_problem_signals(summary: DiarySummary, water_ml: int = 0) -> list[str]:
+    signals: list[str] = []
+    kcal_left = summary.target_kcal - summary.kcal
+    protein_left = summary.target_protein - summary.protein
+
+    if kcal_left < -150:
+        signals.append(f"⚠️ Калории выше цели на {abs(kcal_left):.0f} ккал")
+    elif abs(kcal_left) <= 150:
+        signals.append("✅ Калории рядом с целью")
+    elif kcal_left > 600 and summary.entries:
+        signals.append(f"🍽 Осталось много калорий: около {kcal_left:.0f}")
+
+    if protein_left > 30:
+        signals.append(f"⚠️ Белка мало: осталось примерно {protein_left:.0f}г")
+    elif protein_left <= 10 and summary.entries:
+        signals.append("✅ Белок почти закрыт")
+
+    if summary.fat > summary.target_fat + 10:
+        signals.append("⚠️ Жиры выше плана")
+    if water_ml and water_ml < 1000:
+        signals.append("💧 Воды пока мало")
+
+    if not signals:
+        signals.append("✅ День выглядит спокойно")
+    return signals[:2]
+
+
+def weekly_score(analytics: Any) -> int:
+    tracked_days = [day for day in analytics.days if day.entries_count]
+    if not tracked_days:
+        return 0
+
+    score = 4
+    score += min(3, analytics.days_in_target)
+
+    average_delta = abs(analytics.average_kcal - analytics.target_kcal)
+    if average_delta <= 150:
+        score += 2
+    elif average_delta <= 300:
+        score += 1
+
+    protein_days = sum(1 for day in tracked_days if day.protein >= 80)
+    if protein_days >= max(2, len(tracked_days) // 2):
+        score += 1
+
+    return max(1, min(score, 10))
+
+
 def smart_evening_hint(summary: DiarySummary) -> str:
     kcal_left = summary.target_kcal - summary.kcal
     protein_left = summary.target_protein - summary.protein

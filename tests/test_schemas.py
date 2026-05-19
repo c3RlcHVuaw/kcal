@@ -3,8 +3,10 @@ from types import SimpleNamespace
 
 from kcal_tracker.bot.handlers.diary import (
     ADVANCED_PATTERNS_UPSELL,
+    _entries_by_meal,
     _entry_line,
     _entry_time_label,
+    _meal_summary_lines,
     _today_view,
 )
 from kcal_tracker.bot.keyboards import food_entries_keyboard
@@ -26,7 +28,9 @@ from kcal_tracker.services.nutrition import (
     is_high_calorie_food,
     meal_suggestion_text,
     smart_day_coach,
+    smart_problem_signals,
     weekly_coach_note,
+    weekly_score,
 )
 
 
@@ -114,6 +118,7 @@ def test_weekly_coach_note_mentions_average_delta() -> None:
     note = weekly_coach_note(analytics)
     assert "AI-разбор недели" in note
     assert "перебор" in note
+    assert weekly_score(analytics) >= 1
 
 
 def test_end_of_day_forecast_uses_usual_evening_kcal() -> None:
@@ -184,11 +189,98 @@ def test_today_entry_line_is_compact_and_hides_item_advice() -> None:
     assert "Длинный совет" not in line
 
 
+def test_today_view_is_short_by_default_and_shows_meal_totals() -> None:
+    entries = [
+        SimpleNamespace(
+            id=index,
+            created_at=datetime(2026, 5, 19, 6 + index, 0, tzinfo=UTC),
+            food_name=f"еда {index}",
+            weight_g=100,
+            kcal=100,
+            emoji="🍽️",
+            advice=None,
+        )
+        for index in range(1, 8)
+    ]
+    summary = SimpleNamespace(
+        kcal=700,
+        target_kcal=2000,
+        activity_kcal=0,
+        protein=45,
+        target_protein=120,
+        fat=30,
+        target_fat=70,
+        carbs=110,
+        target_carbs=230,
+        entries=entries,
+    )
+    text, _ = _today_view(summary, 800, patterns=None, include_advice=False)
+    assert "🍽 По приёмам" in text
+    assert "🚦 Сигналы" in text
+    assert "🕘 Последние записи" in text
+    assert "…ещё 2 записей" in text
+    assert "1. " not in text
+
+
+def test_full_today_view_groups_entries_by_meal() -> None:
+    entries = [
+        SimpleNamespace(
+            id=1,
+            created_at=datetime(2026, 5, 19, 4, 30, tzinfo=UTC),
+            food_name="завтрак",
+            weight_g=None,
+            kcal=300,
+            emoji="🥣",
+            advice=None,
+        ),
+        SimpleNamespace(
+            id=2,
+            created_at=datetime(2026, 5, 19, 9, 30, tzinfo=UTC),
+            food_name="обед",
+            weight_g=None,
+            kcal=500,
+            emoji="🍲",
+            advice=None,
+        ),
+        SimpleNamespace(
+            id=3,
+            created_at=datetime(2026, 5, 19, 15, 30, tzinfo=UTC),
+            food_name="ужин",
+            weight_g=None,
+            kcal=600,
+            emoji="🍗",
+            advice=None,
+        ),
+    ]
+    labels = [label for label, _ in _entries_by_meal(entries, "Europe/Samara")]
+    assert labels == ["🌅 Завтрак", "☀️ Обед", "🌙 Ужин", "🍿 Перекусы"]
+    meal_lines = _meal_summary_lines(entries, "Europe/Samara")
+    assert any("🌅 Завтрак: 300 ккал" in line for line in meal_lines)
+    assert any("☀️ Обед: 500 ккал" in line for line in meal_lines)
+    assert any("🌙 Ужин: 600 ккал" in line for line in meal_lines)
+
+
+def test_smart_problem_signals_prioritize_key_issues() -> None:
+    summary = SimpleNamespace(
+        kcal=2300,
+        target_kcal=2000,
+        protein=60,
+        target_protein=120,
+        fat=95,
+        target_fat=70,
+        entries=[SimpleNamespace()],
+    )
+    signals = smart_problem_signals(summary, water_ml=700)
+    assert len(signals) == 2
+    assert "Калории выше цели" in signals[0]
+
+
 def test_food_entries_keyboard_starts_compact() -> None:
     keyboard = food_entries_keyboard([10, 11, 12])
     rows = keyboard.inline_keyboard
     assert len(rows) == 2
     assert rows[0][0].callback_data == "entry:manage"
+    assert rows[0][1].callback_data == "nav:today:full"
     assert rows[1][0].callback_data == "coach:meal"
 
 
