@@ -6,6 +6,7 @@ from kcal_tracker.bot.handlers.diary import (
     _entry_time_label,
     _today_view,
 )
+from kcal_tracker.bot.keyboards import food_entries_keyboard
 from kcal_tracker.bot.text_parsing import (
     looks_like_activity,
     parse_activity_kcal,
@@ -166,6 +167,24 @@ def test_today_view_hides_advanced_patterns_without_subscription() -> None:
     assert "🎯 Фокус:" in text
     assert "🔒 " + ADVANCED_PATTERNS_UPSELL in text
     assert "Паттерны: пока мало истории" not in text
+
+
+def test_food_entries_keyboard_starts_compact() -> None:
+    keyboard = food_entries_keyboard([10, 11, 12])
+    rows = keyboard.inline_keyboard
+    assert len(rows) == 2
+    assert rows[0][0].callback_data == "entry:manage"
+    assert rows[1][0].callback_data == "coach:meal"
+
+
+def test_food_entries_keyboard_expands_entry_actions() -> None:
+    keyboard = food_entries_keyboard([10, 11], expanded=True)
+    rows = keyboard.inline_keyboard
+    assert rows[0][0].callback_data == "entry:edit:10"
+    assert rows[0][1].callback_data == "entry:delete:10"
+    assert rows[0][2].callback_data == "entry:fav:10"
+    assert rows[-1][0].callback_data == "nav:today"
+    assert rows[-1][1].callback_data == "coach:meal"
 
 
 def test_photo_recognition_user_text_includes_caption_hint() -> None:

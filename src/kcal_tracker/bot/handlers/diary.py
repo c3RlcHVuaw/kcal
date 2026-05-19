@@ -114,6 +114,25 @@ async def show_today_inline(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+@router.callback_query(F.data == "entry:manage")
+async def show_entry_management(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=callback.from_user.id,
+            username=callback.from_user.username,
+        )
+        summary = await DiaryService(session).today_summary(user)
+
+    entry_ids = [entry.id for entry in summary.entries]
+    if not entry_ids:
+        await callback.answer("Сегодня пока нет записей.", show_alert=True)
+        return
+    await callback.message.edit_reply_markup(
+        reply_markup=food_entries_keyboard(entry_ids, expanded=True)
+    )
+    await callback.answer()
+
+
 @router.callback_query(F.data.startswith("entry:edit:"))
 async def edit_saved_entry(callback: CallbackQuery, state: FSMContext) -> None:
     entry_id = int(callback.data.rsplit(":", 1)[1])

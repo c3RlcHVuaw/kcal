@@ -163,7 +163,15 @@ def repeat_yesterday_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def food_entries_keyboard(entry_ids: list[int]) -> InlineKeyboardMarkup:
+def food_entries_keyboard(entry_ids: list[int], *, expanded: bool = False) -> InlineKeyboardMarkup:
+    if not expanded:
+        return InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="✏️ Редактировать", callback_data="entry:manage")],
+                [InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal")],
+            ]
+        )
+
     rows: list[list[InlineKeyboardButton]] = []
     for index, entry_id in enumerate(entry_ids, start=1):
         rows.append(
@@ -174,7 +182,10 @@ def food_entries_keyboard(entry_ids: list[int]) -> InlineKeyboardMarkup:
             ]
         )
     rows.append(
-        [InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal")]
+        [
+            InlineKeyboardButton(text="📊 Свернуть", callback_data="nav:today"),
+            InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal"),
+        ]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
