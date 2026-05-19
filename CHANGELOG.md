@@ -6,6 +6,8 @@
   today's view include the same remaining-target guidance as the old remainder view.
 - Improved video-note barcode scanning by sampling more frames and trying more
   crop/contrast variants.
+- Fixed video-note barcode scans appearing unresponsive by replying immediately
+  and moving barcode decoding off the bot polling loop with a timeout.
 - Fixed diary entry times in Telegram summaries to display in the user's timezone
   instead of raw UTC timestamps.
 - Added an AI clarification action before saving AI food estimates so users can

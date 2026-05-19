@@ -133,6 +133,11 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
     current_state = await state.get_state()
 
     if current_state == FoodFlow.waiting_barcode_photo.state:
+        if message.video_note:
+            await message.answer("Кружочек получил, ищу штрихкод. Это может занять пару секунд.")
+        elif message.video:
+            await message.answer("Видео получил, ищу штрихкод. Это может занять пару секунд.")
+
         image_frames = await _download_image_or_video_frames(message)
         if not image_frames:
             await message.answer("Не смог достать кадры из видео. Пришли фото штрихкода крупнее.")
@@ -149,9 +154,7 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
                         text_hint=message.caption,
                     )
                     return
-                await message.answer(
-                    "Штрихкод не считался. Попробуй фото ближе, без бликов и под прямым углом."
-                )
+                await message.answer(_barcode_retry_text(message))
                 return
             try:
                 product = await OpenFoodFactsService(session).get_product(barcode)
@@ -792,20 +795,40 @@ async def _download_image_or_video_frames(message: Message) -> list[bytes]:
     file = await message.bot.get_file(video.file_id)
     video_io = await message.bot.download_file(file.file_path)
     try:
-        frame_limit = 30 if message.video_note else 14
+        frame_limit = 16 if message.video_note else 10
         return await asyncio.to_thread(extract_frames_from_video, video_io.read(), frame_limit)
     except MediaProcessingError:
         return []
 
 
 async def _decode_barcode_from_frames(frames: list[bytes]) -> str | None:
+    try:
+        return await asyncio.wait_for(
+            asyncio.to_thread(_decode_barcode_from_frames_sync, frames),
+            timeout=25,
+        )
+    except TimeoutError:
+        logger.warning("Barcode decoding timed out")
+        return None
+
+
+def _decode_barcode_from_frames_sync(frames: list[bytes]) -> str | None:
     barcode_service = BarcodeService()
     for frame in frames:
         try:
-            return await barcode_service.decode_image(frame)
+            return barcode_service.decode_image(frame)
         except BarcodeNotFoundError:
             continue
     return None
+
+
+def _barcode_retry_text(message: Message) -> str:
+    if message.video_note:
+        return (
+            "Штрихкод из кружочка не считался. Лучше пришли обычное фото штрихкода "
+            "крупно, ровно и без движения."
+        )
+    return "Штрихкод не считался. Попробуй фото ближе, без бликов и под прямым углом."
 
 
 def _format_estimate_confirmation(estimate: FoodEstimate) -> str:

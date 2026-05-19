@@ -11,7 +11,7 @@ class BarcodeNotFoundError(RuntimeError):
 
 
 class BarcodeService:
-    async def decode_image(self, image_bytes: bytes) -> str:
+    def decode_image(self, image_bytes: bytes) -> str:
         try:
             image = Image.open(BytesIO(image_bytes))
             image = ImageOps.exif_transpose(image).convert("RGB")
