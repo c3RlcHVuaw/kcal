@@ -71,6 +71,35 @@ TEXT_PARSE_PROMPT = """Разбери описание еды пользоват
 - Никогда не возвращай confidence 1.0.
 """
 
+FOOD_REFINEMENT_PROMPT = """Уточни уже распознанную оценку еды по новому комментарию пользователя.
+
+Верни только строгий JSON такого вида:
+{
+  "foods": [
+    {
+      "name": "уточнённое название блюда или продукта на русском",
+      "weight_g": 123,
+      "kcal": 456,
+      "protein": 12,
+      "fat": 10,
+      "carbs": 45,
+      "confidence": 0.72,
+      "emoji": "🍌",
+      "advice": "короткий полезный совет по этому продукту на русском"
+    }
+  ]
+}
+
+Правила:
+- Верни ровно одну уточнённую позицию.
+- Обязательно учти комментарий пользователя: добавки, соусы, джем, масло,
+  скрытые ингредиенты, частичную порцию, исправления веса или состава.
+- Если пользователь добавил ингредиент к блюду, пересчитай итоговые граммы, калории и БЖУ.
+- Все названия в поле name пиши по-русски.
+- Для позиции подбери один подходящий emoji и короткий advice.
+- Никогда не возвращай confidence 1.0.
+"""
+
 
 class AIFoodService:
     def __init__(self) -> None:
@@ -128,6 +157,26 @@ class AIFoodService:
         )
         return self._parse_foods(response.choices[0].message.content)
 
+    async def refine_estimate(
+        self,
+        estimate: FoodEstimate,
+        refinement: str,
+    ) -> FoodEstimateList:
+        if self.client is None:
+            return FoodEstimateList(foods=[])
+
+        response = await self.client.chat.completions.create(
+            model=settings.openai_text_model,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": FOOD_REFINEMENT_PROMPT},
+                {"role": "user", "content": food_refinement_user_text(estimate, refinement)},
+            ],
+            temperature=0.2,
+            timeout=12,
+        )
+        return self._parse_foods(response.choices[0].message.content)
+
     def _parse_foods(self, content: str | None) -> FoodEstimateList:
         if not content:
             return FoodEstimateList(foods=[])
@@ -163,6 +212,16 @@ def photo_recognition_user_text(text_hint: str | None = None) -> str:
     return (
         f"{base}\n\n"
         "Уточнение пользователя к фото, его нужно учесть при оценке:\n"
+        f"{hint}"
+    )
+
+
+def food_refinement_user_text(estimate: FoodEstimate, refinement: str) -> str:
+    hint = normalize_photo_text_hint(refinement) or refinement.strip()
+    return (
+        "Текущая оценка еды:\n"
+        f"{estimate.model_dump_json()}\n\n"
+        "Новое уточнение пользователя, которое нужно учесть:\n"
         f"{hint}"
     )
 

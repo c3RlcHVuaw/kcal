@@ -44,6 +44,7 @@ class FoodFlow(StatesGroup):
     waiting_barcode_photo = State()
     confirming = State()
     editing_weight = State()
+    refining = State()
 
 
 @router.message(F.text.in_({"✍️ Записать еду", "🍔 Добавить еду", "✍️ Еда"}))
@@ -563,6 +564,47 @@ async def update_food_weight(message: Message, state: FSMContext) -> None:
     await _show_confirmation(message, state, estimate, data["source"])
 
 
+@router.callback_query(F.data == "food:refine")
+async def refine_food(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    if data.get("source") not in {"ai_photo", "manual"} or "estimate" not in data:
+        await callback.answer("Уточнение доступно только для AI-оценки.", show_alert=True)
+        return
+
+    await state.set_state(FoodFlow.refining)
+    await callback.message.edit_text(
+        "Что уточнить для AI? Например: «ещё полито джемом» или «это половина порции»."
+    )
+    await callback.answer()
+
+
+@router.message(FoodFlow.refining, F.text)
+async def update_food_refinement(message: Message, state: FSMContext) -> None:
+    refinement = " ".join((message.text or "").split())
+    if not refinement:
+        await message.answer("Напиши уточнение текстом, например: ещё 20 г джема.")
+        return
+    if not await _ensure_ai_available(message):
+        return
+
+    data = await state.get_data()
+    estimate = FoodEstimate.model_validate_json(data["estimate"])
+    await message.answer("Уточняю оценку с учётом комментария.")
+    try:
+        refined = await AIFoodService().refine_estimate(estimate, refinement)
+    except Exception:
+        logger.exception("AI food refinement failed")
+        await message.answer("Не смог сейчас уточнить оценку. Попробуй ещё раз чуть проще.")
+        return
+
+    await _record_ai_request(message, "food_refine")
+    if not refined.foods:
+        await message.answer("AI не смог уверенно уточнить оценку. Попробуй переформулировать.")
+        return
+
+    await _show_confirmation(message, state, refined.foods[0], data["source"])
+
+
 async def _show_confirmation(
     message: Message,
     state: FSMContext,
@@ -573,7 +615,7 @@ async def _show_confirmation(
     await state.update_data(estimate=estimate.model_dump_json(), source=source)
     await message.answer(
         _format_estimate_confirmation(estimate),
-        reply_markup=confirm_food_keyboard("food"),
+        reply_markup=confirm_food_keyboard("food", allow_refine=source in {"ai_photo", "manual"}),
     )
 
 

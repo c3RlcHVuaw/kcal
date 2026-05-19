@@ -40,6 +40,8 @@ API health should return:
 - Diary shows calories, macros, today's entries, food emoji, and per-product advice.
 - Calorie-dense additions get an extra confirmation when the day is already near target.
 - Users can edit grams before saving an AI/barcode/manual estimate.
+- Users can add an extra AI clarification before saving an AI estimate,
+  such as sauces, jam, hidden ingredients, or partial portions.
 - Users can edit/delete saved entries from the day summary.
 - Users can track water, weight, favorite foods, and macro targets.
 - Optional reminders can separately nudge meal logging and morning weigh-ins.

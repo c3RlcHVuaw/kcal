@@ -2,6 +2,8 @@
 
 ## 2026-05-19
 
+- Added an AI clarification action before saving AI food estimates so users can
+  account for sauces, jam, hidden ingredients, or partial portions.
 - Fixed photo meal recognition silently doing nothing on slow AI responses by
   extending OpenAI timeouts and replying with progress or a retry message.
 

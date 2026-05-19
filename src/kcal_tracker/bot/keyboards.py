@@ -77,11 +77,14 @@ def more_menu_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def confirm_food_keyboard(prefix: str) -> InlineKeyboardMarkup:
+def confirm_food_keyboard(prefix: str, *, allow_refine: bool = False) -> InlineKeyboardMarkup:
+    edit_row = [InlineKeyboardButton(text="✏️ Граммовка", callback_data=f"{prefix}:edit")]
+    if allow_refine:
+        edit_row.append(InlineKeyboardButton(text="🔎 Уточнить", callback_data=f"{prefix}:refine"))
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="✅ Добавить", callback_data=f"{prefix}:confirm")],
-            [InlineKeyboardButton(text="✏️ Граммовка", callback_data=f"{prefix}:edit")],
+            edit_row,
             [InlineKeyboardButton(text="❌ Отмена", callback_data=f"{prefix}:cancel")],
         ]
     )

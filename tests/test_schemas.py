@@ -6,7 +6,7 @@ from kcal_tracker.bot.text_parsing import (
     parse_int_from_text,
 )
 from kcal_tracker.schemas import FoodEstimate
-from kcal_tracker.services.ai_food import photo_recognition_user_text
+from kcal_tracker.services.ai_food import food_refinement_user_text, photo_recognition_user_text
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
 from kcal_tracker.services.media import _sample_timestamps
 from kcal_tracker.services.nutrition import high_calorie_add_warning, is_high_calorie_food
@@ -54,6 +54,14 @@ def test_photo_recognition_user_text_includes_caption_hint() -> None:
     assert "Уточнение пользователя" in text
     assert "половина порции" in text
     assert "30 г соуса" in text
+
+
+def test_food_refinement_user_text_includes_current_estimate_and_hint() -> None:
+    estimate = FoodEstimate(name="сырники", weight_g=160, kcal=330, protein=18)
+    text = food_refinement_user_text(estimate, "ещё полито джемом")
+    assert "Текущая оценка еды" in text
+    assert "сырники" in text
+    assert "ещё полито джемом" in text
 
 
 def test_parse_int_accepts_units() -> None:
