@@ -2,6 +2,8 @@
 
 ## 2026-05-19
 
+- Simplified today's food list into one-line entries and moved per-product
+  advice out of the dense entry list.
 - Made today's entry action keyboard compact by default, with entry edit,
   delete, and favorite controls hidden behind a "Редактировать" action.
 - Improved daily AI advice formatting with clearer spacing and emoji markers

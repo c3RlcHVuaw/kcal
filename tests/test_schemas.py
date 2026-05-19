@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from kcal_tracker.bot.handlers.diary import (
     ADVANCED_PATTERNS_UPSELL,
+    _entry_line,
     _entry_time_label,
     _today_view,
 )
@@ -167,6 +168,20 @@ def test_today_view_hides_advanced_patterns_without_subscription() -> None:
     assert "🎯 Фокус:" in text
     assert "🔒 " + ADVANCED_PATTERNS_UPSELL in text
     assert "Паттерны: пока мало истории" not in text
+
+
+def test_today_entry_line_is_compact_and_hides_item_advice() -> None:
+    entry = SimpleNamespace(
+        created_at=datetime(2026, 5, 19, 7, 20, tzinfo=UTC),
+        food_name="бутерброд из гриля",
+        weight_g=150,
+        kcal=350,
+        emoji="🥪",
+        advice="Длинный совет не должен попадать в список.",
+    )
+    line = _entry_line(1, entry, "Europe/Samara")
+    assert line == "1. 11:20 🥪 бутерброд из гриля, 150г — 350 ккал"
+    assert "Длинный совет" not in line
 
 
 def test_food_entries_keyboard_starts_compact() -> None:

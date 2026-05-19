@@ -660,14 +660,7 @@ def _today_view(
         lines.extend(["", "────────"])
         for index, entry in enumerate(summary.entries, start=1):
             entry_ids.append(entry.id)
-            weight = f", {entry.weight_g:.0f}г" if entry.weight_g else ""
-            lines.append(
-                f"#{index} {_entry_time_label(entry.created_at, timezone_name)} "
-                f"{food_label(entry)}{weight}"
-            )
-            lines.append(f"{entry.kcal:.0f} ккал")
-            if entry.advice:
-                lines.append(f"💡 {entry.advice}")
+            lines.append(_entry_line(index, entry, timezone_name))
 
     if include_advice:
         forecast = end_of_day_forecast(summary, patterns)
@@ -695,6 +688,14 @@ def _today_view(
         )
 
     return "\n".join(lines), food_entries_keyboard(entry_ids)
+
+
+def _entry_line(index: int, entry, timezone_name: str) -> str:
+    weight = f", {entry.weight_g:.0f}г" if entry.weight_g else ""
+    return (
+        f"{index}. {_entry_time_label(entry.created_at, timezone_name)} "
+        f"{food_label(entry)}{weight} — {entry.kcal:.0f} ккал"
+    )
 
 
 def _entry_time_label(created_at: datetime, timezone_name: str) -> str:
