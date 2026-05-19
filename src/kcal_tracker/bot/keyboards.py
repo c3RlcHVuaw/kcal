@@ -170,15 +170,12 @@ def food_entries_keyboard(entry_ids: list[int], *, expanded: bool = False) -> In
             rows.append(
                 [
                     InlineKeyboardButton(text="✏️ Редактировать", callback_data="entry:manage"),
-                    InlineKeyboardButton(text="📋 Все записи", callback_data="nav:today:full"),
+                    InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal"),
                 ]
             )
         else:
             rows.append([InlineKeyboardButton(text="➕ Еду", callback_data="nav:add-food")])
-        rows.append([InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal")])
-        return InlineKeyboardMarkup(
-            inline_keyboard=rows
-        )
+        return InlineKeyboardMarkup(inline_keyboard=rows)
 
     rows: list[list[InlineKeyboardButton]] = []
     for index, entry_id in enumerate(entry_ids, start=1):

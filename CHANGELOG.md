@@ -2,8 +2,10 @@
 
 ## 2026-05-19
 
-- Added a short default "Today" view with meal-based totals, smart issue
-  highlights, recent entries, and a full grouped entry view on demand.
+- Changed the "Today" view to show all entries immediately under meal sections
+  with each meal's calories, and removed the separate signals block.
+- Added a meal-grouped "Today" view with entries organized by breakfast, lunch,
+  dinner, and snacks.
 - Turned weekly analytics into a cleaner report with a weekly score and
   highlighted coaching notes.
 - Simplified today's food list into one-line entries and moved per-product

@@ -38,7 +38,6 @@ from kcal_tracker.services.nutrition import (
     remaining_advice,
     smart_day_coach,
     smart_evening_hint,
-    smart_problem_signals,
     weekly_coach_note,
     weekly_score,
 )
@@ -136,7 +135,6 @@ async def show_today_full_inline(callback: CallbackQuery) -> None:
         show_advanced_patterns=has_subscription,
         timezone_name=user.timezone,
         include_advice=True,
-        full_entries=True,
     )
     await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
@@ -668,7 +666,6 @@ def _today_view(
     show_advanced_patterns: bool = False,
     timezone_name: str = settings.default_timezone,
     include_advice: bool = False,
-    full_entries: bool = False,
 ):
     target_line = f"🔥 {summary.kcal:.0f} / {summary.target_kcal} ккал"
     if summary.activity_kcal:
@@ -688,32 +685,16 @@ def _today_view(
     entry_ids: list[int] = []
     if summary.entries:
         entry_ids = [entry.id for entry in summary.entries]
-        lines.extend(["", "🍽 По приёмам"])
-        lines.extend(_meal_summary_lines(summary.entries, timezone_name))
-        lines.extend(["", "🚦 Сигналы"])
-        lines.extend(smart_problem_signals(summary, water_ml))
-
-        if full_entries:
-            lines.extend(["", "📋 Все записи"])
-            for label, entries in _entries_by_meal(summary.entries, timezone_name):
-                if not entries:
-                    continue
-                lines.append("")
-                lines.append(label)
-                for entry in entries:
-                    index = summary.entries.index(entry) + 1
-                    lines.append(_entry_line(index, entry, timezone_name))
-        else:
-            latest_entries = summary.entries[-5:]
-            hidden_count = len(summary.entries) - len(latest_entries)
-            lines.extend(["", "🕘 Последние записи"])
-            for entry in latest_entries:
+        for label, entries in _entries_by_meal(summary.entries, timezone_name):
+            if not entries:
+                continue
+            kcal = sum(entry.kcal for entry in entries)
+            lines.extend(["", f"{label} - {kcal:.0f} ккал"])
+            for entry in entries:
                 index = summary.entries.index(entry) + 1
                 lines.append(_entry_line(index, entry, timezone_name))
-            if hidden_count > 0:
-                lines.append(f"…ещё {hidden_count} записей по кнопке «Все записи»")
     else:
-        lines.extend(["", "🚦 Сигналы", "🍽 Записей пока нет"])
+        lines.extend(["", "🍽 Записей пока нет"])
 
     if include_advice:
         forecast = end_of_day_forecast(summary, patterns)

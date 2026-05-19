@@ -189,7 +189,7 @@ def test_today_entry_line_is_compact_and_hides_item_advice() -> None:
     assert "Длинный совет" not in line
 
 
-def test_today_view_is_short_by_default_and_shows_meal_totals() -> None:
+def test_today_view_shows_all_entries_grouped_by_meal() -> None:
     entries = [
         SimpleNamespace(
             id=index,
@@ -215,11 +215,14 @@ def test_today_view_is_short_by_default_and_shows_meal_totals() -> None:
         entries=entries,
     )
     text, _ = _today_view(summary, 800, patterns=None, include_advice=False)
-    assert "🍽 По приёмам" in text
-    assert "🚦 Сигналы" in text
-    assert "🕘 Последние записи" in text
-    assert "…ещё 2 записей" in text
-    assert "1. " not in text
+    assert "🍽 По приёмам" not in text
+    assert "🚦 Сигналы" not in text
+    assert "🕘 Последние записи" not in text
+    assert "…ещё" not in text
+    assert "🌅 Завтрак - 100 ккал" in text
+    assert "☀️ Обед - 400 ккал" in text
+    assert "🍿 Перекусы - 200 ккал" in text
+    assert "7. " in text
 
 
 def test_full_today_view_groups_entries_by_meal() -> None:
@@ -278,10 +281,9 @@ def test_smart_problem_signals_prioritize_key_issues() -> None:
 def test_food_entries_keyboard_starts_compact() -> None:
     keyboard = food_entries_keyboard([10, 11, 12])
     rows = keyboard.inline_keyboard
-    assert len(rows) == 2
+    assert len(rows) == 1
     assert rows[0][0].callback_data == "entry:manage"
-    assert rows[0][1].callback_data == "nav:today:full"
-    assert rows[1][0].callback_data == "coach:meal"
+    assert rows[0][1].callback_data == "coach:meal"
 
 
 def test_food_entries_keyboard_expands_entry_actions() -> None:
