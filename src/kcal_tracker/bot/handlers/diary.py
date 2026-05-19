@@ -655,22 +655,23 @@ def _today_view(
         lines.extend(
             [
                 "",
-                "AI-совет дня:",
-                smart_day_coach(summary, water_ml),
-                f"Фокус: {daily_focus(summary, water_ml)}.",
+                "✨ AI-совет дня",
+                "",
+                f"✅ {smart_day_coach(summary, water_ml)}",
+                f"🎯 Фокус: {daily_focus(summary, water_ml)}.",
             ]
         )
         if forecast:
-            lines.append(forecast)
+            lines.append(f"🔮 {forecast}")
         if show_advanced_patterns:
-            lines.extend(automatic_pattern_notes(patterns)[:1])
+            lines.extend(f"📌 {note}" for note in automatic_pattern_notes(patterns)[:1])
         else:
-            lines.append(ADVANCED_PATTERNS_UPSELL)
+            lines.append(f"🔒 {ADVANCED_PATTERNS_UPSELL}")
         lines.extend(
             [
-                remaining_advice(summary),
-                diet_quality_note(summary),
-                smart_evening_hint(summary),
+                f"🍽 {remaining_advice(summary)}",
+                f"⚖️ {diet_quality_note(summary)}",
+                f"🌙 {smart_evening_hint(summary)}",
             ]
         )
 

@@ -162,6 +162,9 @@ def test_today_view_hides_advanced_patterns_without_subscription() -> None:
     )
     text, _ = _today_view(summary, 800, patterns=None, include_advice=True)
     assert ADVANCED_PATTERNS_UPSELL in text
+    assert "✨ AI-совет дня\n\n✅" in text
+    assert "🎯 Фокус:" in text
+    assert "🔒 " + ADVANCED_PATTERNS_UPSELL in text
     assert "Паттерны: пока мало истории" not in text
 
 

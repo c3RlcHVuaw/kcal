@@ -2,6 +2,8 @@
 
 ## 2026-05-19
 
+- Improved daily AI advice formatting with clearer spacing and emoji markers
+  so Telegram summaries are easier to scan.
 - Kept simple end-of-day forecasts free while limiting advanced historical
   nutrition patterns to active AI subscribers.
 - Added end-of-day calorie forecasting and automatic nutrition pattern notes
