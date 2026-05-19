@@ -38,6 +38,16 @@ class WeeklyAnalytics:
     days_in_target: int
 
 
+@dataclass(frozen=True)
+class NutritionPatterns:
+    tracked_days: int
+    average_evening_kcal: float
+    no_breakfast_days: int
+    no_breakfast_over_target_days: int
+    sweet_drink_days: int
+    sweet_drink_average_delta: float
+
+
 class DiaryService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -261,6 +271,79 @@ class DiaryService:
             days_in_target=days_in_target,
         )
 
+    async def nutrition_patterns(self, user: User, days: int = 21) -> NutritionPatterns:
+        tz = ZoneInfo(user.timezone)
+        today = datetime.now(tz).date()
+        start_date = today.fromordinal(today.toordinal() - days)
+        start = datetime.combine(start_date, time.min, tzinfo=tz)
+        end = datetime.combine(today, time.min, tzinfo=tz)
+
+        result = await self.session.execute(
+            select(FoodEntry)
+            .where(
+                FoodEntry.user_id == user.id,
+                FoodEntry.created_at >= start,
+                FoodEntry.created_at < end,
+            )
+            .order_by(FoodEntry.created_at.asc())
+        )
+
+        entries_by_date: dict[date, list[FoodEntry]] = defaultdict(list)
+        for entry in result.scalars():
+            created_at = _as_user_time(entry.created_at, tz)
+            entries_by_date[created_at.date()].append(entry)
+
+        day_kcal: list[float] = []
+        evening_kcal: list[float] = []
+        no_breakfast_days = 0
+        no_breakfast_over_target_days = 0
+        sweet_drink_day_kcal: list[float] = []
+        no_sweet_drink_day_kcal: list[float] = []
+
+        for entries in entries_by_date.values():
+            total = sum(entry.kcal for entry in entries)
+            if total <= 0:
+                continue
+
+            day_kcal.append(total)
+            has_breakfast = False
+            has_sweet_drink = False
+            evening_total = 0.0
+            for entry in entries:
+                created_at = _as_user_time(entry.created_at, tz)
+                if created_at.hour < 12:
+                    has_breakfast = True
+                if created_at.hour >= 18:
+                    evening_total += entry.kcal
+                if _looks_like_sweet_drink(entry.food_name):
+                    has_sweet_drink = True
+
+            if evening_total:
+                evening_kcal.append(evening_total)
+            if not has_breakfast:
+                no_breakfast_days += 1
+                if total > user.daily_kcal_target + 150:
+                    no_breakfast_over_target_days += 1
+            if has_sweet_drink:
+                sweet_drink_day_kcal.append(total)
+            else:
+                no_sweet_drink_day_kcal.append(total)
+
+        sweet_drink_delta = 0.0
+        if sweet_drink_day_kcal and no_sweet_drink_day_kcal:
+            sweet_drink_delta = _average(sweet_drink_day_kcal) - _average(
+                no_sweet_drink_day_kcal
+            )
+
+        return NutritionPatterns(
+            tracked_days=len(day_kcal),
+            average_evening_kcal=_average(evening_kcal),
+            no_breakfast_days=no_breakfast_days,
+            no_breakfast_over_target_days=no_breakfast_over_target_days,
+            sweet_drink_days=len(sweet_drink_day_kcal),
+            sweet_drink_average_delta=sweet_drink_delta,
+        )
+
     def _payload_from_entry(self, entry: FoodEntry) -> FoodEntryCreate:
         return FoodEntryCreate(
             name=entry.food_name,
@@ -274,3 +357,33 @@ class DiaryService:
             confidence=entry.confidence,
             source=entry.source,
         )
+
+
+def _as_user_time(value: datetime, tz: ZoneInfo) -> datetime:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(tz)
+
+
+def _average(values: list[float]) -> float:
+    return sum(values) / len(values) if values else 0.0
+
+
+def _looks_like_sweet_drink(name: str) -> bool:
+    lowered = name.casefold()
+    return any(
+        term in lowered
+        for term in (
+            "сок",
+            "кола",
+            "газиров",
+            "лимонад",
+            "морс",
+            "компот",
+            "энергетик",
+            "милкшейк",
+            "молочный коктейль",
+            "сироп",
+            "сладкий напит",
+        )
+    )

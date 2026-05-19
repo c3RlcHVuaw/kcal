@@ -9,10 +9,13 @@ from kcal_tracker.bot.text_parsing import (
 )
 from kcal_tracker.schemas import FoodEstimate
 from kcal_tracker.services.ai_food import food_refinement_user_text, photo_recognition_user_text
+from kcal_tracker.services.diary import NutritionPatterns
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
 from kcal_tracker.services.media import _sample_timestamps
 from kcal_tracker.services.nutrition import (
+    automatic_pattern_notes,
     daily_focus,
+    end_of_day_forecast,
     high_calorie_add_warning,
     is_high_calorie_food,
     meal_suggestion_text,
@@ -105,6 +108,39 @@ def test_weekly_coach_note_mentions_average_delta() -> None:
     note = weekly_coach_note(analytics)
     assert "AI-разбор недели" in note
     assert "перебор" in note
+
+
+def test_end_of_day_forecast_uses_usual_evening_kcal() -> None:
+    summary = SimpleNamespace(
+        kcal=1750,
+        target_kcal=2100,
+        entries=[SimpleNamespace()],
+    )
+    patterns = NutritionPatterns(
+        tracked_days=8,
+        average_evening_kcal=650,
+        no_breakfast_days=0,
+        no_breakfast_over_target_days=0,
+        sweet_drink_days=0,
+        sweet_drink_average_delta=0,
+    )
+    forecast = end_of_day_forecast(summary, patterns)
+    assert forecast is not None
+    assert "плюс примерно на 300 ккал" in forecast
+
+
+def test_automatic_pattern_notes_detect_no_breakfast_and_sweet_drinks() -> None:
+    patterns = NutritionPatterns(
+        tracked_days=10,
+        average_evening_kcal=620,
+        no_breakfast_days=4,
+        no_breakfast_over_target_days=3,
+        sweet_drink_days=3,
+        sweet_drink_average_delta=210,
+    )
+    notes = automatic_pattern_notes(patterns)
+    assert any("без завтрака" in note for note in notes)
+    assert any("сладкими напитками" in note for note in notes)
 
 
 def test_photo_recognition_user_text_includes_caption_hint() -> None:

@@ -2,6 +2,8 @@
 
 ## 2026-05-19
 
+- Added end-of-day calorie forecasting and automatic nutrition pattern notes
+  for skipped breakfasts, sweet drinks, and calorie-heavy evenings.
 - Added richer AI-style daily coaching, weekly nutrition analysis, and a
   "what should I eat?" suggestion action based on remaining calories, macros,
   and water.

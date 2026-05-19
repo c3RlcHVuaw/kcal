@@ -12,6 +12,7 @@ from kcal_tracker.database import SessionLocal
 from kcal_tracker.models import User
 from kcal_tracker.services.diary import DiaryService
 from kcal_tracker.services.nutrition import (
+    end_of_day_forecast,
     smart_evening_hint,
     smart_lunch_hint,
     smart_morning_hint,
@@ -76,9 +77,14 @@ async def _send_due_reminders(bot: Bot) -> None:
                 )
             ):
                 summary = await diary.today_summary(user)
+                patterns = await diary.nutrition_patterns(user)
+                forecast = end_of_day_forecast(summary, patterns)
+                text = "Пора свериться с обедом.\n" + smart_lunch_hint(summary)
+                if forecast:
+                    text += "\n" + forecast
                 await bot.send_message(
                     user.telegram_id,
-                    "Пора свериться с обедом.\n" + smart_lunch_hint(summary),
+                    text,
                 )
                 user.last_lunch_reminder_date = today
 

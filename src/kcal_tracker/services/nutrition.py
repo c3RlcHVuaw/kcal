@@ -215,6 +215,83 @@ def weekly_coach_note(analytics: Any) -> str:
     return "AI-разбор недели: " + "; ".join(notes) + "."
 
 
+def end_of_day_forecast(summary: DiarySummary, patterns: Any | None = None) -> str | None:
+    if not summary.entries:
+        return None
+
+    usual_evening_kcal = float(getattr(patterns, "average_evening_kcal", 0) or 0)
+    tracked_days = int(getattr(patterns, "tracked_days", 0) or 0)
+    if tracked_days < 3 or usual_evening_kcal < 150:
+        usual_evening_kcal = 450
+
+    projected_kcal = summary.kcal + usual_evening_kcal
+    projected_delta = projected_kcal - summary.target_kcal
+    if projected_delta > 150:
+        return (
+            "Прогноз: если ужин будет как обычно, "
+            "день может выйти "
+            f"в плюс примерно на {projected_delta:.0f} ккал."
+        )
+    if projected_delta < -250:
+        return (
+            "Прогноз: даже с обычным ужином останется "
+            "запас около "
+            f"{abs(projected_delta):.0f} ккал."
+        )
+    return (
+        "Прогноз: с обычным ужином день, скорее всего, "
+        "останется рядом с целью."
+    )
+
+
+def automatic_pattern_notes(patterns: Any | None) -> list[str]:
+    if patterns is None or int(getattr(patterns, "tracked_days", 0) or 0) < 5:
+        return [
+            "Паттерны: пока мало истории. Через несколько "
+            "дней записей "
+            "бот начнёт замечать повторяющиеся сценарии."
+        ]
+
+    tracked_days = int(patterns.tracked_days)
+    notes: list[str] = []
+
+    no_breakfast_days = int(patterns.no_breakfast_days)
+    no_breakfast_over_target_days = int(patterns.no_breakfast_over_target_days)
+    if no_breakfast_days >= 2:
+        ratio = no_breakfast_over_target_days / no_breakfast_days
+        if ratio >= 0.5:
+            notes.append(
+                "Паттерн: в дни без завтрака чаще получается "
+                "перебор к вечеру. Лучше занести хотя бы "
+                "лёгкий белковый завтрак."
+            )
+
+    sweet_drink_days = int(patterns.sweet_drink_days)
+    sweet_drink_delta = float(patterns.sweet_drink_average_delta)
+    if sweet_drink_days >= 2 and sweet_drink_delta >= 150:
+        notes.append(
+            "Паттерн: в дни со сладкими напитками "
+            "калорийность выше "
+            f"примерно на {sweet_drink_delta:.0f} ккал."
+        )
+
+    usual_evening_kcal = float(patterns.average_evening_kcal)
+    if usual_evening_kcal >= 600:
+        notes.append(
+            "Паттерн: вечером обычно набирается много "
+            "калорий "
+            f"(около {usual_evening_kcal:.0f}). Обед лучше держать легче."
+        )
+
+    if notes:
+        return notes
+    return [
+        f"Паттерны: за {tracked_days} дней явных "
+        "повторяющихся перекосов "
+        "не видно. Продолжаем собирать историю."
+    ]
+
+
 def smart_morning_hint(yesterday: DiarySummary) -> str:
     if not yesterday.entries:
         return "Вчера дневник пустой. Сегодня проще начать с завтрака и пары быстрых записей."

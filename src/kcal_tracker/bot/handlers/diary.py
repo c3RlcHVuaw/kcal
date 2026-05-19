@@ -30,8 +30,10 @@ from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.diary import DiaryService
 from kcal_tracker.services.food_insights import food_label
 from kcal_tracker.services.nutrition import (
+    automatic_pattern_notes,
     daily_focus,
     diet_quality_note,
+    end_of_day_forecast,
     meal_suggestion_text,
     remaining_advice,
     smart_day_coach,
@@ -63,12 +65,15 @@ async def show_today(message: Message) -> None:
             telegram_id=message.from_user.id,
             username=message.from_user.username,
         )
-        summary = await DiaryService(session).today_summary(user)
+        diary = DiaryService(session)
+        summary = await diary.today_summary(user)
+        patterns = await diary.nutrition_patterns(user)
         water_ml = await WellnessService(session).today_water_ml(user)
 
     text, reply_markup = _today_view(
         summary,
         water_ml,
+        patterns=patterns,
         timezone_name=user.timezone,
         include_advice=True,
     )
@@ -85,12 +90,15 @@ async def show_today_inline(callback: CallbackQuery) -> None:
             telegram_id=callback.from_user.id,
             username=callback.from_user.username,
         )
-        summary = await DiaryService(session).today_summary(user)
+        diary = DiaryService(session)
+        summary = await diary.today_summary(user)
+        patterns = await diary.nutrition_patterns(user)
         water_ml = await WellnessService(session).today_water_ml(user)
 
     text, reply_markup = _today_view(
         summary,
         water_ml,
+        patterns=patterns,
         timezone_name=user.timezone,
         include_advice=True,
     )
@@ -568,7 +576,9 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
             telegram_id=telegram_id,
             username=username,
         )
-        analytics = await DiaryService(session).weekly_analytics(user)
+        diary = DiaryService(session)
+        analytics = await diary.weekly_analytics(user)
+        patterns = await diary.nutrition_patterns(user)
 
     lines = [
         "Последние 7 дней:",
@@ -576,6 +586,7 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
         f"Среднее: {analytics.average_kcal:.0f} / {analytics.target_kcal} ккал",
         f"Дней рядом с целью: {analytics.days_in_target}",
         weekly_coach_note(analytics),
+        *automatic_pattern_notes(patterns),
         "",
     ]
     for day in analytics.days:
@@ -592,6 +603,7 @@ def _today_view(
     summary,
     water_ml: int,
     *,
+    patterns=None,
     timezone_name: str = settings.default_timezone,
     include_advice: bool = False,
 ):
@@ -626,12 +638,20 @@ def _today_view(
                 lines.append(f"💡 {entry.advice}")
 
     if include_advice:
+        forecast = end_of_day_forecast(summary, patterns)
         lines.extend(
             [
                 "",
                 "AI-совет дня:",
                 smart_day_coach(summary, water_ml),
                 f"Фокус: {daily_focus(summary, water_ml)}.",
+            ]
+        )
+        if forecast:
+            lines.append(forecast)
+        lines.extend(automatic_pattern_notes(patterns)[:1])
+        lines.extend(
+            [
                 remaining_advice(summary),
                 diet_quality_note(summary),
                 smart_evening_hint(summary),
