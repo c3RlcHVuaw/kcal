@@ -46,6 +46,10 @@ from kcal_tracker.services.wellness import WellnessService
 
 router = Router()
 
+ADVANCED_PATTERNS_UPSELL = (
+    "Продвинутые паттерны по завтракам, напиткам и вечерам доступны в подписке."
+)
+
 
 class DiaryFlow(StatesGroup):
     editing_saved_weight = State()
@@ -67,13 +71,15 @@ async def show_today(message: Message) -> None:
         )
         diary = DiaryService(session)
         summary = await diary.today_summary(user)
-        patterns = await diary.nutrition_patterns(user)
+        has_subscription = has_active_subscription(user)
+        patterns = await diary.nutrition_patterns(user) if has_subscription else None
         water_ml = await WellnessService(session).today_water_ml(user)
 
     text, reply_markup = _today_view(
         summary,
         water_ml,
         patterns=patterns,
+        show_advanced_patterns=has_subscription,
         timezone_name=user.timezone,
         include_advice=True,
     )
@@ -92,13 +98,15 @@ async def show_today_inline(callback: CallbackQuery) -> None:
         )
         diary = DiaryService(session)
         summary = await diary.today_summary(user)
-        patterns = await diary.nutrition_patterns(user)
+        has_subscription = has_active_subscription(user)
+        patterns = await diary.nutrition_patterns(user) if has_subscription else None
         water_ml = await WellnessService(session).today_water_ml(user)
 
     text, reply_markup = _today_view(
         summary,
         water_ml,
         patterns=patterns,
+        show_advanced_patterns=has_subscription,
         timezone_name=user.timezone,
         include_advice=True,
     )
@@ -578,7 +586,8 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
         )
         diary = DiaryService(session)
         analytics = await diary.weekly_analytics(user)
-        patterns = await diary.nutrition_patterns(user)
+        has_subscription = has_active_subscription(user)
+        patterns = await diary.nutrition_patterns(user) if has_subscription else None
 
     lines = [
         "Последние 7 дней:",
@@ -586,9 +595,12 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
         f"Среднее: {analytics.average_kcal:.0f} / {analytics.target_kcal} ккал",
         f"Дней рядом с целью: {analytics.days_in_target}",
         weekly_coach_note(analytics),
-        *automatic_pattern_notes(patterns),
-        "",
     ]
+    if has_subscription:
+        lines.extend(automatic_pattern_notes(patterns))
+    else:
+        lines.append(ADVANCED_PATTERNS_UPSELL)
+    lines.append("")
     for day in analytics.days:
         marker = "·" if day.entries_count else " "
         lines.append(
@@ -604,6 +616,7 @@ def _today_view(
     water_ml: int,
     *,
     patterns=None,
+    show_advanced_patterns: bool = False,
     timezone_name: str = settings.default_timezone,
     include_advice: bool = False,
 ):
@@ -649,7 +662,10 @@ def _today_view(
         )
         if forecast:
             lines.append(forecast)
-        lines.extend(automatic_pattern_notes(patterns)[:1])
+        if show_advanced_patterns:
+            lines.extend(automatic_pattern_notes(patterns)[:1])
+        else:
+            lines.append(ADVANCED_PATTERNS_UPSELL)
         lines.extend(
             [
                 remaining_advice(summary),

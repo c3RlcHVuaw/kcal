@@ -1,7 +1,11 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-from kcal_tracker.bot.handlers.diary import _entry_time_label
+from kcal_tracker.bot.handlers.diary import (
+    ADVANCED_PATTERNS_UPSELL,
+    _entry_time_label,
+    _today_view,
+)
 from kcal_tracker.bot.text_parsing import (
     looks_like_activity,
     parse_activity_kcal,
@@ -141,6 +145,24 @@ def test_automatic_pattern_notes_detect_no_breakfast_and_sweet_drinks() -> None:
     notes = automatic_pattern_notes(patterns)
     assert any("без завтрака" in note for note in notes)
     assert any("сладкими напитками" in note for note in notes)
+
+
+def test_today_view_hides_advanced_patterns_without_subscription() -> None:
+    summary = SimpleNamespace(
+        kcal=900,
+        target_kcal=2000,
+        activity_kcal=0,
+        protein=45,
+        target_protein=120,
+        fat=30,
+        target_fat=70,
+        carbs=110,
+        target_carbs=230,
+        entries=[],
+    )
+    text, _ = _today_view(summary, 800, patterns=None, include_advice=True)
+    assert ADVANCED_PATTERNS_UPSELL in text
+    assert "Паттерны: пока мало истории" not in text
 
 
 def test_photo_recognition_user_text_includes_caption_hint() -> None:

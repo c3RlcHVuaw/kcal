@@ -17,6 +17,7 @@ from kcal_tracker.services.nutrition import (
     smart_lunch_hint,
     smart_morning_hint,
 )
+from kcal_tracker.services.subscriptions import has_active_subscription
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,11 @@ async def _send_due_reminders(bot: Bot) -> None:
                 )
             ):
                 summary = await diary.today_summary(user)
-                patterns = await diary.nutrition_patterns(user)
+                patterns = (
+                    await diary.nutrition_patterns(user)
+                    if has_active_subscription(user)
+                    else None
+                )
                 forecast = end_of_day_forecast(summary, patterns)
                 text = "Пора свериться с обедом.\n" + smart_lunch_hint(summary)
                 if forecast:

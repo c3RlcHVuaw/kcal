@@ -2,6 +2,8 @@
 
 ## 2026-05-19
 
+- Kept simple end-of-day forecasts free while limiting advanced historical
+  nutrition patterns to active AI subscribers.
 - Added end-of-day calorie forecasting and automatic nutrition pattern notes
   for skipped breakfasts, sweet drinks, and calorie-heavy evenings.
 - Added richer AI-style daily coaching, weekly nutrition analysis, and a
