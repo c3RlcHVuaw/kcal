@@ -87,6 +87,15 @@ def confirm_food_keyboard(prefix: str) -> InlineKeyboardMarkup:
     )
 
 
+def calorie_warning_keyboard(confirm_callback: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Да, добавить", callback_data=confirm_callback)],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="food:cancel")],
+        ]
+    )
+
+
 def after_save_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -216,13 +225,43 @@ def multi_food_keyboard(count: int, added_indices: set[int] | None = None) -> In
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def reminders_keyboard(enabled: bool) -> InlineKeyboardMarkup:
-    toggle_text = "Выключить напоминания" if enabled else "Включить напоминания"
-    toggle_value = "off" if enabled else "on"
+def reminders_keyboard(user) -> InlineKeyboardMarkup:
+    toggle_text = (
+        "Выключить все напоминания" if user.reminders_enabled else "Включить напоминания"
+    )
+    toggle_value = "off" if user.reminders_enabled else "on"
+    meal_toggle_text = (
+        "Выключить напоминания о еде"
+        if user.meal_reminders_enabled
+        else "Включить напоминания о еде"
+    )
+    meal_toggle_value = "off" if user.meal_reminders_enabled else "on"
+    weight_toggle_text = (
+        "Выключить напоминание о весе"
+        if user.weight_reminders_enabled
+        else "Включить напоминание о весе"
+    )
+    weight_toggle_value = "off" if user.weight_reminders_enabled else "on"
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=toggle_text, callback_data=f"reminders:{toggle_value}")],
-            [InlineKeyboardButton(text="Время ужина", callback_data="reminders:dinner")],
+            [
+                InlineKeyboardButton(
+                    text=meal_toggle_text,
+                    callback_data=f"reminders:meal:{meal_toggle_value}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=weight_toggle_text,
+                    callback_data=f"reminders:weight-toggle:{weight_toggle_value}",
+                )
+            ],
+            [
+                InlineKeyboardButton(text="Время утром", callback_data="reminders:breakfast"),
+                InlineKeyboardButton(text="Время обеда", callback_data="reminders:lunch"),
+            ],
+            [InlineKeyboardButton(text="Время вечера", callback_data="reminders:dinner")],
             [InlineKeyboardButton(text="Время веса", callback_data="reminders:weight")],
         ]
     )

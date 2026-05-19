@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from kcal_tracker.models import ActivityLog, FoodEntry, User
 from kcal_tracker.schemas import DiarySummary, FoodEntryCreate
+from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
 from kcal_tracker.services.profile import calculate_macro_targets
 
 
@@ -42,6 +43,7 @@ class DiaryService:
         self.session = session
 
     async def add_entry(self, user: User, payload: FoodEntryCreate) -> FoodEntry:
+        payload = enrich_food_payload(payload)
         entry = FoodEntry(
             user_id=user.id,
             food_name=payload.name,
@@ -50,6 +52,8 @@ class DiaryService:
             fat=round(payload.fat, 1),
             carbs=round(payload.carbs, 1),
             weight_g=round(payload.weight_g, 1) if payload.weight_g is not None else None,
+            emoji=payload.emoji,
+            advice=payload.advice,
             source=payload.source,
             confidence=payload.confidence,
         )
@@ -110,6 +114,15 @@ class DiaryService:
                 fat=entry.fat,
                 carbs=entry.carbs,
                 weight_g=entry.weight_g,
+                emoji=entry.emoji or food_emoji(entry.food_name),
+                advice=entry.advice
+                or food_advice(
+                    entry.food_name,
+                    kcal=entry.kcal,
+                    protein=entry.protein,
+                    fat=entry.fat,
+                    carbs=entry.carbs,
+                ),
                 source=entry.source,
                 confidence=entry.confidence,
             )
@@ -122,8 +135,11 @@ class DiaryService:
         return repeated
 
     async def today_summary(self, user: User) -> DiarySummary:
-        entries = await self.entries_for_day_offset(user, days_ago=0)
-        activity_kcal = await self.activity_kcal_for_day_offset(user, days_ago=0)
+        return await self.summary_for_day_offset(user, days_ago=0)
+
+    async def summary_for_day_offset(self, user: User, days_ago: int) -> DiarySummary:
+        entries = await self.entries_for_day_offset(user, days_ago=days_ago)
+        activity_kcal = await self.activity_kcal_for_day_offset(user, days_ago=days_ago)
         protein_target, fat_target, carbs_target = calculate_macro_targets(user)
         return DiarySummary(
             kcal=sum(item.kcal for item in entries),
@@ -253,6 +269,8 @@ class DiaryService:
             fat=entry.fat,
             carbs=entry.carbs,
             weight_g=entry.weight_g,
+            emoji=entry.emoji,
+            advice=entry.advice,
             confidence=entry.confidence,
             source=entry.source,
         )

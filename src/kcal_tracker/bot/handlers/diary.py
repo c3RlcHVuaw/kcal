@@ -24,6 +24,7 @@ from kcal_tracker.schemas import ActivityEstimate, FoodEntryCreate
 from kcal_tracker.services.ai_activity import AIActivityService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.diary import DiaryService
+from kcal_tracker.services.food_insights import food_label
 from kcal_tracker.services.nutrition import (
     diet_quality_note,
     remaining_advice,
@@ -110,7 +111,7 @@ async def save_entry_weight(message: Message, state: FSMContext) -> None:
         await message.answer("Не нашёл эту запись.")
     else:
         await message.answer(
-            f"Обновил: {entry.food_name} — {entry.weight_g:.0f}г, {entry.kcal:.0f} ккал.",
+            f"Обновил: {food_label(entry)} — {entry.weight_g:.0f}г, {entry.kcal:.0f} ккал.",
             reply_markup=after_save_keyboard(),
         )
 
@@ -142,7 +143,7 @@ async def favorite_saved_entry(callback: CallbackQuery) -> None:
             await callback.answer("Не нашёл эту запись.", show_alert=True)
             return
         favorite = await WellnessService(session).add_favorite_from_entry(user, entry)
-    await callback.answer(f"В избранном: {favorite.food_name}", show_alert=True)
+    await callback.answer(f"В избранном: {food_label(favorite)}", show_alert=True)
 
 
 @router.message(F.text == "💧 Вода")
@@ -325,7 +326,7 @@ async def _favorites_view(telegram_id: int, username: str | None):
     lines = ["Любимое:", ""]
     for index, favorite in enumerate(favorites, start=1):
         weight = f", {favorite.weight_g:.0f}г" if favorite.weight_g else ""
-        lines.append(f"#{index} {favorite.food_name}{weight} — {favorite.kcal:.0f} ккал")
+        lines.append(f"#{index} {food_label(favorite)}{weight} — {favorite.kcal:.0f} ккал")
     return (
         "\n".join(lines),
         favorites_keyboard([favorite.id for favorite in favorites]),
@@ -356,7 +357,7 @@ async def save_manual_favorite(message: Message, state: FSMContext) -> None:
         favorite = await WellnessService(session).add_favorite(user, payload)
     await state.clear()
     await message.answer(
-        f"Добавил в любимое: {favorite.food_name}.",
+        f"Добавил в любимое: {food_label(favorite)}.",
         reply_markup=after_save_keyboard(),
     )
 
@@ -376,7 +377,7 @@ async def add_favorite_to_diary(callback: CallbackQuery) -> None:
             return
         entry = await DiaryService(session).add_entry(user, wellness.favorite_payload(favorite))
     await callback.message.edit_text(
-        f"Готово: {entry.food_name} — {entry.kcal:.0f} ккал.",
+        f"Готово: {food_label(entry)} — {entry.kcal:.0f} ккал.",
         reply_markup=after_save_keyboard(),
     )
     await callback.answer()
@@ -397,26 +398,26 @@ async def delete_favorite(callback: CallbackQuery) -> None:
 
 @router.message(F.text.in_({"⏰ Напомнить", "⏰ Напоминания"}))
 async def show_reminders(message: Message) -> None:
-    text, enabled = await _reminders_view(message.from_user.id, message.from_user.username)
-    await message.answer(text, reply_markup=reminders_keyboard(enabled))
+    text, reply_markup = await _reminders_view(message.from_user.id, message.from_user.username)
+    await message.answer(text, reply_markup=reply_markup)
 
 
 @router.callback_query(F.data == "nav:reminders")
 async def show_reminders_inline(callback: CallbackQuery) -> None:
-    text, enabled = await _reminders_view(callback.from_user.id, callback.from_user.username)
-    await callback.message.edit_text(text, reply_markup=reminders_keyboard(enabled))
+    text, reply_markup = await _reminders_view(callback.from_user.id, callback.from_user.username)
+    await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
 
 
-async def _reminders_view(telegram_id: int, username: str | None) -> tuple[str, bool]:
+async def _reminders_view(telegram_id: int, username: str | None):
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
             telegram_id,
             username,
         )
         text = _reminders_text(user)
-        enabled = user.reminders_enabled
-    return text, enabled
+        reply_markup = reminders_keyboard(user)
+    return text, reply_markup
 
 
 @router.callback_query(F.data.in_({"reminders:on", "reminders:off"}))
@@ -431,11 +432,50 @@ async def toggle_reminders(callback: CallbackQuery) -> None:
         await session.commit()
         await session.refresh(user)
         text = _reminders_text(user)
-    await callback.message.edit_text(text, reply_markup=reminders_keyboard(enabled))
+        reply_markup = reminders_keyboard(user)
+    await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
 
 
-@router.callback_query(F.data.in_({"reminders:dinner", "reminders:weight"}))
+@router.callback_query(
+    F.data.in_(
+        {
+            "reminders:meal:on",
+            "reminders:meal:off",
+            "reminders:weight-toggle:on",
+            "reminders:weight-toggle:off",
+        }
+    )
+)
+async def toggle_reminder_kind(callback: CallbackQuery) -> None:
+    parts = callback.data.split(":")
+    kind = parts[1]
+    enabled = parts[2] == "on"
+    field = "meal_reminders_enabled" if kind == "meal" else "weight_reminders_enabled"
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        setattr(user, field, enabled)
+        await session.commit()
+        await session.refresh(user)
+        text = _reminders_text(user)
+        reply_markup = reminders_keyboard(user)
+    await callback.message.edit_text(text, reply_markup=reply_markup)
+    await callback.answer()
+
+
+@router.callback_query(
+    F.data.in_(
+        {
+            "reminders:breakfast",
+            "reminders:lunch",
+            "reminders:dinner",
+            "reminders:weight",
+        }
+    )
+)
 async def ask_reminder_time(callback: CallbackQuery, state: FSMContext) -> None:
     reminder = callback.data.rsplit(":", 1)[1]
     await state.update_data(reminder=reminder)
@@ -451,7 +491,13 @@ async def save_reminder_time(message: Message, state: FSMContext) -> None:
         await message.answer("Нужно время в формате HH:MM, например 09:00.")
         return
     data = await state.get_data()
-    field = "dinner_reminder_time" if data["reminder"] == "dinner" else "weight_reminder_time"
+    fields = {
+        "breakfast": "breakfast_reminder_time",
+        "lunch": "lunch_reminder_time",
+        "dinner": "dinner_reminder_time",
+        "weight": "weight_reminder_time",
+    }
+    field = fields[data["reminder"]]
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
             message.from_user.id,
@@ -461,8 +507,9 @@ async def save_reminder_time(message: Message, state: FSMContext) -> None:
         await session.commit()
         await session.refresh(user)
         text = _reminders_text(user)
+        reply_markup = reminders_keyboard(user)
     await state.clear()
-    await message.answer(text, reply_markup=reminders_keyboard(user.reminders_enabled))
+    await message.answer(text, reply_markup=reply_markup)
 
 
 @router.message(lambda message: message.text in {"📈 7 дней", "📈 Неделя"})
@@ -525,8 +572,10 @@ def _today_view(summary, water_ml: int, include_advice: bool = False):
         for index, entry in enumerate(summary.entries, start=1):
             entry_ids.append(entry.id)
             weight = f", {entry.weight_g:.0f}г" if entry.weight_g else ""
-            lines.append(f"#{index} {entry.created_at:%H:%M} {entry.name}{weight}")
+            lines.append(f"#{index} {entry.created_at:%H:%M} {food_label(entry)}{weight}")
             lines.append(f"{entry.kcal:.0f} ккал")
+            if entry.advice:
+                lines.append(f"💡 {entry.advice}")
 
     if include_advice:
         lines.extend(
@@ -547,13 +596,18 @@ def _macro_line(label: str, value: float, target: float) -> str:
 
 def _reminders_text(user) -> str:
     status = "включены" if user.reminders_enabled else "выключены"
+    meal_status = "включены" if user.meal_reminders_enabled else "выключены"
+    weight_status = "включены" if user.weight_reminders_enabled else "выключены"
     return "\n".join(
         [
             "Напоминания:",
             "",
-            f"Статус: {status}",
-            f"Ужин: {user.dinner_reminder_time or '20:30'}",
-            f"Вес утром: {user.weight_reminder_time or '09:00'}",
+            f"Общий статус: {status}",
+            f"Еда: {meal_status}",
+            f"Утро: {user.breakfast_reminder_time or '10:00'}",
+            f"Обед: {user.lunch_reminder_time or '14:00'}",
+            f"Вечер: {user.dinner_reminder_time or '20:30'}",
+            f"Вес: {weight_status}, {user.weight_reminder_time or '09:00'}",
         ]
     )
 

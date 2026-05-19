@@ -1,7 +1,21 @@
 # Changelog
 
+## 2026-05-19
+
+- Fixed photo meal recognition silently doing nothing on slow AI responses by
+  extending OpenAI timeouts and replying with progress or a retry message.
+
 ## 2026-05-18
 
+- Added AI food emoji and per-product advice in confirmations, diary entries,
+  favorites, frequent foods, and repeated meals.
+- Added fallback food insights for barcode and manual favorite entries.
+- Expanded reminders with separate food/weight toggles plus smart morning,
+  lunch, and evening meal nudges.
+- Added an extra confirmation warning before saving another high-calorie item
+  when today's diary is already calorie-dense or near the daily target.
+- Fixed AI photo recognition with text captions so user hints about grams,
+  hidden ingredients, sauces, or partial portions are included in the vision prompt.
 - Improved barcode recognition from Telegram video notes by sampling more frames
   and decoding enhanced, cropped, upscaled, thresholded, and rotated image variants.
 - Simplified the Telegram reply keyboard to the primary food, diary, water,

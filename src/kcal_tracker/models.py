@@ -45,8 +45,14 @@ class User(Base):
     fat_target_g: Mapped[float | None] = mapped_column(Float)
     carbs_target_g: Mapped[float | None] = mapped_column(Float)
     reminders_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    meal_reminders_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    weight_reminders_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    breakfast_reminder_time: Mapped[str | None] = mapped_column(String(5), default="10:00")
+    lunch_reminder_time: Mapped[str | None] = mapped_column(String(5), default="14:00")
     dinner_reminder_time: Mapped[str | None] = mapped_column(String(5), default="20:30")
     weight_reminder_time: Mapped[str | None] = mapped_column(String(5), default="09:00")
+    last_breakfast_reminder_date: Mapped[date | None] = mapped_column(Date)
+    last_lunch_reminder_date: Mapped[date | None] = mapped_column(Date)
     last_dinner_reminder_date: Mapped[date | None] = mapped_column(Date)
     last_weight_reminder_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(
@@ -97,6 +103,8 @@ class FoodEntry(Base):
     fat: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     carbs: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     weight_g: Mapped[float | None] = mapped_column(Float)
+    emoji: Mapped[str | None] = mapped_column(String(16))
+    advice: Mapped[str | None] = mapped_column(String(255))
     source: Mapped[str] = mapped_column(String(32), nullable=False)
     confidence: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(
@@ -139,6 +147,8 @@ class FavoriteFood(Base):
     fat: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     carbs: Mapped[float] = mapped_column(Float, nullable=False, default=0)
     weight_g: Mapped[float | None] = mapped_column(Float)
+    emoji: Mapped[str | None] = mapped_column(String(16))
+    advice: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

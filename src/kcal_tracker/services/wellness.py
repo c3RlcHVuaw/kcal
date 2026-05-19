@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from kcal_tracker.models import ActivityLog, FavoriteFood, FoodEntry, User, WaterLog, WeightLog
 from kcal_tracker.schemas import ActivityEstimate, FoodEntryCreate
+from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
 
 
 class WellnessService:
@@ -85,6 +86,15 @@ class WellnessService:
             fat=entry.fat,
             carbs=entry.carbs,
             weight_g=entry.weight_g,
+            emoji=entry.emoji or food_emoji(entry.food_name),
+            advice=entry.advice
+            or food_advice(
+                entry.food_name,
+                kcal=entry.kcal,
+                protein=entry.protein,
+                fat=entry.fat,
+                carbs=entry.carbs,
+            ),
         )
         self.session.add(favorite)
         await self.session.commit()
@@ -92,6 +102,7 @@ class WellnessService:
         return favorite
 
     async def add_favorite(self, user: User, payload: FoodEntryCreate) -> FavoriteFood:
+        payload = enrich_food_payload(payload)
         favorite = FavoriteFood(
             user_id=user.id,
             food_name=payload.name,
@@ -100,6 +111,8 @@ class WellnessService:
             fat=round(payload.fat, 1),
             carbs=round(payload.carbs, 1),
             weight_g=round(payload.weight_g, 1) if payload.weight_g is not None else None,
+            emoji=payload.emoji,
+            advice=payload.advice,
         )
         self.session.add(favorite)
         await self.session.commit()
@@ -137,6 +150,8 @@ class WellnessService:
             fat=favorite.fat,
             carbs=favorite.carbs,
             weight_g=favorite.weight_g,
+            emoji=favorite.emoji,
+            advice=favorite.advice,
             confidence=None,
             source="manual",
         )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -9,6 +10,7 @@ from aiogram.types import CallbackQuery, Message
 
 from kcal_tracker.bot.keyboards import (
     after_save_keyboard,
+    calorie_warning_keyboard,
     confirm_food_keyboard,
     frequent_foods_keyboard,
     multi_food_keyboard,
@@ -21,17 +23,20 @@ from kcal_tracker.services.ai_food import AIFoodService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService
 from kcal_tracker.services.diary import DiaryService
+from kcal_tracker.services.food_insights import enrich_food_payload, food_label
 from kcal_tracker.services.media import (
     MediaProcessingError,
     convert_audio_to_mp3,
     extract_frame_from_video,
     extract_frames_from_video,
 )
+from kcal_tracker.services.nutrition import high_calorie_add_warning
 from kcal_tracker.services.open_food_facts import OpenFoodFactsService, ProductNotFoundError
 from kcal_tracker.services.subscriptions import has_active_subscription
 from kcal_tracker.services.users import UserService
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 
 class FoodFlow(StatesGroup):
@@ -131,7 +136,12 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
             barcode = await _decode_barcode_from_frames(image_frames)
             if barcode is None:
                 if message.photo:
-                    await _recognize_food_photo(message, state, image_frames[0])
+                    await _recognize_food_photo(
+                        message,
+                        state,
+                        image_frames[0],
+                        text_hint=message.caption,
+                    )
                     return
                 await message.answer(
                     "Штрихкод не считался. Попробуй фото ближе, без бликов и под прямым углом."
@@ -146,14 +156,16 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
                 )
                 return
 
-        estimate = FoodEstimate(
-            name=product.product_name,
-            weight_g=100,
-            kcal=product.kcal_100g or 0,
-            protein=product.protein_100g or 0,
-            fat=product.fat_100g or 0,
-            carbs=product.carbs_100g or 0,
-            confidence=0.9,
+        estimate = enrich_food_payload(
+            FoodEstimate(
+                name=product.product_name,
+                weight_g=100,
+                kcal=product.kcal_100g or 0,
+                protein=product.protein_100g or 0,
+                fat=product.fat_100g or 0,
+                carbs=product.carbs_100g or 0,
+                confidence=0.9,
+            )
         )
         await _show_confirmation(message, state, estimate, "barcode")
         return
@@ -165,7 +177,7 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
         )
         return
 
-    await _recognize_food_photo(message, state, image_bytes)
+    await _recognize_food_photo(message, state, image_bytes, text_hint=message.caption)
 
 
 @router.message(F.text.in_({"⚡ Частое", "⭐ Частые продукты"}))
@@ -205,7 +217,7 @@ async def _frequent_foods_view(telegram_id: int, username: str | None):
     for index, item in enumerate(frequent, start=1):
         weight = f", {item.entry.weight_g:.0f}г" if item.entry.weight_g else ""
         lines.append(
-            f"#{index} {item.entry.food_name}{weight} — {item.entry.kcal:.0f} ккал "
+            f"#{index} {food_label(item.entry)}{weight} — {item.entry.kcal:.0f} ккал "
             f"({item.count} раза)"
         )
     entry_ids = [item.entry.id for item in frequent]
@@ -289,7 +301,7 @@ async def repeat_frequent_food(callback: CallbackQuery) -> None:
         await callback.answer("Не нашёл эту запись.", show_alert=True)
         return
     await callback.message.edit_text(
-        f"Готово: {entry.food_name} — {entry.kcal:.0f} ккал.",
+        f"Готово: {food_label(entry)} — {entry.kcal:.0f} ккал.",
         reply_markup=after_save_keyboard(),
     )
     await callback.answer()
@@ -302,6 +314,39 @@ async def confirm_all_foods(callback: CallbackQuery, state: FSMContext) -> None:
     source = data["source"]
     added_indices = set(data.get("added_indices", []))
 
+    warning = await _multi_food_warning(
+        callback.from_user.id,
+        callback.from_user.username,
+        estimates,
+        added_indices,
+    )
+    if warning:
+        await callback.message.edit_text(
+            warning,
+            reply_markup=calorie_warning_keyboard("foodmulti:all-anyway"),
+        )
+        await callback.answer()
+        return
+
+    await _add_all_foods(callback, state, estimates, source, added_indices)
+
+
+@router.callback_query(F.data == "foodmulti:all-anyway")
+async def confirm_all_foods_anyway(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    estimates = FoodEstimateList.model_validate_json(data["estimates"])
+    source = data["source"]
+    added_indices = set(data.get("added_indices", []))
+    await _add_all_foods(callback, state, estimates, source, added_indices)
+
+
+async def _add_all_foods(
+    callback: CallbackQuery,
+    state: FSMContext,
+    estimates: FoodEstimateList,
+    source: str,
+    added_indices: set[int],
+) -> None:
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
             telegram_id=callback.from_user.id,
@@ -338,6 +383,50 @@ async def confirm_one_food(callback: CallbackQuery, state: FSMContext) -> None:
         return
     estimate = estimates.foods[index]
 
+    warning = await _food_warning(callback.from_user.id, callback.from_user.username, estimate)
+    if warning:
+        await callback.message.edit_text(
+            warning,
+            reply_markup=calorie_warning_keyboard(f"foodmulti:add-anyway:{index}"),
+        )
+        await callback.answer()
+        return
+
+    await _add_one_food(callback, state, index, estimate, data["source"], estimates, added_indices)
+
+
+@router.callback_query(F.data.startswith("foodmulti:add-anyway:"))
+async def confirm_one_food_anyway(callback: CallbackQuery, state: FSMContext) -> None:
+    index = int(callback.data.rsplit(":", 1)[1])
+    data = await state.get_data()
+    estimates = FoodEstimateList.model_validate_json(data["estimates"])
+    added_indices = set(data.get("added_indices", []))
+    if index >= len(estimates.foods):
+        await callback.answer("Не нашёл позицию.", show_alert=True)
+        return
+    if index in added_indices:
+        await callback.answer("Эта позиция уже добавлена.", show_alert=True)
+        return
+    await _add_one_food(
+        callback,
+        state,
+        index,
+        estimates.foods[index],
+        data["source"],
+        estimates,
+        added_indices,
+    )
+
+
+async def _add_one_food(
+    callback: CallbackQuery,
+    state: FSMContext,
+    index: int,
+    estimate: FoodEstimate,
+    source: str,
+    estimates: FoodEstimateList,
+    added_indices: set[int],
+) -> None:
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
             telegram_id=callback.from_user.id,
@@ -345,7 +434,7 @@ async def confirm_one_food(callback: CallbackQuery, state: FSMContext) -> None:
         )
         await DiaryService(session).add_entry(
             user,
-            FoodEntryCreate(**estimate.model_dump(), source=data["source"]),
+            FoodEntryCreate(**estimate.model_dump(), source=source),
         )
 
     added_indices.add(index)
@@ -396,6 +485,31 @@ async def confirm_food(callback: CallbackQuery, state: FSMContext) -> None:
     estimate = FoodEstimate.model_validate_json(data["estimate"])
     source = data["source"]
 
+    warning = await _food_warning(callback.from_user.id, callback.from_user.username, estimate)
+    if warning:
+        await callback.message.edit_text(
+            warning,
+            reply_markup=calorie_warning_keyboard("food:confirm-anyway"),
+        )
+        await callback.answer()
+        return
+
+    await _add_confirmed_food(callback, state, estimate, source)
+
+
+@router.callback_query(F.data == "food:confirm-anyway")
+async def confirm_food_anyway(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    estimate = FoodEstimate.model_validate_json(data["estimate"])
+    await _add_confirmed_food(callback, state, estimate, data["source"])
+
+
+async def _add_confirmed_food(
+    callback: CallbackQuery,
+    state: FSMContext,
+    estimate: FoodEstimate,
+    source: str,
+) -> None:
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
             telegram_id=callback.from_user.id,
@@ -408,7 +522,7 @@ async def confirm_food(callback: CallbackQuery, state: FSMContext) -> None:
 
     await state.clear()
     await callback.message.edit_text(
-        f"Добавил: {estimate.name} — {estimate.kcal:.0f} ккал.",
+        _format_saved_food(estimate),
         reply_markup=after_save_keyboard(),
     )
     await callback.answer()
@@ -463,11 +577,28 @@ async def _show_confirmation(
     )
 
 
-async def _recognize_food_photo(message: Message, state: FSMContext, image_bytes: bytes) -> None:
+async def _recognize_food_photo(
+    message: Message,
+    state: FSMContext,
+    image_bytes: bytes,
+    text_hint: str | None = None,
+) -> None:
     if not await _ensure_ai_available(message):
         return
 
-    estimates = await AIFoodService().recognize_photo(image_bytes)
+    await message.answer(
+        "Фото получил, распознаю еду. Обычно это занимает несколько секунд."
+    )
+    try:
+        estimates = await AIFoodService().recognize_photo(image_bytes, text_hint=text_hint)
+    except Exception:
+        logger.exception("AI photo recognition failed")
+        await message.answer(
+            "Не смог сейчас распознать фото. "
+            "Попробуй отправить его ещё раз или напиши еду текстом."
+        )
+        return
+
     await _record_ai_request(message, "photo")
     if not estimates.foods or (estimates.foods[0].confidence or 0) < 0.35:
         await message.answer("Не вижу еду достаточно уверенно. Попробуй другое фото или угол.")
@@ -536,6 +667,53 @@ async def _record_ai_request(message: Message, request_type: str) -> None:
         await AIUsageService(session).record_request(user, request_type)
 
 
+async def _food_warning(
+    telegram_id: int,
+    username: str | None,
+    estimate: FoodEstimate,
+) -> str | None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=telegram_id,
+            username=username,
+        )
+        summary = await DiaryService(session).today_summary(user)
+    return high_calorie_add_warning(summary, estimate)
+
+
+async def _multi_food_warning(
+    telegram_id: int,
+    username: str | None,
+    estimates: FoodEstimateList,
+    added_indices: set[int],
+) -> str | None:
+    pending = [
+        estimate
+        for index, estimate in enumerate(estimates.foods)
+        if index not in added_indices
+    ]
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=telegram_id,
+            username=username,
+        )
+        summary = await DiaryService(session).today_summary(user)
+
+    for estimate in pending:
+        warning = high_calorie_add_warning(summary, estimate)
+        if warning:
+            return warning.replace("ещё одну калорийную позицию", "эти позиции")
+
+    pending_kcal = sum(estimate.kcal for estimate in pending)
+    if pending_kcal and summary.kcal + pending_kcal > summary.target_kcal:
+        return (
+            "Если добавить всё, день выйдет примерно на "
+            f"{summary.kcal + pending_kcal:.0f} ккал при цели {summary.target_kcal}. "
+            "Точно добавить все позиции?"
+        )
+    return None
+
+
 async def _download_image_or_video_frame(message: Message) -> bytes | None:
     if message.photo:
         file = await message.bot.get_file(message.photo[-1].file_id)
@@ -587,10 +765,12 @@ def _format_estimate_confirmation(estimate: FoodEstimate) -> str:
     lines = [
         "Я нашёл:",
         "",
-        f"{estimate.name} — {estimate.weight_g or 0:.0f}г",
+        f"{food_label(estimate)} — {estimate.weight_g or 0:.0f}г",
         f"🔥 {estimate.kcal:.0f} ккал",
         f"Б {estimate.protein:.0f} / Ж {estimate.fat:.0f} / У {estimate.carbs:.0f} г",
     ]
+    if estimate.advice:
+        lines.extend(["", f"💡 {estimate.advice}"])
     if estimate.confidence is not None and estimate.confidence < 0.7:
         lines.extend(["", "Оценка примерная, проверь граммовку перед сохранением."])
     lines.extend(["", "Добавить в дневник?"])
@@ -607,10 +787,19 @@ def _format_multi_foods(
         marker = "✓" if index - 1 in added_indices else "#"
         weight = f", {estimate.weight_g:.0f}г" if estimate.weight_g else ""
         lines.append(
-            f"{marker}{index} {estimate.name}{weight} — {estimate.kcal:.0f} ккал, "
+            f"{marker}{index} {food_label(estimate)}{weight} — {estimate.kcal:.0f} ккал, "
             f"Б {estimate.protein:.0f} / Ж {estimate.fat:.0f} / У {estimate.carbs:.0f}"
         )
+        if estimate.advice:
+            lines.append(f"   💡 {estimate.advice}")
     lines.extend(["", "Добавь нужные позиции или всё сразу."])
+    return "\n".join(lines)
+
+
+def _format_saved_food(estimate: FoodEstimate) -> str:
+    lines = [f"Добавил: {food_label(estimate)} — {estimate.kcal:.0f} ккал."]
+    if estimate.advice:
+        lines.append(f"💡 {estimate.advice}")
     return "\n".join(lines)
 
 

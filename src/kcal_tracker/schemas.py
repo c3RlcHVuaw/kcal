@@ -13,6 +13,8 @@ class FoodEstimate(BaseModel):
     fat: float = Field(default=0, ge=0)
     carbs: float = Field(default=0, ge=0)
     confidence: float | None = Field(default=None, ge=0, lt=1)
+    emoji: str | None = Field(default=None, max_length=16)
+    advice: str | None = Field(default=None, max_length=255)
 
 
 class FoodEstimateList(BaseModel):

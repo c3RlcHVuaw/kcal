@@ -34,13 +34,16 @@ API health should return:
 - Main menu exposes scan, manual add, day summary, calories, weekly analytics,
   frequent foods, yesterday repeat, and settings.
 - Food photo is sent to OpenAI and shown for confirmation before saving.
+- Photo captions are used as AI hints for grams, sauces, hidden ingredients, or partial portions.
 - Barcode photo is decoded locally and resolved through Open Food Facts with DB cache.
 - Manual meal text is parsed by OpenAI and shown for confirmation before saving.
-- Diary shows calories, macros, and today's entries.
+- Diary shows calories, macros, today's entries, food emoji, and per-product advice.
+- Calorie-dense additions get an extra confirmation when the day is already near target.
 - Users can edit grams before saving an AI/barcode/manual estimate.
 - Users can edit/delete saved entries from the day summary.
 - Users can track water, weight, favorite foods, and macro targets.
-- Optional reminders can nudge dinner logging and morning weigh-ins.
+- Optional reminders can separately nudge meal logging and morning weigh-ins.
+- Meal reminders support morning, lunch, and evening smart hints.
 - Multi-product AI results can be saved one by one or all at once.
 - Users without a subscription get 3 free AI requests before the paywall.
 - Barcode videos are scanned across several frames, not just one still frame.
