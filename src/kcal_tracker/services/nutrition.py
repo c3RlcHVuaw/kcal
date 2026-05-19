@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from kcal_tracker.schemas import DiarySummary
 
 HIGH_CALORIE_KCAL = 450
@@ -39,6 +41,178 @@ def smart_evening_hint(summary: DiarySummary) -> str:
     if kcal_left < -150:
         return "Калории уже выше цели. Дальше лучше что-то лёгкое."
     return "Вечер выглядит спокойно: можно просто закрыть день без суеты."
+
+
+def smart_day_coach(summary: DiarySummary, water_ml: int = 0) -> str:
+    if not summary.entries:
+        return (
+            "Пока дневник пустой. Начни с любого реального "
+            "приёма пищи: "
+            "даже примерная запись лучше, чем идеальная тишина."
+        )
+
+    kcal_delta = summary.kcal - summary.target_kcal
+    protein_left = summary.target_protein - summary.protein
+    fat_over = summary.fat - summary.target_fat
+    carbs_over = summary.carbs - summary.target_carbs
+
+    wins: list[str] = []
+    if abs(kcal_delta) <= 150:
+        wins.append("калории близко к цели")
+    if protein_left <= 10:
+        wins.append("белок почти закрыт")
+    if water_ml >= 1500:
+        wins.append("вода идёт нормально")
+
+    risks: list[str] = []
+    if kcal_delta > 150:
+        risks.append("калории уже выше цели")
+    if protein_left > 25:
+        risks.append("белка заметно не хватает")
+    if fat_over > 10:
+        risks.append("жиры перебраны")
+    if carbs_over > 25:
+        risks.append("углеводы выше плана")
+    if kcal_delta <= 150 and summary.target_kcal - summary.kcal > 500:
+        risks.append("до цели ещё большой зазор")
+    if water_ml and water_ml < 1000:
+        risks.append("воды пока мало")
+
+    if risks:
+        lead = f"Хорошо: {', '.join(wins)}. " if wins else ""
+        return lead + f"Главный фокус сейчас: {risks[0]}."
+    if wins:
+        return (
+            f"День выглядит ровно: {', '.join(wins)}. "
+            "Продолжай без резких компенсаций."
+        )
+    return (
+        "День пока нейтральный. Следующий приём пищи лучше "
+        "собрать вокруг белка и овощей."
+    )
+
+
+def daily_focus(summary: DiarySummary, water_ml: int = 0) -> str:
+    kcal_left = summary.target_kcal - summary.kcal
+    protein_left = summary.target_protein - summary.protein
+    if not summary.entries:
+        return "записать первый приём пищи"
+    if protein_left > 30 and kcal_left > 200:
+        return "добрать белок"
+    if summary.fat > summary.target_fat + 10:
+        return (
+            "держать следующий приём без масла, "
+            "сыра и жареного"
+        )
+    if kcal_left < -150:
+        return "закрыть день лёгкой едой и водой"
+    if water_ml < 1200:
+        return "добавить воды"
+    if kcal_left > 500:
+        return "не пропустить нормальный приём пищи"
+    return "сохранить текущий темп"
+
+
+def meal_suggestion_text(summary: DiarySummary, water_ml: int = 0) -> str:
+    kcal_left = max(summary.target_kcal - summary.kcal, 0)
+    protein_left = max(summary.target_protein - summary.protein, 0)
+
+    lines = ["Что съесть сейчас:", ""]
+    if kcal_left <= 150:
+        lines.extend(
+            [
+                "Калорий почти не осталось. Лучше выбрать "
+                "что-то очень лёгкое:",
+                "1. Овощной салат без масла.",
+                "2. Чай/вода и пауза 15 минут, если это тяга "
+                "к перекусу.",
+                "3. Небольшой йогурт без сахара, если реально "
+                "голодно.",
+            ]
+        )
+    elif protein_left >= 30:
+        limit = min(kcal_left, 550)
+        lines.extend(
+            [
+                f"До цели около {kcal_left:.0f} ккал, белка не хватает. "
+                f"Варианты до {limit:.0f} ккал:",
+                "1. Курица или рыба + овощи.",
+                "2. Творог/греческий йогурт + ягоды.",
+                "3. Омлет из 2-3 яиц с овощами.",
+            ]
+        )
+    elif summary.fat > summary.target_fat:
+        lines.extend(
+            [
+                "Жиры уже выше плана, поэтому лучше без масла и жареного. "
+                f"Осталось около {kcal_left:.0f} ккал:",
+                "1. Рис/гречка + курица или тунец.",
+                "2. Овощной суп + кусок хлеба.",
+                "3. Йогурт без сахара + фрукт.",
+            ]
+        )
+    elif kcal_left >= 500:
+        lines.extend(
+            [
+                "Можно собрать нормальный приём пищи примерно "
+                "на 400-550 ккал:",
+                "1. Белок + крупа + овощи.",
+                "2. Суп + хлеб + йогурт.",
+                "3. Паста/рис с нежирным белком и овощами.",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                f"Осталось около {kcal_left:.0f} ккал. "
+                "Подойдут спокойные варианты:",
+                "1. Творог или йогурт.",
+                "2. Яйца + овощи.",
+                "3. Фрукт + белковое дополнение.",
+            ]
+        )
+
+    if water_ml < 1000:
+        lines.append("")
+        lines.append(
+            "И добавь стакан воды: сегодня её пока мало."
+        )
+    return "\n".join(lines)
+
+
+def weekly_coach_note(analytics: Any) -> str:
+    tracked_days = [day for day in analytics.days if day.entries_count]
+    if not tracked_days:
+        return (
+            "AI-разбор недели: пока мало данных. Отмечай еду "
+            "3-4 дня, и появятся нормальные выводы."
+        )
+
+    average_delta = analytics.average_kcal - analytics.target_kcal
+    protein_days = sum(1 for day in tracked_days if day.protein >= 80)
+    high_fat_days = sum(1 for day in tracked_days if day.fat >= 90)
+    high_carb_days = sum(1 for day in tracked_days if day.carbs >= 280)
+
+    notes: list[str] = []
+    if average_delta > 150:
+        notes.append(f"в среднем перебор около {average_delta:.0f} ккал")
+    elif average_delta < -250:
+        notes.append(
+            f"в среднем недобор около {abs(average_delta):.0f} ккал"
+        )
+    else:
+        notes.append("средняя калорийность близко к цели")
+
+    if protein_days < max(2, len(tracked_days) // 2):
+        notes.append("белок стоит сделать главным фокусом")
+    if high_fat_days >= 3:
+        notes.append("часто набираются жиры")
+    if high_carb_days >= 3:
+        notes.append("углеводы часто высокие")
+    if analytics.days_in_target >= max(2, len(tracked_days) // 2):
+        notes.append("много дней рядом с целью")
+
+    return "AI-разбор недели: " + "; ".join(notes) + "."
 
 
 def smart_morning_hint(yesterday: DiarySummary) -> str:

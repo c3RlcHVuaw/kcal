@@ -2,6 +2,9 @@
 
 ## 2026-05-19
 
+- Added richer AI-style daily coaching, weekly nutrition analysis, and a
+  "what should I eat?" suggestion action based on remaining calories, macros,
+  and water.
 - Combined the main food/photo actions into one food entry button and made
   today's view include the same remaining-target guidance as the old remainder view.
 - Improved video-note barcode scanning by sampling more frames and trying more

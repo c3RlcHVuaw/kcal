@@ -30,9 +30,13 @@ from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.diary import DiaryService
 from kcal_tracker.services.food_insights import food_label
 from kcal_tracker.services.nutrition import (
+    daily_focus,
     diet_quality_note,
+    meal_suggestion_text,
     remaining_advice,
+    smart_day_coach,
     smart_evening_hint,
+    weekly_coach_note,
 )
 from kcal_tracker.services.subscriptions import has_active_subscription
 from kcal_tracker.services.users import UserService
@@ -167,6 +171,30 @@ async def show_water_inline(callback: CallbackQuery) -> None:
     text, reply_markup = await _water_view(callback.from_user.id, callback.from_user.username)
     await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
+
+
+@router.message(F.text.in_({"🍽 Что съесть?", "🍽 Что съесть"}))
+async def show_meal_suggestion(message: Message) -> None:
+    text = await _meal_suggestion_view(message.from_user.id, message.from_user.username)
+    await message.answer(text, reply_markup=after_save_keyboard())
+
+
+@router.callback_query(F.data == "coach:meal")
+async def show_meal_suggestion_inline(callback: CallbackQuery) -> None:
+    text = await _meal_suggestion_view(callback.from_user.id, callback.from_user.username)
+    await callback.message.edit_text(text, reply_markup=after_save_keyboard())
+    await callback.answer()
+
+
+async def _meal_suggestion_view(telegram_id: int, username: str | None) -> str:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id,
+            username,
+        )
+        summary = await DiaryService(session).today_summary(user)
+        water_ml = await WellnessService(session).today_water_ml(user)
+    return meal_suggestion_text(summary, water_ml)
 
 
 async def _water_view(telegram_id: int, username: str | None):
@@ -547,6 +575,7 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
         "",
         f"Среднее: {analytics.average_kcal:.0f} / {analytics.target_kcal} ккал",
         f"Дней рядом с целью: {analytics.days_in_target}",
+        weekly_coach_note(analytics),
         "",
     ]
     for day in analytics.days:
@@ -598,10 +627,18 @@ def _today_view(
 
     if include_advice:
         lines.extend(
-            ["", remaining_advice(summary), diet_quality_note(summary), smart_evening_hint(summary)]
+            [
+                "",
+                "AI-совет дня:",
+                smart_day_coach(summary, water_ml),
+                f"Фокус: {daily_focus(summary, water_ml)}.",
+                remaining_advice(summary),
+                diet_quality_note(summary),
+                smart_evening_hint(summary),
+            ]
         )
 
-    return "\n".join(lines), food_entries_keyboard(entry_ids) if entry_ids else None
+    return "\n".join(lines), food_entries_keyboard(entry_ids)
 
 
 def _entry_time_label(created_at: datetime, timezone_name: str) -> str:

@@ -11,7 +11,14 @@ from kcal_tracker.schemas import FoodEstimate
 from kcal_tracker.services.ai_food import food_refinement_user_text, photo_recognition_user_text
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
 from kcal_tracker.services.media import _sample_timestamps
-from kcal_tracker.services.nutrition import high_calorie_add_warning, is_high_calorie_food
+from kcal_tracker.services.nutrition import (
+    daily_focus,
+    high_calorie_add_warning,
+    is_high_calorie_food,
+    meal_suggestion_text,
+    smart_day_coach,
+    weekly_coach_note,
+)
 
 
 def test_confidence_must_be_less_than_one() -> None:
@@ -49,6 +56,55 @@ def test_high_calorie_warning_skips_light_foods() -> None:
     summary = SimpleNamespace(kcal=500, target_kcal=2000, entries=[])
     assert not is_high_calorie_food(FoodEstimate(name="салат", kcal=180, weight_g=250))
     assert high_calorie_add_warning(summary, FoodEstimate(name="салат", kcal=180)) is None
+
+
+def test_smart_day_coach_focuses_on_missing_protein() -> None:
+    summary = SimpleNamespace(
+        kcal=1300,
+        target_kcal=2000,
+        protein=45,
+        target_protein=120,
+        fat=45,
+        target_fat=70,
+        carbs=170,
+        target_carbs=230,
+        entries=[SimpleNamespace()],
+    )
+    assert "белка" in smart_day_coach(summary)
+    assert daily_focus(summary) == "добрать белок"
+
+
+def test_meal_suggestion_prefers_light_food_when_calories_are_spent() -> None:
+    summary = SimpleNamespace(
+        kcal=2050,
+        target_kcal=2100,
+        protein=100,
+        target_protein=110,
+        fat=70,
+        target_fat=70,
+        carbs=220,
+        target_carbs=230,
+        entries=[SimpleNamespace()],
+    )
+    text = meal_suggestion_text(summary, water_ml=500)
+    assert "Калорий почти не осталось" in text
+    assert "стакан воды" in text
+
+
+def test_weekly_coach_note_mentions_average_delta() -> None:
+    analytics = SimpleNamespace(
+        average_kcal=2300,
+        target_kcal=2000,
+        days_in_target=1,
+        days=[
+            SimpleNamespace(entries_count=2, protein=70, fat=95, carbs=250),
+            SimpleNamespace(entries_count=3, protein=75, fat=100, carbs=260),
+            SimpleNamespace(entries_count=0, protein=0, fat=0, carbs=0),
+        ],
+    )
+    note = weekly_coach_note(analytics)
+    assert "AI-разбор недели" in note
+    assert "перебор" in note
 
 
 def test_photo_recognition_user_text_includes_caption_hint() -> None:

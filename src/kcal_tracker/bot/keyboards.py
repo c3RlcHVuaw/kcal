@@ -30,6 +30,8 @@ MAIN_MENU_TEXTS = {
     "📈 7 дней",
     "📈 Неделя",
     "💧 Вода",
+    "🍽 Что съесть?",
+    "🍽 Что съесть",
     "🏃 Активность",
     "⚖️ Вес",
     "⏰ Напомнить",
@@ -56,6 +58,7 @@ def main_menu() -> ReplyKeyboardMarkup:
 def more_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
+            [InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal")],
             [
                 InlineKeyboardButton(text="⚡ Частое", callback_data="nav:frequent"),
                 InlineKeyboardButton(text="↩️ Как вчера", callback_data="nav:yesterday"),
@@ -170,6 +173,9 @@ def food_entries_keyboard(entry_ids: list[int]) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=f"⭐ #{index}", callback_data=f"entry:fav:{entry_id}"),
             ]
         )
+    rows.append(
+        [InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal")]
+    )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
