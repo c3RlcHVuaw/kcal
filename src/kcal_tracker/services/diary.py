@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import UTC, date, datetime, time
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -233,7 +233,7 @@ class DiaryService:
         for entry in result.scalars():
             created_at = entry.created_at
             if created_at.tzinfo is None:
-                created_at = created_at.replace(tzinfo=tz)
+                created_at = created_at.replace(tzinfo=UTC)
             entries_by_date[created_at.astimezone(tz).date()].append(entry)
 
         day_summaries = [

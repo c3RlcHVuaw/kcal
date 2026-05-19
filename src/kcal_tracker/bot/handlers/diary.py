@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+from zoneinfo import ZoneInfo
+
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -19,6 +22,7 @@ from kcal_tracker.bot.text_parsing import (
     parse_activity_kcal,
     parse_int_from_text,
 )
+from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.schemas import ActivityEstimate, FoodEntryCreate
 from kcal_tracker.services.ai_activity import AIActivityService
@@ -61,6 +65,7 @@ async def show_today(message: Message) -> None:
     text, reply_markup = _today_view(
         summary,
         water_ml,
+        timezone_name=user.timezone,
         include_advice=message.text in {"🔥 Остаток", "🔥 Калории"},
     )
     await message.answer(
@@ -79,7 +84,7 @@ async def show_today_inline(callback: CallbackQuery) -> None:
         summary = await DiaryService(session).today_summary(user)
         water_ml = await WellnessService(session).today_water_ml(user)
 
-    text, reply_markup = _today_view(summary, water_ml)
+    text, reply_markup = _today_view(summary, water_ml, timezone_name=user.timezone)
     await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
 
@@ -549,7 +554,13 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
     return "\n".join(lines)
 
 
-def _today_view(summary, water_ml: int, include_advice: bool = False):
+def _today_view(
+    summary,
+    water_ml: int,
+    *,
+    timezone_name: str = settings.default_timezone,
+    include_advice: bool = False,
+):
     target_line = f"🔥 {summary.kcal:.0f} / {summary.target_kcal} ккал"
     if summary.activity_kcal:
         target_line += (
@@ -572,7 +583,10 @@ def _today_view(summary, water_ml: int, include_advice: bool = False):
         for index, entry in enumerate(summary.entries, start=1):
             entry_ids.append(entry.id)
             weight = f", {entry.weight_g:.0f}г" if entry.weight_g else ""
-            lines.append(f"#{index} {entry.created_at:%H:%M} {food_label(entry)}{weight}")
+            lines.append(
+                f"#{index} {_entry_time_label(entry.created_at, timezone_name)} "
+                f"{food_label(entry)}{weight}"
+            )
             lines.append(f"{entry.kcal:.0f} ккал")
             if entry.advice:
                 lines.append(f"💡 {entry.advice}")
@@ -583,6 +597,16 @@ def _today_view(summary, water_ml: int, include_advice: bool = False):
         )
 
     return "\n".join(lines), food_entries_keyboard(entry_ids) if entry_ids else None
+
+
+def _entry_time_label(created_at: datetime, timezone_name: str) -> str:
+    try:
+        tz = ZoneInfo(timezone_name)
+    except Exception:
+        tz = ZoneInfo(settings.default_timezone)
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=UTC)
+    return created_at.astimezone(tz).strftime("%H:%M")
 
 
 def _macro_line(label: str, value: float, target: float) -> str:

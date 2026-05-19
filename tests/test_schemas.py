@@ -1,5 +1,7 @@
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
+from kcal_tracker.bot.handlers.diary import _entry_time_label
 from kcal_tracker.bot.text_parsing import (
     looks_like_activity,
     parse_activity_kcal,
@@ -62,6 +64,17 @@ def test_food_refinement_user_text_includes_current_estimate_and_hint() -> None:
     assert "Текущая оценка еды" in text
     assert "сырники" in text
     assert "ещё полито джемом" in text
+
+
+def test_entry_time_label_uses_user_timezone_for_utc_timestamp() -> None:
+    assert (
+        _entry_time_label(datetime(2026, 5, 19, 7, 48, tzinfo=UTC), "Europe/Samara")
+        == "11:48"
+    )
+
+
+def test_entry_time_label_treats_naive_timestamp_as_utc() -> None:
+    assert _entry_time_label(datetime(2026, 5, 19, 7, 48), "Europe/Samara") == "11:48"
 
 
 def test_parse_int_accepts_units() -> None:
