@@ -40,7 +40,7 @@ def _decode_first(image: Image.Image) -> str | None:
 
 
 def _barcode_candidates(image: Image.Image) -> Iterable[Image.Image]:
-    base_images = [image, *_central_crops(image)]
+    base_images = [image, *_central_crops(image), *_grid_crops(image)]
     for base in base_images:
         for rotated in _rotations(base):
             yield rotated
@@ -51,6 +51,8 @@ def _barcode_candidates(image: Image.Image) -> Iterable[Image.Image]:
             grayscale = ImageOps.grayscale(enhanced)
             yield grayscale
             yield ImageOps.autocontrast(grayscale)
+            yield ImageOps.equalize(grayscale)
+            yield ImageOps.invert(ImageOps.autocontrast(grayscale))
             for threshold in (96, 128, 160):
                 yield grayscale.point(
                     lambda pixel, t=threshold: 255 if pixel > t else 0,
@@ -70,6 +72,33 @@ def _central_crops(image: Image.Image) -> list[Image.Image]:
         left = (width - crop_width) // 2
         top = (height - crop_height) // 2
         crops.append(image.crop((left, top, left + crop_width, top + crop_height)))
+    return crops
+
+
+def _grid_crops(image: Image.Image) -> list[Image.Image]:
+    width, height = image.size
+    if width < 240 or height < 240:
+        return []
+
+    crops = []
+    for crop_ratio in (0.62, 0.5):
+        crop_width = int(width * crop_ratio)
+        crop_height = int(height * crop_ratio)
+        if crop_width < 120 or crop_height < 120:
+            continue
+        for x_ratio, y_ratio in (
+            (0.25, 0.25),
+            (0.75, 0.25),
+            (0.25, 0.75),
+            (0.75, 0.75),
+            (0.5, 0.25),
+            (0.5, 0.75),
+        ):
+            center_x = int(width * x_ratio)
+            center_y = int(height * y_ratio)
+            left = min(max(center_x - crop_width // 2, 0), width - crop_width)
+            top = min(max(center_y - crop_height // 2, 0), height - crop_height)
+            crops.append(image.crop((left, top, left + crop_width, top + crop_height)))
     return crops
 
 

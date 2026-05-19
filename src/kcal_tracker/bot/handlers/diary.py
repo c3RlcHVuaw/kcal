@@ -66,7 +66,7 @@ async def show_today(message: Message) -> None:
         summary,
         water_ml,
         timezone_name=user.timezone,
-        include_advice=message.text in {"🔥 Остаток", "🔥 Калории"},
+        include_advice=True,
     )
     await message.answer(
         text,
@@ -84,7 +84,12 @@ async def show_today_inline(callback: CallbackQuery) -> None:
         summary = await DiaryService(session).today_summary(user)
         water_ml = await WellnessService(session).today_water_ml(user)
 
-    text, reply_markup = _today_view(summary, water_ml, timezone_name=user.timezone)
+    text, reply_markup = _today_view(
+        summary,
+        water_ml,
+        timezone_name=user.timezone,
+        include_advice=True,
+    )
     await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
 

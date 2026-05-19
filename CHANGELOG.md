@@ -2,6 +2,10 @@
 
 ## 2026-05-19
 
+- Combined the main food/photo actions into one food entry button and made
+  today's view include the same remaining-target guidance as the old remainder view.
+- Improved video-note barcode scanning by sampling more frames and trying more
+  crop/contrast variants.
 - Fixed diary entry times in Telegram summaries to display in the user's timezone
   instead of raw UTC timestamps.
 - Added an AI clarification action before saving AI food estimates so users can

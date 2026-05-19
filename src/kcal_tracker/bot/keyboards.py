@@ -10,6 +10,7 @@ from aiogram.types import (
 from kcal_tracker.config import settings
 
 MAIN_MENU_TEXTS = {
+    "➕ Еда",
     "📷 Фото/штрихкод",
     "📷 Сканировать продукт",
     "📷 Фото",
@@ -44,12 +45,11 @@ MAIN_MENU_TEXTS = {
 def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="📷 Фото"), KeyboardButton(text="✍️ Еда")],
-            [KeyboardButton(text="📊 Сегодня"), KeyboardButton(text="🔥 Остаток")],
+            [KeyboardButton(text="➕ Еда"), KeyboardButton(text="📊 Сегодня")],
             [KeyboardButton(text="💧 Вода"), KeyboardButton(text="☰ Ещё")],
         ],
         resize_keyboard=True,
-        input_field_placeholder="Напиши еду или выбери действие",
+        input_field_placeholder="Напиши еду или пришли фото",
     )
 
 

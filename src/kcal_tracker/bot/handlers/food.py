@@ -47,41 +47,46 @@ class FoodFlow(StatesGroup):
     refining = State()
 
 
-@router.message(F.text.in_({"✍️ Записать еду", "🍔 Добавить еду", "✍️ Еда"}))
-async def ask_manual_food(message: Message, state: FSMContext) -> None:
-    await state.set_state(FoodFlow.waiting_manual)
-    await message.answer("Напиши, что было в приёме пищи. Например: «латте и два банана».")
+FOOD_INPUT_PROMPT = (
+    "Напиши еду текстом, пришли фото блюда или фото/видео со штрихкодом. "
+    "Например: «латте и два банана»."
+)
+
+
+@router.message(
+    F.text.in_(
+        {
+            "➕ Еда",
+            "✍️ Записать еду",
+            "🍔 Добавить еду",
+            "✍️ Еда",
+            "📷 Фото/штрихкод",
+            "📷 Сканировать продукт",
+            "📷 Фото",
+        }
+    )
+)
+async def ask_food_input(message: Message, state: FSMContext) -> None:
+    await state.set_state(FoodFlow.waiting_barcode_photo)
+    await message.answer(FOOD_INPUT_PROMPT)
 
 
 @router.callback_query(F.data == "nav:add-food")
 async def ask_manual_food_from_inline(callback: CallbackQuery, state: FSMContext) -> None:
-    await state.set_state(FoodFlow.waiting_manual)
-    await callback.message.edit_text(
-        "Напиши, что было в приёме пищи. Например: «латте и два банана»."
-    )
-    await callback.answer()
-
-
-@router.message(F.text.in_({"📷 Фото/штрихкод", "📷 Сканировать продукт", "📷 Фото"}))
-async def ask_barcode(message: Message, state: FSMContext) -> None:
     await state.set_state(FoodFlow.waiting_barcode_photo)
-    await message.answer(
-        "Пришли фото блюда для AI или фото/видео со штрихкодом. "
-        "Если это штрихкод, постарайся держать его крупно и ровно."
-    )
+    await callback.message.edit_text(FOOD_INPUT_PROMPT)
+    await callback.answer()
 
 
 @router.callback_query(F.data == "nav:photo")
 async def ask_barcode_from_inline(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(FoodFlow.waiting_barcode_photo)
-    await callback.message.edit_text(
-        "Пришли фото блюда для AI или фото/видео со штрихкодом. "
-        "Если это штрихкод, постарайся держать его крупно и ровно."
-    )
+    await callback.message.edit_text(FOOD_INPUT_PROMPT)
     await callback.answer()
 
 
 @router.message(FoodFlow.waiting_manual, F.text)
+@router.message(FoodFlow.waiting_barcode_photo, F.text)
 async def parse_manual_food(message: Message, state: FSMContext) -> None:
     if not await _ensure_ai_available(message):
         return
@@ -153,7 +158,7 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
             except ProductNotFoundError:
                 await message.answer(
                     "Штрихкод считался, но продукта пока нет в базе. "
-                    "Можно добавить его вручную через «✍️ Записать еду»."
+                    "Можно добавить его вручную через «➕ Еда»."
                 )
                 return
 
@@ -787,7 +792,7 @@ async def _download_image_or_video_frames(message: Message) -> list[bytes]:
     file = await message.bot.get_file(video.file_id)
     video_io = await message.bot.download_file(file.file_path)
     try:
-        frame_limit = 16 if message.video_note else 10
+        frame_limit = 30 if message.video_note else 14
         return await asyncio.to_thread(extract_frames_from_video, video_io.read(), frame_limit)
     except MediaProcessingError:
         return []

@@ -126,7 +126,7 @@ def _sample_timestamps(duration: float, limit: int) -> list[float]:
         return [0.0]
 
     last_timestamp = max(duration - 0.1, 0.0)
-    frame_count = min(limit, max(int(duration * 2), 1))
+    frame_count = max(limit, 1)
     if frame_count == 1:
         return [0.0]
 
