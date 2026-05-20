@@ -10,6 +10,7 @@ from aiogram.types import CallbackQuery, Message
 
 from kcal_tracker.bot.keyboards import (
     activity_logs_keyboard,
+    activity_menu_keyboard,
     after_activity_save_keyboard,
     after_save_keyboard,
     after_water_save_keyboard,
@@ -218,7 +219,7 @@ async def delete_saved_activity(callback: CallbackQuery) -> None:
     else:
         await callback.message.edit_text(
             f"Удалил активность. За сегодня: {total:.0f} ккал.",
-            reply_markup=after_activity_save_keyboard(),
+            reply_markup=activity_menu_keyboard([]),
         )
     await callback.answer()
 
@@ -466,18 +467,32 @@ async def save_custom_water(message: Message, state: FSMContext) -> None:
 
 
 @router.message(F.text == "🏃 Активность")
-async def ask_activity(message: Message, state: FSMContext) -> None:
-    await state.set_state(DiaryFlow.activity_custom)
+async def show_activity(message: Message) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            message.from_user.id,
+            message.from_user.username,
+        )
+        activities = await WellnessService(session).today_activities(user)
+    activity_ids = [activity.id for activity in activities]
     await message.answer(
-        "Напиши активность или расход. Например: «я потратил 100 ккал» или «бег 30 минут»."
+        _activity_dashboard_text(activities, user.timezone),
+        reply_markup=activity_menu_keyboard(activity_ids),
     )
 
 
 @router.callback_query(F.data == "nav:activity")
-async def ask_activity_from_more(callback: CallbackQuery, state: FSMContext) -> None:
-    await state.set_state(DiaryFlow.activity_custom)
+async def show_activity_from_more(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        activities = await WellnessService(session).today_activities(user)
+    activity_ids = [activity.id for activity in activities]
     await callback.message.edit_text(
-        "Напиши активность или расход. Например: «я потратил 100 ккал» или «бег 30 минут»."
+        _activity_dashboard_text(activities, user.timezone),
+        reply_markup=activity_menu_keyboard(activity_ids),
     )
     await callback.answer()
 
@@ -1028,9 +1043,7 @@ def _today_view(
     else:
         lines.extend(["", "🍽 Записей пока нет"])
 
-    activity_ids: list[int] = []
     if activities:
-        activity_ids = [activity.id for activity in activities]
         lines.extend(["", "🏃 Активность"])
         for index, activity in enumerate(activities, start=1):
             lines.append(_activity_line(index, activity, timezone_name))
@@ -1060,7 +1073,7 @@ def _today_view(
             ]
         )
 
-    return "\n".join(lines), food_entries_keyboard(entry_ids, activity_ids=activity_ids)
+    return "\n".join(lines), food_entries_keyboard(entry_ids)
 
 
 def _entry_line(index: int, entry, timezone_name: str) -> str:
@@ -1076,6 +1089,23 @@ def _activity_management_text(activities, timezone_name: str) -> str:
     for index, activity in enumerate(activities, start=1):
         lines.append(_activity_line(index, activity, timezone_name))
     lines.extend(["", "Нажми на запись, чтобы удалить её из дневника."])
+    return "\n".join(lines)
+
+
+def _activity_dashboard_text(activities, timezone_name: str) -> str:
+    if not activities:
+        return "\n".join(
+            [
+                "🏃 Активность",
+                "",
+                "Сегодня активности пока нет.",
+                "Можно добавить расход вручную или через Apple Health.",
+            ]
+        )
+    total = sum(activity.kcal for activity in activities)
+    lines = ["🏃 Активность", "", f"За сегодня: {total:.0f} ккал", ""]
+    for index, activity in enumerate(activities, start=1):
+        lines.append(_activity_line(index, activity, timezone_name))
     return "\n".join(lines)
 
 

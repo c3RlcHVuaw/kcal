@@ -162,9 +162,8 @@ def after_activity_save_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="📊 Сегодня", callback_data="nav:today"),
-                InlineKeyboardButton(text="🏃 Ещё активность", callback_data="activity:custom"),
+                InlineKeyboardButton(text="🏃 Активность", callback_data="nav:activity"),
             ],
-            [InlineKeyboardButton(text="🗑 Активности", callback_data="activity:manage")],
         ]
     )
 
@@ -209,10 +208,8 @@ def repeat_yesterday_keyboard() -> InlineKeyboardMarkup:
 def food_entries_keyboard(
     entry_ids: list[int],
     *,
-    activity_ids: list[int] | None = None,
     expanded: bool = False,
 ) -> InlineKeyboardMarkup:
-    activity_ids = activity_ids or []
     if not expanded:
         rows = []
         if entry_ids:
@@ -224,10 +221,6 @@ def food_entries_keyboard(
             )
         else:
             rows.append([InlineKeyboardButton(text="➕ Еду", callback_data="nav:add-food")])
-        if activity_ids:
-            rows.append(
-                [InlineKeyboardButton(text="🏃 Активность", callback_data="activity:manage")]
-            )
         return InlineKeyboardMarkup(inline_keyboard=rows)
 
     rows: list[list[InlineKeyboardButton]] = []
@@ -246,6 +239,16 @@ def food_entries_keyboard(
             InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal"),
         ]
     )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def activity_menu_keyboard(activity_ids: list[int]) -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton(text="➕ Добавить активность", callback_data="activity:custom")]]
+    if activity_ids:
+        rows.append(
+            [InlineKeyboardButton(text="🗑 Удалить запись", callback_data="activity:manage")]
+        )
+    rows.append([InlineKeyboardButton(text="📊 Сегодня", callback_data="nav:today")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

@@ -23,6 +23,7 @@ from kcal_tracker.bot.handlers.diary import (
 from kcal_tracker.bot.handlers.food import _format_estimate_confirmation, _scale_estimate
 from kcal_tracker.bot.handlers.profile import _apple_health_shortcut_text
 from kcal_tracker.bot.keyboards import (
+    activity_menu_keyboard,
     food_confirmation_keyboard,
     food_entries_keyboard,
     settings_keyboard,
@@ -283,7 +284,14 @@ def test_today_view_shows_activity_and_manage_button() -> None:
         for row in keyboard.inline_keyboard
         for button in row
     ]
-    assert "activity:manage" in callbacks
+    assert "activity:manage" not in callbacks
+    activity_callbacks = [
+        button.callback_data
+        for row in activity_menu_keyboard([1]).inline_keyboard
+        for button in row
+    ]
+    assert "activity:custom" in activity_callbacks
+    assert "activity:manage" in activity_callbacks
 
 
 def test_full_today_view_groups_entries_by_meal() -> None:

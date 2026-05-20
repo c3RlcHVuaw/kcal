@@ -4,6 +4,8 @@
 
 - Added activity management in Today so users can delete incorrect activity
   entries, including Apple Health imports.
+- Moved activity management into the existing More -> Activity section so add
+  and delete actions live in one place.
 - Allowed newline-separated Apple Health sample dumps again, with same-day delta
   sync preventing repeated webhook runs from double-counting the same total.
 - Fixed Apple Health activity parsing when Shortcuts sends a list of HealthKit
