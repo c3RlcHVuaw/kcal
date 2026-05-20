@@ -9,6 +9,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 
 from kcal_tracker.bot.keyboards import (
+    activity_logs_keyboard,
     after_activity_save_keyboard,
     after_save_keyboard,
     after_water_save_keyboard,
@@ -77,11 +78,14 @@ async def show_today(message: Message) -> None:
         summary = await diary.today_summary(user)
         has_subscription = has_active_subscription(user)
         patterns = await diary.nutrition_patterns(user) if has_subscription else None
-        water_ml = await WellnessService(session).today_water_ml(user)
+        wellness = WellnessService(session)
+        water_ml = await wellness.today_water_ml(user)
+        activities = await wellness.today_activities(user)
 
     text, reply_markup = _today_view(
         summary,
         water_ml,
+        activities=activities,
         patterns=patterns,
         show_advanced_patterns=has_subscription,
         timezone_name=user.timezone,
@@ -104,11 +108,14 @@ async def show_today_inline(callback: CallbackQuery) -> None:
         summary = await diary.today_summary(user)
         has_subscription = has_active_subscription(user)
         patterns = await diary.nutrition_patterns(user) if has_subscription else None
-        water_ml = await WellnessService(session).today_water_ml(user)
+        wellness = WellnessService(session)
+        water_ml = await wellness.today_water_ml(user)
+        activities = await wellness.today_activities(user)
 
     text, reply_markup = _today_view(
         summary,
         water_ml,
+        activities=activities,
         patterns=patterns,
         show_advanced_patterns=has_subscription,
         timezone_name=user.timezone,
@@ -129,11 +136,14 @@ async def show_today_full_inline(callback: CallbackQuery) -> None:
         summary = await diary.today_summary(user)
         has_subscription = has_active_subscription(user)
         patterns = await diary.nutrition_patterns(user) if has_subscription else None
-        water_ml = await WellnessService(session).today_water_ml(user)
+        wellness = WellnessService(session)
+        water_ml = await wellness.today_water_ml(user)
+        activities = await wellness.today_activities(user)
 
     text, reply_markup = _today_view(
         summary,
         water_ml,
+        activities=activities,
         patterns=patterns,
         show_advanced_patterns=has_subscription,
         timezone_name=user.timezone,
@@ -159,6 +169,57 @@ async def show_entry_management(callback: CallbackQuery) -> None:
     await callback.message.edit_reply_markup(
         reply_markup=food_entries_keyboard(entry_ids, expanded=True)
     )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "activity:manage")
+async def show_activity_management(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=callback.from_user.id,
+            username=callback.from_user.username,
+        )
+        activities = await WellnessService(session).today_activities(user)
+
+    if not activities:
+        await callback.answer("Сегодня пока нет активности.", show_alert=True)
+        return
+    text = _activity_management_text(activities, user.timezone)
+    activity_ids = [activity.id for activity in activities]
+    await callback.message.edit_text(
+        text,
+        reply_markup=activity_logs_keyboard(activity_ids, expanded=True),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("activity:delete:"))
+async def delete_saved_activity(callback: CallbackQuery) -> None:
+    activity_id = int(callback.data.rsplit(":", 1)[1])
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        service = WellnessService(session)
+        deleted = await service.delete_activity(user, activity_id)
+        activities = await service.today_activities(user)
+        total = await service.today_activity_kcal(user)
+
+    if deleted is None:
+        await callback.message.edit_text("Не нашёл эту активность.")
+    elif activities:
+        activity_ids = [activity.id for activity in activities]
+        await callback.message.edit_text(
+            f"Удалил активность. За сегодня: {total:.0f} ккал.\n\n"
+            + _activity_management_text(activities, user.timezone),
+            reply_markup=activity_logs_keyboard(activity_ids, expanded=True),
+        )
+    else:
+        await callback.message.edit_text(
+            f"Удалил активность. За сегодня: {total:.0f} ккал.",
+            reply_markup=after_activity_save_keyboard(),
+        )
     await callback.answer()
 
 
@@ -931,11 +992,13 @@ def _today_view(
     summary,
     water_ml: int,
     *,
+    activities=None,
     patterns=None,
     show_advanced_patterns: bool = False,
     timezone_name: str = settings.default_timezone,
     include_advice: bool = False,
 ):
+    activities = activities or []
     target_line = f"🔥 {summary.kcal:.0f} / {summary.target_kcal} ккал"
     if summary.activity_kcal:
         target_line += (
@@ -965,6 +1028,13 @@ def _today_view(
     else:
         lines.extend(["", "🍽 Записей пока нет"])
 
+    activity_ids: list[int] = []
+    if activities:
+        activity_ids = [activity.id for activity in activities]
+        lines.extend(["", "🏃 Активность"])
+        for index, activity in enumerate(activities, start=1):
+            lines.append(_activity_line(index, activity, timezone_name))
+
     if include_advice:
         forecast = end_of_day_forecast(summary, patterns)
         lines.extend(
@@ -990,7 +1060,7 @@ def _today_view(
             ]
         )
 
-    return "\n".join(lines), food_entries_keyboard(entry_ids)
+    return "\n".join(lines), food_entries_keyboard(entry_ids, activity_ids=activity_ids)
 
 
 def _entry_line(index: int, entry, timezone_name: str) -> str:
@@ -998,6 +1068,21 @@ def _entry_line(index: int, entry, timezone_name: str) -> str:
     return (
         f"{index}. {_entry_time_label(entry.created_at, timezone_name)} "
         f"{food_label(entry)}{weight} — {entry.kcal:.0f} ккал"
+    )
+
+
+def _activity_management_text(activities, timezone_name: str) -> str:
+    lines = ["🏃 Активность сегодня", ""]
+    for index, activity in enumerate(activities, start=1):
+        lines.append(_activity_line(index, activity, timezone_name))
+    lines.extend(["", "Нажми на запись, чтобы удалить её из дневника."])
+    return "\n".join(lines)
+
+
+def _activity_line(index: int, activity, timezone_name: str) -> str:
+    return (
+        f"{index}. {_entry_time_label(activity.created_at, timezone_name)} "
+        f"{activity.activity_name} — {activity.kcal:.0f} ккал"
     )
 
 

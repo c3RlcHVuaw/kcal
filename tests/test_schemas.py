@@ -247,6 +247,45 @@ def test_today_view_shows_all_entries_grouped_by_meal() -> None:
     assert "7. " in text
 
 
+def test_today_view_shows_activity_and_manage_button() -> None:
+    summary = SimpleNamespace(
+        kcal=700,
+        target_kcal=2200,
+        base_target_kcal=2150,
+        activity_kcal=50,
+        protein=45,
+        target_protein=120,
+        fat=30,
+        target_fat=70,
+        carbs=110,
+        target_carbs=230,
+        entries=[],
+    )
+    activities = [
+        SimpleNamespace(
+            id=1,
+            created_at=datetime(2026, 5, 19, 8, 0, tzinfo=UTC),
+            activity_name="Apple Health active energy",
+            kcal=50,
+        )
+    ]
+    text, keyboard = _today_view(
+        summary,
+        800,
+        activities=activities,
+        patterns=None,
+        include_advice=False,
+    )
+    assert "🏃 Активность" in text
+    assert "Apple Health active energy — 50 ккал" in text
+    callbacks = [
+        button.callback_data
+        for row in keyboard.inline_keyboard
+        for button in row
+    ]
+    assert "activity:manage" in callbacks
+
+
 def test_full_today_view_groups_entries_by_meal() -> None:
     entries = [
         SimpleNamespace(
@@ -560,7 +599,7 @@ def test_apple_health_sums_shortcuts_sample_lists_for_activity() -> None:
     assert payload.active_kcal == 138
 
 
-def test_apple_health_rejects_shortcuts_newline_strings_for_activity() -> None:
+def test_apple_health_sums_shortcuts_newline_strings_for_activity() -> None:
     payload, errors = _normalize_apple_health_payload(
         {
             "steps": "72\n101\n10",
@@ -568,13 +607,9 @@ def test_apple_health_rejects_shortcuts_newline_strings_for_activity() -> None:
             "weight_kg": "",
         }
     )
-    assert errors == {
-        "weight_kg": "Could not extract numeric value",
-        "steps": "Could not extract numeric value",
-        "active_kcal": "Could not extract numeric value",
-    }
-    assert payload.steps is None
-    assert payload.active_kcal is None
+    assert errors == {"weight_kg": "Could not extract numeric value"}
+    assert payload.steps == 183
+    assert payload.active_kcal == 138
 
 
 def test_apple_health_normalizes_payload_and_ignores_unknown_fields() -> None:

@@ -159,6 +159,29 @@ class WellnessService:
         )
         return sum(log.kcal for log in result.scalars())
 
+    async def today_activities(self, user: User) -> list[ActivityLog]:
+        result = await self.session.execute(
+            select(ActivityLog)
+            .where(
+                ActivityLog.user_id == user.id,
+                ActivityLog.created_at >= self._day_start(user),
+                ActivityLog.created_at <= self._day_end(user),
+            )
+            .order_by(ActivityLog.created_at.asc())
+        )
+        return list(result.scalars())
+
+    async def delete_activity(self, user: User, activity_id: int) -> ActivityLog | None:
+        activity = await self.session.get(ActivityLog, activity_id)
+        if activity is None or activity.user_id != user.id:
+            return None
+        await self.session.delete(activity)
+        if activity.source == "apple_health":
+            metric = "steps" if "steps" in activity.activity_name.lower() else "active_kcal"
+            await self._delete_apple_health_sync(user, metric)
+        await self.session.commit()
+        return activity
+
     async def apple_health_delta(self, user: User, metric: str, value: float) -> float:
         sync_date = datetime.now(ZoneInfo(user.timezone)).date()
         result = await self.session.execute(
@@ -186,6 +209,19 @@ class WellnessService:
             await self.session.commit()
             return delta
         return 0
+
+    async def _delete_apple_health_sync(self, user: User, metric: str) -> None:
+        sync_date = datetime.now(ZoneInfo(user.timezone)).date()
+        result = await self.session.execute(
+            select(AppleHealthDailySync).where(
+                AppleHealthDailySync.user_id == user.id,
+                AppleHealthDailySync.sync_date == sync_date,
+                AppleHealthDailySync.metric == metric,
+            )
+        )
+        sync = result.scalar_one_or_none()
+        if sync is not None:
+            await self.session.delete(sync)
 
     async def habit_summary(self, user: User, days: int = 30) -> HabitSummary:
         tz = ZoneInfo(user.timezone)

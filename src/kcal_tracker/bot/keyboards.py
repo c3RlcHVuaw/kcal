@@ -164,6 +164,7 @@ def after_activity_save_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="📊 Сегодня", callback_data="nav:today"),
                 InlineKeyboardButton(text="🏃 Ещё активность", callback_data="activity:custom"),
             ],
+            [InlineKeyboardButton(text="🗑 Активности", callback_data="activity:manage")],
         ]
     )
 
@@ -205,7 +206,13 @@ def repeat_yesterday_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def food_entries_keyboard(entry_ids: list[int], *, expanded: bool = False) -> InlineKeyboardMarkup:
+def food_entries_keyboard(
+    entry_ids: list[int],
+    *,
+    activity_ids: list[int] | None = None,
+    expanded: bool = False,
+) -> InlineKeyboardMarkup:
+    activity_ids = activity_ids or []
     if not expanded:
         rows = []
         if entry_ids:
@@ -217,6 +224,10 @@ def food_entries_keyboard(entry_ids: list[int], *, expanded: bool = False) -> In
             )
         else:
             rows.append([InlineKeyboardButton(text="➕ Еду", callback_data="nav:add-food")])
+        if activity_ids:
+            rows.append(
+                [InlineKeyboardButton(text="🏃 Активность", callback_data="activity:manage")]
+            )
         return InlineKeyboardMarkup(inline_keyboard=rows)
 
     rows: list[list[InlineKeyboardButton]] = []
@@ -235,6 +246,33 @@ def food_entries_keyboard(entry_ids: list[int], *, expanded: bool = False) -> In
             InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal"),
         ]
     )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def activity_logs_keyboard(
+    activity_ids: list[int],
+    *,
+    expanded: bool = False,
+) -> InlineKeyboardMarkup:
+    if not expanded:
+        return InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="🏃 Активность", callback_data="activity:manage")],
+                [InlineKeyboardButton(text="📊 Сегодня", callback_data="nav:today")],
+            ]
+        )
+
+    rows: list[list[InlineKeyboardButton]] = []
+    for index, activity_id in enumerate(activity_ids, start=1):
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"🗑 Активность #{index}",
+                    callback_data=f"activity:delete:{activity_id}",
+                )
+            ]
+        )
+    rows.append([InlineKeyboardButton(text="📊 Сегодня", callback_data="nav:today")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

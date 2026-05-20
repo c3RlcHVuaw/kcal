@@ -49,6 +49,8 @@ API health should return:
 - Settings can generate an Apple Health iOS Shortcuts webhook URL for importing
   weight, active calories, and steps, including HealthKit-style nested values
   and same-day delta sync for hourly automations.
+- Today includes activity management for deleting incorrect manual or Apple Health
+  activity entries.
 - Optional reminders can separately nudge meal logging and morning weigh-ins.
 - Meal reminders support morning, lunch, and evening smart hints.
 - Meal reminders skip redundant nudges when that meal is already logged.

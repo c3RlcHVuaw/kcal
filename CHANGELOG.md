@@ -2,8 +2,10 @@
 
 ## 2026-05-20
 
-- Rejected newline-separated Apple Health sample dumps so raw Shortcut sample
-  lists cannot be mistaken for a daily activity total.
+- Added activity management in Today so users can delete incorrect activity
+  entries, including Apple Health imports.
+- Allowed newline-separated Apple Health sample dumps again, with same-day delta
+  sync preventing repeated webhook runs from double-counting the same total.
 - Fixed Apple Health activity parsing when Shortcuts sends a list of HealthKit
   samples by summing active calories and steps instead of taking the first sample.
 - Changed Apple Health activity imports to use same-day cumulative deltas, so
