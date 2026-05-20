@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from io import BytesIO
 
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps, UnidentifiedImageError
+
+logger = logging.getLogger(__name__)
 
 
 class BarcodeNotFoundError(RuntimeError):
@@ -27,9 +30,19 @@ class BarcodeService:
 
 
 def _decode_first(image: Image.Image) -> str | None:
-    from pyzbar.pyzbar import decode
+    try:
+        from pyzbar.pyzbar import decode
+    except ImportError as exc:
+        logger.warning("Barcode decoder is unavailable: %s", exc)
+        raise BarcodeNotFoundError("Barcode decoder is unavailable") from exc
 
-    for code in decode(image):
+    try:
+        codes = decode(image)
+    except Exception as exc:
+        logger.debug("Barcode candidate could not be decoded: %s", exc)
+        return None
+
+    for code in codes:
         try:
             value = code.data.decode("utf-8").strip()
         except UnicodeDecodeError:

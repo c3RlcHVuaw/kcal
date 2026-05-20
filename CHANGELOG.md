@@ -2,6 +2,8 @@
 
 ## 2026-05-20
 
+- Fixed barcode scans failing completely when the native decoder rejects one
+  image candidate, so the bot now keeps trying other frames and variants.
 - Added activity management in Today so users can delete incorrect activity
   entries, including Apple Health imports.
 - Moved activity management into the existing More -> Activity section so add

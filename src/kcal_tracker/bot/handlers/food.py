@@ -871,6 +871,9 @@ async def _decode_barcode_from_frames(frames: list[bytes]) -> str | None:
     except TimeoutError:
         logger.warning("Barcode decoding timed out")
         return None
+    except Exception:
+        logger.exception("Barcode decoding failed")
+        return None
 
 
 def _decode_barcode_from_frames_sync(frames: list[bytes]) -> str | None:
