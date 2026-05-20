@@ -560,6 +560,19 @@ def test_apple_health_sums_shortcuts_sample_lists_for_activity() -> None:
     assert payload.active_kcal == 138
 
 
+def test_apple_health_sums_shortcuts_newline_strings_for_activity() -> None:
+    payload, errors = _normalize_apple_health_payload(
+        {
+            "steps": "72\n101\n10",
+            "active_kcal": "4.455\n1.653\n131.892",
+            "weight_kg": "",
+        }
+    )
+    assert errors == {"weight_kg": "Could not extract numeric value"}
+    assert payload.steps == 183
+    assert payload.active_kcal == 138
+
+
 def test_apple_health_normalizes_payload_and_ignores_unknown_fields() -> None:
     payload, errors = _normalize_apple_health_payload(
         {
