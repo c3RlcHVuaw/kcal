@@ -2,8 +2,8 @@
 
 ## 2026-05-20
 
-- Fixed Apple Health activity parsing when iOS Shortcuts sends HealthKit samples
-  as one newline-separated string.
+- Rejected newline-separated Apple Health sample dumps so raw Shortcut sample
+  lists cannot be mistaken for a daily activity total.
 - Fixed Apple Health activity parsing when Shortcuts sends a list of HealthKit
   samples by summing active calories and steps instead of taking the first sample.
 - Changed Apple Health activity imports to use same-day cumulative deltas, so

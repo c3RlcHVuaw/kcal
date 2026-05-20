@@ -253,7 +253,7 @@ def _extract_numeric_value(input_value: Any) -> float | None:
 
 def _extract_numeric_total(input_value: Any) -> float | None:
     if isinstance(input_value, str):
-        return _number_total_from_string(input_value)
+        return _single_number_from_string(input_value)
     if isinstance(input_value, list):
         values = [_extract_numeric_value(item) for item in input_value]
         numeric_values = [value for value in values if value is not None]
@@ -267,14 +267,14 @@ def _extract_numeric_total(input_value: Any) -> float | None:
     return _extract_numeric_value(input_value)
 
 
-def _number_total_from_string(value: str) -> float | None:
+def _single_number_from_string(value: str) -> float | None:
     stripped = value.strip().replace(",", ".")
     if not stripped:
         return None
     matches = re.findall(r"-?\d+(?:\.\d+)?", stripped)
-    if not matches:
+    if len(matches) != 1:
         return None
-    return sum(float(match) for match in matches)
+    return float(matches[0])
 
 
 def _number_from_string(value: str) -> float | None:
