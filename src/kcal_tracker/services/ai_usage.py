@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from kcal_tracker.config import settings
 from kcal_tracker.models import AIUsage, User
+from kcal_tracker.services.growth import GrowthService
 
 
 class AILimitReachedError(RuntimeError):
@@ -89,6 +90,7 @@ class AIUsageService:
         usage.input_tokens += input_tokens
         usage.output_tokens += output_tokens
         await self.session.commit()
+        await GrowthService(self.session).reward_referrer_for_activity(user)
 
     def _today(self, user: User) -> date:
         return datetime.now(ZoneInfo(user.timezone)).date()

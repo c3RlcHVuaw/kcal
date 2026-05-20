@@ -2,6 +2,8 @@
 
 ## 2026-05-20
 
+- Changed referrals so the first active friend gives 7 AI days after 5 active
+  days out of 7, while later referral bonuses require the friend to pay.
 - Added referral links, weekly progress sharing, one-day premium trials, and
   one-time win-back AI day offers for expired subscribers.
 - Fixed barcode scans failing completely when the native decoder rejects one

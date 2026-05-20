@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -43,6 +44,7 @@ class UserService:
         if referrer is None or referrer.id == user.id:
             return False
         user.referred_by_user_id = referrer.id
+        user.referred_at = datetime.now(UTC)
         await self.session.commit()
         await self.session.refresh(user)
         return True

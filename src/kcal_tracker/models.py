@@ -47,7 +47,12 @@ class User(Base):
         ForeignKey("users.id", ondelete="SET NULL"),
         index=True,
     )
+    referred_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     referral_rewarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    active_referral_rewarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    first_active_referral_rewarded_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
     premium_trial_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     winback_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     protein_target_g: Mapped[float | None] = mapped_column(Float)

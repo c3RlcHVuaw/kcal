@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     ai_subscription_stars: int = Field(default=199, ge=1)
     ai_subscription_days: int = Field(default=30, ge=1)
     referral_reward_days: int = Field(default=7, ge=0)
+    referral_active_window_days: int = Field(default=7, ge=1)
+    referral_active_required_days: int = Field(default=5, ge=1)
     premium_trial_days: int = Field(default=1, ge=0)
     winback_offer_days: int = Field(default=1, ge=0)
 

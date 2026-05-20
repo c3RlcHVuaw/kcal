@@ -18,6 +18,7 @@ from kcal_tracker.models import (
 )
 from kcal_tracker.schemas import ActivityEstimate, FoodEntryCreate
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
+from kcal_tracker.services.growth import GrowthService
 
 
 @dataclass(frozen=True)
@@ -49,6 +50,7 @@ class WellnessService:
         self.session.add(log)
         await self.session.commit()
         await self.session.refresh(log)
+        await GrowthService(self.session).reward_referrer_for_activity(user)
         return log
 
     async def today_water_ml(self, user: User) -> int:
@@ -67,6 +69,7 @@ class WellnessService:
         self.session.add(log)
         await self.session.commit()
         await self.session.refresh(log)
+        await GrowthService(self.session).reward_referrer_for_activity(user)
         return log
 
     async def latest_weight(self, user: User) -> WeightLog | None:
@@ -147,6 +150,7 @@ class WellnessService:
         self.session.add(log)
         await self.session.commit()
         await self.session.refresh(log)
+        await GrowthService(self.session).reward_referrer_for_activity(user)
         return log
 
     async def today_activity_kcal(self, user: User) -> float:

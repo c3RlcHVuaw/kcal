@@ -17,11 +17,13 @@ async def start(message: Message) -> None:
     start_payload = _start_payload(message.text)
     async with SessionLocal() as session:
         users = UserService(session)
+        existing_user = await users.get_by_telegram_id(message.from_user.id)
         user = await users.get_or_create(
             telegram_id=message.from_user.id,
             username=message.from_user.username,
         )
-        await GrowthService(session).apply_referral_start(user, start_payload)
+        if existing_user is None:
+            await GrowthService(session).apply_referral_start(user, start_payload)
     if not user.onboarding_completed:
         await message.answer(
             "Давай настроим дневник. Выбери язык.",

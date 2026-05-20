@@ -65,8 +65,8 @@ API health should return:
 - Favorite foods work as quick meal templates for one-tap logging without AI.
 - Settings include CSV exports for diary, water, weight, and activity data.
 - Users without a subscription get 3 free AI requests before the paywall.
-- Users can try one premium day, share weekly progress with a referral link,
-  and earn 7 AI days when an invited friend buys a subscription.
+- Referred users get one premium day, referrers earn 7 AI days for the first
+  friend active 5 of 7 days, and later referrals reward after first payment.
 - Barcode videos are scanned across several frames, not just one still frame.
 
 ## AI reliability rules
