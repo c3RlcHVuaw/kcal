@@ -27,6 +27,8 @@ MAIN_MENU_TEXTS = {
     "↩️ Повторить вчера",
     "⭐ Любимое",
     "⭐ Избранное",
+    "⚡ Шаблоны",
+    "📅 Месяц",
     "📈 7 дней",
     "📈 Неделя",
     "💧 Вода",
@@ -61,12 +63,13 @@ def more_menu_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal")],
             [
                 InlineKeyboardButton(text="⚡ Частое", callback_data="nav:frequent"),
-                InlineKeyboardButton(text="↩️ Как вчера", callback_data="nav:yesterday"),
+                InlineKeyboardButton(text="⚡ Шаблоны", callback_data="nav:templates"),
             ],
             [
-                InlineKeyboardButton(text="⭐ Любимое", callback_data="nav:favorites"),
+                InlineKeyboardButton(text="↩️ Как вчера", callback_data="nav:yesterday"),
                 InlineKeyboardButton(text="📈 7 дней", callback_data="nav:week"),
             ],
+            [InlineKeyboardButton(text="📅 Месяц", callback_data="nav:month")],
             [
                 InlineKeyboardButton(text="🏃 Активность", callback_data="nav:activity"),
                 InlineKeyboardButton(text="⚖️ Вес", callback_data="nav:weight"),
@@ -89,6 +92,7 @@ def food_confirmation_keyboard(
     *,
     allow_refine: bool = False,
     allow_portions: bool = False,
+    allow_photo_questions: bool = False,
 ) -> InlineKeyboardMarkup:
     edit_row = [InlineKeyboardButton(text="✏️ Граммовка", callback_data=f"{prefix}:edit")]
     if allow_refine:
@@ -106,6 +110,13 @@ def food_confirmation_keyboard(
             [
                 InlineKeyboardButton(text="2×", callback_data=f"{prefix}:portion:2"),
                 InlineKeyboardButton(text="¼", callback_data=f"{prefix}:portion:0.25"),
+            ]
+        )
+    if allow_photo_questions:
+        rows.append(
+            [
+                InlineKeyboardButton(text="🧈 Соус/масло", callback_data=f"{prefix}:ask:sauce"),
+                InlineKeyboardButton(text="🥤 Напиток", callback_data=f"{prefix}:ask:drink"),
             ]
         )
     rows.append(edit_row)
@@ -215,6 +226,7 @@ def food_entries_keyboard(entry_ids: list[int], *, expanded: bool = False) -> In
                 InlineKeyboardButton(text=f"✏️ #{index}", callback_data=f"entry:edit:{entry_id}"),
                 InlineKeyboardButton(text=f"🗑 #{index}", callback_data=f"entry:delete:{entry_id}"),
                 InlineKeyboardButton(text=f"⭐ #{index}", callback_data=f"entry:fav:{entry_id}"),
+                InlineKeyboardButton(text=f"🔎 #{index}", callback_data=f"entry:refine:{entry_id}"),
             ]
         )
     rows.append(
@@ -240,7 +252,7 @@ def water_keyboard() -> InlineKeyboardMarkup:
 
 def favorites_keyboard(favorite_ids: list[int]) -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(text="➕ Добавить любимое", callback_data="fav:manual")]
+        [InlineKeyboardButton(text="➕ Добавить шаблон", callback_data="fav:manual")]
     ]
     for index, favorite_id in enumerate(favorite_ids, start=1):
         rows.append(

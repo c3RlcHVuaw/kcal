@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kcal_tracker.models import ActivityLog, FoodEntry, User
-from kcal_tracker.schemas import DiarySummary, FoodEntryCreate
+from kcal_tracker.schemas import DiarySummary, FoodEntryCreate, FoodEstimate
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
 from kcal_tracker.services.profile import calculate_macro_targets
 
@@ -109,6 +109,29 @@ class DiaryService:
             entry.fat = round(entry.fat * ratio, 1)
             entry.carbs = round(entry.carbs * ratio, 1)
         entry.weight_g = round(weight_g, 1)
+        await self.session.commit()
+        await self.session.refresh(entry)
+        return entry
+
+    async def update_entry_estimate(
+        self,
+        user: User,
+        entry_id: int,
+        estimate: FoodEstimate,
+    ) -> FoodEntry | None:
+        entry = await self.get_entry(user, entry_id)
+        if entry is None:
+            return None
+        estimate = enrich_food_payload(estimate)
+        entry.food_name = estimate.name
+        entry.kcal = round(estimate.kcal, 1)
+        entry.protein = round(estimate.protein, 1)
+        entry.fat = round(estimate.fat, 1)
+        entry.carbs = round(estimate.carbs, 1)
+        entry.weight_g = round(estimate.weight_g, 1) if estimate.weight_g is not None else None
+        entry.emoji = estimate.emoji
+        entry.advice = estimate.advice
+        entry.confidence = estimate.confidence
         await self.session.commit()
         await self.session.refresh(entry)
         return entry
@@ -357,6 +380,20 @@ class DiaryService:
             confidence=entry.confidence,
             source=entry.source,
         )
+
+
+def estimate_from_entry(entry: FoodEntry) -> FoodEstimate:
+    return FoodEstimate(
+        name=entry.food_name,
+        kcal=entry.kcal,
+        protein=entry.protein,
+        fat=entry.fat,
+        carbs=entry.carbs,
+        weight_g=entry.weight_g,
+        emoji=entry.emoji,
+        advice=entry.advice,
+        confidence=entry.confidence,
+    )
 
 
 def _as_user_time(value: datetime, tz: ZoneInfo) -> datetime:

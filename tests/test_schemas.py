@@ -8,12 +8,14 @@ from kcal_tracker.bot.handlers.diary import (
     _entry_time_label,
     _habit_lines,
     _meal_summary_lines,
+    _month_delta_line,
+    _month_focus,
     _today_view,
     _week_highlight_lines,
     _weight_chart,
 )
 from kcal_tracker.bot.handlers.food import _format_estimate_confirmation, _scale_estimate
-from kcal_tracker.bot.keyboards import food_entries_keyboard
+from kcal_tracker.bot.keyboards import food_confirmation_keyboard, food_entries_keyboard
 from kcal_tracker.bot.text_parsing import (
     looks_like_activity,
     parse_activity_kcal,
@@ -21,7 +23,7 @@ from kcal_tracker.bot.text_parsing import (
 )
 from kcal_tracker.schemas import FoodEstimate
 from kcal_tracker.services.ai_food import food_refinement_user_text, photo_recognition_user_text
-from kcal_tracker.services.diary import NutritionPatterns
+from kcal_tracker.services.diary import NutritionPatterns, estimate_from_entry
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
 from kcal_tracker.services.media import _sample_timestamps
 from kcal_tracker.services.nutrition import (
@@ -297,6 +299,7 @@ def test_food_entries_keyboard_expands_entry_actions() -> None:
     assert rows[0][0].callback_data == "entry:edit:10"
     assert rows[0][1].callback_data == "entry:delete:10"
     assert rows[0][2].callback_data == "entry:fav:10"
+    assert rows[0][3].callback_data == "entry:refine:10"
     assert rows[-1][0].callback_data == "nav:today"
     assert rows[-1][1].callback_data == "coach:meal"
 
@@ -341,6 +344,13 @@ def test_habit_lines_show_streaks_and_coverage() -> None:
     assert "Сильная привычка сейчас: еда." in text
 
 
+def test_month_summary_helpers_choose_focus() -> None:
+    assert "перебор" in _month_delta_line(260)
+    assert "недобор" in _month_delta_line(-420)
+    assert _month_focus(50, 70) == "поднять белок в обычных приёмах пищи"
+    assert _month_focus(260, 95) == "найти 1-2 частых источника лишних калорий"
+
+
 def test_photo_recognition_user_text_includes_caption_hint() -> None:
     text = photo_recognition_user_text("это половина порции, плюс 30 г соуса")
     assert "Уточнение пользователя" in text
@@ -353,8 +363,25 @@ def test_photo_confirmation_can_show_portion_hint() -> None:
         FoodEstimate(name="паста", weight_g=300, kcal=600),
         show_portion_hint=True,
     )
-    assert "½" in text
-    assert "2×" in text
+    assert "соус" in text
+    assert "напиток" in text
+
+
+def test_photo_confirmation_keyboard_includes_question_buttons() -> None:
+    keyboard = food_confirmation_keyboard(
+        "food",
+        allow_refine=True,
+        allow_portions=True,
+        allow_photo_questions=True,
+    )
+    callbacks = [
+        button.callback_data
+        for row in keyboard.inline_keyboard
+        for button in row
+    ]
+    assert "food:ask:sauce" in callbacks
+    assert "food:ask:drink" in callbacks
+    assert "food:portion:0.5" in callbacks
 
 
 def test_scale_estimate_uses_original_portion_ratio() -> None:
@@ -371,6 +398,24 @@ def test_food_refinement_user_text_includes_current_estimate_and_hint() -> None:
     assert "Текущая оценка еды" in text
     assert "сырники" in text
     assert "ещё полито джемом" in text
+
+
+def test_estimate_from_entry_keeps_saved_entry_macros() -> None:
+    entry = SimpleNamespace(
+        food_name="паста",
+        kcal=600,
+        protein=20,
+        fat=18,
+        carbs=90,
+        weight_g=300,
+        emoji="🍝",
+        advice="Проверь соус.",
+        confidence=0.72,
+    )
+    estimate = estimate_from_entry(entry)
+    assert estimate.name == "паста"
+    assert estimate.weight_g == 300
+    assert estimate.confidence == 0.72
 
 
 def test_entry_time_label_uses_user_timezone_for_utc_timestamp() -> None:

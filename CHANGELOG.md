@@ -2,6 +2,11 @@
 
 ## 2026-05-20
 
+- Added AI correction for saved AI food entries from the Today entry actions.
+- Added photo follow-up prompts for sauces/oil and drinks before saving AI food estimates.
+- Added a 30-day monthly report with tracking coverage, calorie patterns,
+  protein average, weight trend, and next-month focus.
+- Reworked favorites into quick food templates for one-tap repeat meals without AI.
 - Added a weight dashboard with recent sparkline, 7-day average, and trend label.
 - Added habit streaks and 30-day tracking coverage for food, water, and weight
   to the weekly report.

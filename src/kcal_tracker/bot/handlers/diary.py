@@ -27,8 +27,9 @@ from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.schemas import ActivityEstimate, FoodEntryCreate
 from kcal_tracker.services.ai_activity import AIActivityService
+from kcal_tracker.services.ai_food import AIFoodService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
-from kcal_tracker.services.diary import DiaryService
+from kcal_tracker.services.diary import DiaryService, estimate_from_entry
 from kcal_tracker.services.food_insights import food_label
 from kcal_tracker.services.nutrition import (
     automatic_pattern_notes,
@@ -55,6 +56,7 @@ ADVANCED_PATTERNS_UPSELL = (
 
 class DiaryFlow(StatesGroup):
     editing_saved_weight = State()
+    refining_saved_entry = State()
     water_custom = State()
     activity_custom = State()
     weight = State()
@@ -219,7 +221,91 @@ async def favorite_saved_entry(callback: CallbackQuery) -> None:
             await callback.answer("Не нашёл эту запись.", show_alert=True)
             return
         favorite = await WellnessService(session).add_favorite_from_entry(user, entry)
-    await callback.answer(f"В избранном: {food_label(favorite)}", show_alert=True)
+    await callback.answer(f"В шаблонах: {food_label(favorite)}", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("entry:refine:"))
+async def refine_saved_entry(callback: CallbackQuery, state: FSMContext) -> None:
+    entry_id = int(callback.data.rsplit(":", 1)[1])
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        entry = await DiaryService(session).get_entry(user, entry_id)
+
+    if entry is None:
+        await callback.answer("Не нашёл эту запись.", show_alert=True)
+        return
+    if entry.source not in {"ai_photo", "manual"}:
+        await callback.answer("AI-уточнение доступно для AI-записей.", show_alert=True)
+        return
+
+    await state.update_data(entry_id=entry_id)
+    await state.set_state(DiaryFlow.refining_saved_entry)
+    await callback.message.edit_text(
+        f"Уточняем: {food_label(entry)}.\n\n"
+        "Напиши, что поправить: «добавь 20 г соуса», "
+        "«это было 200 г», «убери хлеб», «была половина порции»."
+    )
+    await callback.answer()
+
+
+@router.message(DiaryFlow.refining_saved_entry, F.text)
+async def save_saved_entry_refinement(message: Message, state: FSMContext) -> None:
+    refinement = " ".join((message.text or "").split())
+    if not refinement:
+        await message.answer("Напиши уточнение текстом, например: добавь 20 г соуса.")
+        return
+    if not await _ensure_ai_available(message):
+        return
+
+    data = await state.get_data()
+    entry_id = int(data["entry_id"])
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            message.from_user.id,
+            message.from_user.username,
+        )
+        diary = DiaryService(session)
+        entry = await diary.get_entry(user, entry_id)
+        if entry is None:
+            await state.clear()
+            await message.answer("Не нашёл эту запись.")
+            return
+        estimate = estimate_from_entry(entry)
+
+    await message.answer("Пересчитываю сохранённую запись.")
+    try:
+        refined = await AIFoodService().refine_estimate(estimate, refinement)
+    except Exception:
+        await message.answer("Не смог сейчас пересчитать запись. Попробуй ещё раз чуть проще.")
+        return
+    await _record_ai_request(message, "saved_food_refine")
+    if not refined.foods:
+        await message.answer("AI не смог уверенно пересчитать запись. Попробуй чуть проще.")
+        return
+
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            message.from_user.id,
+            message.from_user.username,
+        )
+        updated = await DiaryService(session).update_entry_estimate(
+            user,
+            entry_id,
+            refined.foods[0],
+        )
+
+    await state.clear()
+    if updated is None:
+        await message.answer("Не нашёл эту запись.")
+        return
+    await message.answer(
+        f"Обновил: {food_label(updated)} — {updated.weight_g or 0:.0f}г, "
+        f"{updated.kcal:.0f} ккал.",
+        reply_markup=after_save_keyboard(),
+    )
 
 
 @router.message(F.text == "💧 Вода")
@@ -437,13 +523,14 @@ async def save_weight(message: Message, state: FSMContext) -> None:
     )
 
 
-@router.message(F.text.in_({"⭐ Любимое", "⭐ Избранное"}))
+@router.message(F.text.in_({"⭐ Любимое", "⭐ Избранное", "⚡ Шаблоны"}))
 async def show_favorites(message: Message) -> None:
     text, reply_markup = await _favorites_view(message.from_user.id, message.from_user.username)
     await message.answer(text, reply_markup=reply_markup)
 
 
 @router.callback_query(F.data == "nav:favorites")
+@router.callback_query(F.data == "nav:templates")
 async def show_favorites_inline(callback: CallbackQuery) -> None:
     text, reply_markup = await _favorites_view(callback.from_user.id, callback.from_user.username)
     await callback.message.edit_text(text, reply_markup=reply_markup)
@@ -459,13 +546,15 @@ async def _favorites_view(telegram_id: int, username: str | None):
         favorites = await WellnessService(session).favorites(user)
     if not favorites:
         return (
-            "Любимых продуктов пока нет. Можно добавить вручную или сохранить запись из «Сегодня».",
+            "Шаблонов пока нет. Можно добавить вручную или сохранить запись из «Сегодня» "
+            "кнопкой ⭐.",
             favorites_keyboard([]),
         )
-    lines = ["Любимое:", ""]
+    lines = ["⚡ Шаблоны еды:", ""]
     for index, favorite in enumerate(favorites, start=1):
         weight = f", {favorite.weight_g:.0f}г" if favorite.weight_g else ""
         lines.append(f"#{index} {food_label(favorite)}{weight} — {favorite.kcal:.0f} ккал")
+    lines.extend(["", "Нажми ➕ у шаблона, чтобы быстро добавить его в дневник без AI."])
     return (
         "\n".join(lines),
         favorites_keyboard([favorite.id for favorite in favorites]),
@@ -476,7 +565,7 @@ async def _favorites_view(telegram_id: int, username: str | None):
 async def ask_manual_favorite(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(DiaryFlow.favorite_manual)
     await callback.message.edit_text(
-        "Напиши любимый продукт так: название; граммы; ккал; белки; жиры; углеводы\n"
+        "Напиши шаблон так: название; граммы; ккал; белки; жиры; углеводы\n"
         "Например: кофе; 250; 80; 3; 2; 10"
     )
     await callback.answer()
@@ -496,7 +585,7 @@ async def save_manual_favorite(message: Message, state: FSMContext) -> None:
         favorite = await WellnessService(session).add_favorite(user, payload)
     await state.clear()
     await message.answer(
-        f"Добавил в любимое: {food_label(favorite)}.",
+        f"Добавил шаблон: {food_label(favorite)}.",
         reply_markup=after_save_keyboard(),
     )
 
@@ -531,7 +620,7 @@ async def delete_favorite(callback: CallbackQuery) -> None:
             callback.from_user.username,
         )
         deleted = await WellnessService(session).delete_favorite(user, favorite_id)
-    await callback.message.edit_text("Удалил из любимого." if deleted else "Не нашёл этот продукт.")
+    await callback.message.edit_text("Удалил шаблон." if deleted else "Не нашёл этот шаблон.")
     await callback.answer()
 
 
@@ -663,6 +752,18 @@ async def show_week_inline(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+@router.message(lambda message: message.text == "📅 Месяц")
+async def show_month(message: Message) -> None:
+    await message.answer(await _month_view(message.from_user.id, message.from_user.username))
+
+
+@router.callback_query(F.data == "nav:month")
+async def show_month_inline(callback: CallbackQuery) -> None:
+    text = await _month_view(callback.from_user.id, callback.from_user.username)
+    await callback.message.edit_text(text)
+    await callback.answer()
+
+
 async def _week_view(telegram_id: int, username: str | None) -> str:
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
@@ -703,6 +804,60 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
     return "\n".join(lines)
 
 
+async def _month_view(telegram_id: int, username: str | None) -> str:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=telegram_id,
+            username=username,
+        )
+        diary = DiaryService(session)
+        analytics = await diary.weekly_analytics(user, days=30)
+        habits = await WellnessService(session).habit_summary(user, days=30)
+        weight = await WellnessService(session).weight_trend(user, days=30)
+
+    tracked = [day for day in analytics.days if day.entries_count]
+    if not tracked:
+        return (
+            "📅 Месячный отчёт\n\n"
+            "Пока мало данных. Записывай еду несколько дней, и здесь появится нормальный разбор."
+        )
+
+    best = min(tracked, key=lambda day: abs(day.kcal - analytics.target_kcal))
+    high_days = sum(1 for day in tracked if day.kcal > analytics.target_kcal + 250)
+    low_days = sum(1 for day in tracked if day.kcal < analytics.target_kcal - 350)
+    protein_average = sum(day.protein for day in tracked) / len(tracked)
+    delta = analytics.average_kcal - analytics.target_kcal
+
+    lines = [
+        "📅 Месячный отчёт",
+        "",
+        f"Дней с дневником: {len(tracked)}/30",
+        f"Среднее: {analytics.average_kcal:.0f} / {analytics.target_kcal} ккал",
+        f"Дней рядом с целью: {analytics.days_in_target}",
+        f"Лучший день по калориям: {best.date_label} ({best.kcal:.0f} ккал)",
+        f"Белок в среднем: {protein_average:.0f} г/день",
+        "",
+        "Паттерны месяца:",
+        _month_delta_line(delta),
+        f"Дней с заметным перебором: {high_days}",
+        f"Дней с сильным недобором: {low_days}",
+        "",
+        *_habit_lines(habits),
+    ]
+    if weight.latest_kg is not None:
+        sign = "+" if (weight.delta_7d_kg or 0) > 0 else ""
+        lines.extend(
+            [
+                "",
+                "Вес:",
+                f"Последний: {weight.latest_kg:.1f} кг",
+                f"Тренд: {weight.trend_label}, {sign}{(weight.delta_7d_kg or 0):.1f} кг",
+            ]
+        )
+    lines.extend(["", f"Фокус на следующий месяц: {_month_focus(delta, protein_average)}."])
+    return "\n".join(lines)
+
+
 def _week_highlight_lines(analytics) -> list[str]:
     tracked = [day for day in analytics.days if day.entries_count]
     if not tracked:
@@ -724,6 +879,24 @@ def _week_highlight_lines(analytics) -> list[str]:
         f"Белок в среднем: {average_protein:.0f} г/день.",
         f"Главный вывод: {delta_text}.",
     ]
+
+
+def _month_delta_line(delta: float) -> str:
+    if abs(delta) <= 150:
+        return "Средняя калорийность рядом с целью."
+    if delta > 0:
+        return f"В среднем перебор около {delta:.0f} ккал в день."
+    return f"В среднем недобор около {abs(delta):.0f} ккал в день."
+
+
+def _month_focus(delta: float, protein_average: float) -> str:
+    if protein_average < 80:
+        return "поднять белок в обычных приёмах пищи"
+    if delta > 200:
+        return "найти 1-2 частых источника лишних калорий"
+    if delta < -300:
+        return "не проваливаться в слишком низкую калорийность"
+    return "сохранить текущий ритм и стабильность записей"
 
 
 def _habit_lines(habits) -> list[str]:

@@ -594,9 +594,33 @@ async def update_food_portion(callback: CallbackQuery, state: FSMContext) -> Non
             "food",
             allow_refine=True,
             allow_portions=True,
+            allow_photo_questions=True,
         ),
     )
     await callback.answer(f"Порция: {ratio:g}×")
+
+
+@router.callback_query(F.data.startswith("food:ask:"))
+async def ask_photo_detail(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    if data.get("source") != "ai_photo" or "estimate" not in data:
+        await callback.answer("Вопросы доступны только для фото.", show_alert=True)
+        return
+
+    detail = callback.data.rsplit(":", 1)[1]
+    prompts = {
+        "sauce": (
+            "Опиши соус, масло, сыр или сахар. Например: "
+            "«примерно 20 г майонеза» или «жарилось на масле»."
+        ),
+        "drink": (
+            "Опиши напиток рядом с едой. Например: "
+            "«латте 300 мл» или «кола 0.5 без сахара»."
+        ),
+    }
+    await state.set_state(FoodFlow.refining)
+    await callback.message.edit_text(prompts.get(detail, "Что уточнить для AI?"))
+    await callback.answer()
 
 
 @router.callback_query(F.data == "food:refine")
@@ -659,6 +683,7 @@ async def _show_confirmation(
             "food",
             allow_refine=source in {"ai_photo", "manual"},
             allow_portions=source == "ai_photo",
+            allow_photo_questions=source == "ai_photo",
         ),
     )
 
@@ -887,8 +912,8 @@ def _format_estimate_confirmation(
         lines.extend(
             [
                 "",
-                "Если это не вся порция, можно быстро выбрать ½, 1½, 2× "
-                "или уточнить состав текстом.",
+                "Проверь фото-вопросы: вся ли это порция, было ли масло/соус, "
+                "сыр, сахар или напиток рядом. Если да — уточни перед сохранением.",
             ]
         )
     lines.extend(["", "Добавить в дневник?"])
