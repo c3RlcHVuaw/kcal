@@ -96,7 +96,7 @@ async def import_apple_health(
         raise HTTPException(status_code=404, detail="Integration not found")
 
     raw_payload = await _read_apple_health_payload(request)
-    logger.info("Apple Health raw payload for user_id=%s: %s", user.id, raw_payload)
+    logger.warning("Apple Health raw payload for user_id=%s: %s", user.id, raw_payload)
     payload, errors = _normalize_apple_health_payload(raw_payload)
 
     saved: list[str] = []
@@ -166,8 +166,15 @@ def _normalize_apple_health_payload(
 ) -> tuple[AppleHealthPayload, dict[str, str]]:
     errors: dict[str, str] = {}
     weight_kg = _extract_float_field(payload, "weight_kg", 30, 250, errors)
-    steps_float = _extract_float_field(payload, "steps", 0, 100000, errors)
-    active_kcal = _extract_float_field(payload, "active_kcal", 0, 5000, errors)
+    steps_float = _extract_float_field(payload, "steps", 0, 100000, errors, sum_samples=True)
+    active_kcal = _extract_float_field(
+        payload,
+        "active_kcal",
+        0,
+        5000,
+        errors,
+        sum_samples=True,
+    )
     note = payload.get("note")
     if note is not None and not isinstance(note, str):
         note = str(note)
@@ -183,10 +190,15 @@ def _extract_float_field(
     minimum: float,
     maximum: float,
     errors: dict[str, str],
+    *,
+    sum_samples: bool = False,
 ) -> float | None:
     if field not in payload:
         return None
-    value = _extract_numeric_value(payload[field])
+    if sum_samples:
+        value = _extract_numeric_total(payload[field])
+    else:
+        value = _extract_numeric_value(payload[field])
     if value is None:
         errors[field] = "Could not extract numeric value"
         return None
@@ -237,6 +249,20 @@ def _extract_numeric_value(input_value: Any) -> float | None:
             if value is not None:
                 return value
     return None
+
+
+def _extract_numeric_total(input_value: Any) -> float | None:
+    if isinstance(input_value, list):
+        values = [_extract_numeric_value(item) for item in input_value]
+        numeric_values = [value for value in values if value is not None]
+        return sum(numeric_values) if numeric_values else None
+    if isinstance(input_value, dict):
+        for key in ("samples", "result", "results"):
+            nested = input_value.get(key)
+            if isinstance(nested, list):
+                return _extract_numeric_total(nested)
+        return _extract_numeric_value(input_value)
+    return _extract_numeric_value(input_value)
 
 
 def _number_from_string(value: str) -> float | None:

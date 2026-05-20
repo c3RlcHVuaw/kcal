@@ -2,6 +2,7 @@ from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
 from kcal_tracker.api.routes import (
+    _extract_numeric_total,
     _extract_numeric_value,
     _normalize_apple_health_payload,
     _steps_to_kcal,
@@ -535,6 +536,28 @@ def test_apple_health_extracts_shortcuts_numeric_shapes() -> None:
     assert _extract_numeric_value({"sample": {"quantity": {"doubleValue": "8200"}}}) == 8200
     assert _extract_numeric_value({"value": 4, "quantity": {"doubleValue": 70}}) == 70
     assert _extract_numeric_value({"healthKit": {"energy": {"doubleValue": 70}}}) == 70
+
+
+def test_apple_health_sums_shortcuts_sample_lists_for_activity() -> None:
+    assert _extract_numeric_total(
+        [
+            {"quantity": {"doubleValue": 4.455}},
+            {"quantity": {"doubleValue": "12.5"}},
+            {"value": 1.0},
+        ]
+    ) == 17.955
+    payload, errors = _normalize_apple_health_payload(
+        {
+            "active_kcal": {
+                "samples": [
+                    {"quantity": {"doubleValue": 4.455}},
+                    {"quantity": {"doubleValue": 133.545}},
+                ]
+            }
+        }
+    )
+    assert errors == {}
+    assert payload.active_kcal == 138
 
 
 def test_apple_health_normalizes_payload_and_ignores_unknown_fields() -> None:
