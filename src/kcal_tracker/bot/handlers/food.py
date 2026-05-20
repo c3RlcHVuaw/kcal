@@ -11,7 +11,7 @@ from aiogram.types import CallbackQuery, Message
 from kcal_tracker.bot.keyboards import (
     after_save_keyboard,
     calorie_warning_keyboard,
-    confirm_food_keyboard,
+    food_confirmation_keyboard,
     frequent_foods_keyboard,
     multi_food_keyboard,
     repeat_yesterday_keyboard,
@@ -572,6 +572,33 @@ async def update_food_weight(message: Message, state: FSMContext) -> None:
     await _show_confirmation(message, state, estimate, data["source"])
 
 
+@router.callback_query(F.data.startswith("food:portion:"))
+async def update_food_portion(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    if data.get("source") != "ai_photo" or "estimate" not in data:
+        await callback.answer("Быстрые порции доступны только для фото.", show_alert=True)
+        return
+
+    try:
+        ratio = float(callback.data.rsplit(":", 1)[1])
+    except ValueError:
+        await callback.answer("Не понял порцию.", show_alert=True)
+        return
+
+    base_json = data.get("base_estimate") or data["estimate"]
+    estimate = _scale_estimate(FoodEstimate.model_validate_json(base_json), ratio)
+    await state.update_data(estimate=estimate.model_dump_json())
+    await callback.message.edit_text(
+        _format_estimate_confirmation(estimate, show_portion_hint=True),
+        reply_markup=food_confirmation_keyboard(
+            "food",
+            allow_refine=True,
+            allow_portions=True,
+        ),
+    )
+    await callback.answer(f"Порция: {ratio:g}×")
+
+
 @router.callback_query(F.data == "food:refine")
 async def refine_food(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
@@ -610,6 +637,7 @@ async def update_food_refinement(message: Message, state: FSMContext) -> None:
         await message.answer("AI не смог уверенно уточнить оценку. Попробуй переформулировать.")
         return
 
+    await state.update_data(base_estimate=refined.foods[0].model_dump_json())
     await _show_confirmation(message, state, refined.foods[0], data["source"])
 
 
@@ -620,10 +648,18 @@ async def _show_confirmation(
     source: str,
 ) -> None:
     await state.set_state(FoodFlow.confirming)
-    await state.update_data(estimate=estimate.model_dump_json(), source=source)
+    data = await state.get_data()
+    update = {"estimate": estimate.model_dump_json(), "source": source}
+    if source == "ai_photo" and "base_estimate" not in data:
+        update["base_estimate"] = estimate.model_dump_json()
+    await state.update_data(**update)
     await message.answer(
-        _format_estimate_confirmation(estimate),
-        reply_markup=confirm_food_keyboard("food", allow_refine=source in {"ai_photo", "manual"}),
+        _format_estimate_confirmation(estimate, show_portion_hint=source == "ai_photo"),
+        reply_markup=food_confirmation_keyboard(
+            "food",
+            allow_refine=source in {"ai_photo", "manual"},
+            allow_portions=source == "ai_photo",
+        ),
     )
 
 
@@ -831,7 +867,11 @@ def _barcode_retry_text(message: Message) -> str:
     return "Штрихкод не считался. Попробуй фото ближе, без бликов и под прямым углом."
 
 
-def _format_estimate_confirmation(estimate: FoodEstimate) -> str:
+def _format_estimate_confirmation(
+    estimate: FoodEstimate,
+    *,
+    show_portion_hint: bool = False,
+) -> str:
     lines = [
         "Я нашёл:",
         "",
@@ -843,6 +883,14 @@ def _format_estimate_confirmation(estimate: FoodEstimate) -> str:
         lines.extend(["", f"💡 {estimate.advice}"])
     if estimate.confidence is not None and estimate.confidence < 0.7:
         lines.extend(["", "Оценка примерная, проверь граммовку перед сохранением."])
+    if show_portion_hint:
+        lines.extend(
+            [
+                "",
+                "Если это не вся порция, можно быстро выбрать ½, 1½, 2× "
+                "или уточнить состав текстом.",
+            ]
+        )
     lines.extend(["", "Добавить в дневник?"])
     return "\n".join(lines)
 
@@ -881,3 +929,16 @@ def _parse_positive_float(value: str) -> float | None:
     if parsed <= 0 or parsed > 10000:
         return None
     return parsed
+
+
+def _scale_estimate(estimate: FoodEstimate, ratio: float) -> FoodEstimate:
+    ratio = max(0.05, min(ratio, 10))
+    if estimate.weight_g is not None:
+        estimate.weight_g = round(estimate.weight_g * ratio, 1)
+    estimate.kcal = round(estimate.kcal * ratio, 1)
+    estimate.protein = round(estimate.protein * ratio, 1)
+    estimate.fat = round(estimate.fat * ratio, 1)
+    estimate.carbs = round(estimate.carbs * ratio, 1)
+    if estimate.advice:
+        estimate.advice = estimate.advice[:255]
+    return estimate

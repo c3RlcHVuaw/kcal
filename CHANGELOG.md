@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-05-20
+
+- Added a weight dashboard with recent sparkline, 7-day average, and trend label.
+- Added habit streaks and 30-day tracking coverage for food, water, and weight
+  to the weekly report.
+- Expanded the weekly report with clearer highlights: best target day, average
+  protein, and the main calorie trend.
+- Made meal reminders behavior-aware so already logged breakfast, lunch, or
+  dinner does not trigger a redundant reminder.
+- Added quick photo portion controls for AI estimates: quarter, half, normal,
+  one-and-a-half, and double portion.
+- Added CSV export for food, water, weight, and activity from settings.
+
 ## 2026-05-19
 
 - Changed the "Today" view to show all entries immediately under meal sections

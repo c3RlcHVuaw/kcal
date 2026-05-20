@@ -81,15 +81,37 @@ def more_menu_keyboard() -> InlineKeyboardMarkup:
 
 
 def confirm_food_keyboard(prefix: str, *, allow_refine: bool = False) -> InlineKeyboardMarkup:
+    return food_confirmation_keyboard(prefix, allow_refine=allow_refine)
+
+
+def food_confirmation_keyboard(
+    prefix: str,
+    *,
+    allow_refine: bool = False,
+    allow_portions: bool = False,
+) -> InlineKeyboardMarkup:
     edit_row = [InlineKeyboardButton(text="✏️ Граммовка", callback_data=f"{prefix}:edit")]
     if allow_refine:
         edit_row.append(InlineKeyboardButton(text="🔎 Уточнить", callback_data=f"{prefix}:refine"))
+    rows = [[InlineKeyboardButton(text="✅ Добавить", callback_data=f"{prefix}:confirm")]]
+    if allow_portions:
+        rows.append(
+            [
+                InlineKeyboardButton(text="½", callback_data=f"{prefix}:portion:0.5"),
+                InlineKeyboardButton(text="1×", callback_data=f"{prefix}:portion:1"),
+                InlineKeyboardButton(text="1½", callback_data=f"{prefix}:portion:1.5"),
+            ]
+        )
+        rows.append(
+            [
+                InlineKeyboardButton(text="2×", callback_data=f"{prefix}:portion:2"),
+                InlineKeyboardButton(text="¼", callback_data=f"{prefix}:portion:0.25"),
+            ]
+        )
+    rows.append(edit_row)
+    rows.append([InlineKeyboardButton(text="❌ Отмена", callback_data=f"{prefix}:cancel")])
     return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="✅ Добавить", callback_data=f"{prefix}:confirm")],
-            edit_row,
-            [InlineKeyboardButton(text="❌ Отмена", callback_data=f"{prefix}:cancel")],
-        ]
+        inline_keyboard=rows
     )
 
 
@@ -131,6 +153,15 @@ def after_activity_save_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="📊 Сегодня", callback_data="nav:today"),
                 InlineKeyboardButton(text="🏃 Ещё активность", callback_data="activity:custom"),
             ],
+        ]
+    )
+
+
+def weight_dashboard_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✍️ Записать вес", callback_data="weight:add")],
+            [InlineKeyboardButton(text="📈 Неделя", callback_data="nav:week")],
         ]
     )
 
@@ -346,6 +377,7 @@ def settings_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="Цель", callback_data="settings:goal")],
             [InlineKeyboardButton(text="Цель по калориям", callback_data="settings:kcal")],
             [InlineKeyboardButton(text="Цель по БЖУ", callback_data="settings:macros")],
+            [InlineKeyboardButton(text="Экспорт данных", callback_data="settings:export")],
         ]
     )
 

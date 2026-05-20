@@ -44,9 +44,14 @@ API health should return:
   such as sauces, jam, hidden ingredients, or partial portions.
 - Users can edit/delete saved entries from the day summary.
 - Users can track water, weight, favorite foods, and macro targets.
+- Weight tracking includes a recent mini-chart, 7-day average, and trend label.
 - Optional reminders can separately nudge meal logging and morning weigh-ins.
 - Meal reminders support morning, lunch, and evening smart hints.
+- Meal reminders skip redundant nudges when that meal is already logged.
 - Multi-product AI results can be saved one by one or all at once.
+- Photo food estimates support quick portion scaling before saving.
+- Weekly analytics include clearer highlights plus food, water, and weight streaks.
+- Settings include CSV exports for diary, water, weight, and activity data.
 - Users without a subscription get 3 free AI requests before the paywall.
 - Barcode videos are scanned across several frames, not just one still frame.
 

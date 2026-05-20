@@ -16,6 +16,7 @@ from kcal_tracker.bot.keyboards import (
     food_entries_keyboard,
     reminders_keyboard,
     water_keyboard,
+    weight_dashboard_keyboard,
 )
 from kcal_tracker.bot.text_parsing import (
     looks_like_activity,
@@ -356,14 +357,20 @@ async def save_activity_from_plain_text(message: Message) -> None:
 
 
 @router.message(F.text == "⚖️ Вес")
-async def ask_weight(message: Message, state: FSMContext) -> None:
-    text = await _weight_prompt(message.from_user.id, message.from_user.username)
-    await state.set_state(DiaryFlow.weight)
-    await message.answer(text)
+async def show_weight(message: Message) -> None:
+    text = await _weight_dashboard_view(message.from_user.id, message.from_user.username)
+    await message.answer(text, reply_markup=weight_dashboard_keyboard())
 
 
 @router.callback_query(F.data == "nav:weight")
-async def ask_weight_from_more(callback: CallbackQuery, state: FSMContext) -> None:
+async def show_weight_from_more(callback: CallbackQuery) -> None:
+    text = await _weight_dashboard_view(callback.from_user.id, callback.from_user.username)
+    await callback.message.edit_text(text, reply_markup=weight_dashboard_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "weight:add")
+async def ask_weight_from_dashboard(callback: CallbackQuery, state: FSMContext) -> None:
     text = await _weight_prompt(callback.from_user.id, callback.from_user.username)
     await state.set_state(DiaryFlow.weight)
     await callback.message.edit_text(text)
@@ -381,6 +388,35 @@ async def _weight_prompt(telegram_id: int, username: str | None) -> str:
     return f"{current}Напиши текущий вес в кг."
 
 
+async def _weight_dashboard_view(telegram_id: int, username: str | None) -> str:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id,
+            username,
+        )
+        trend = await WellnessService(session).weight_trend(user)
+
+    if not trend.logs:
+        return "⚖️ Вес\n\nПока нет записей. Добавь первый вес, и я покажу тренд."
+
+    lines = [
+        "⚖️ Вес",
+        "",
+        (
+            f"Сейчас: {trend.latest_kg:.1f} кг"
+            if trend.latest_kg is not None
+            else "Сейчас: нет данных"
+        ),
+    ]
+    if trend.average_7d_kg is not None:
+        lines.append(f"Среднее за 7 дней: {trend.average_7d_kg:.1f} кг")
+    if trend.delta_7d_kg is not None:
+        sign = "+" if trend.delta_7d_kg > 0 else ""
+        lines.append(f"Тренд: {trend.trend_label}, {sign}{trend.delta_7d_kg:.1f} кг")
+    lines.extend(["", _weight_chart(trend.logs[-14:])])
+    return "\n".join(lines)
+
+
 @router.message(DiaryFlow.weight, F.text)
 async def save_weight(message: Message, state: FSMContext) -> None:
     weight = _parse_float(message.text or "", 30, 250)
@@ -394,7 +430,11 @@ async def save_weight(message: Message, state: FSMContext) -> None:
         )
         await WellnessService(session).add_weight(user, weight)
     await state.clear()
-    await message.answer(f"Записал вес: {weight:.1f} кг.", reply_markup=after_save_keyboard())
+    text = await _weight_dashboard_view(message.from_user.id, message.from_user.username)
+    await message.answer(
+        f"Записал вес: {weight:.1f} кг.\n\n{text}",
+        reply_markup=weight_dashboard_keyboard(),
+    )
 
 
 @router.message(F.text.in_({"⭐ Любимое", "⭐ Избранное"}))
@@ -633,6 +673,7 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
         analytics = await diary.weekly_analytics(user)
         has_subscription = has_active_subscription(user)
         patterns = await diary.nutrition_patterns(user) if has_subscription else None
+        habits = await WellnessService(session).habit_summary(user)
 
     lines = [
         "📈 Недельный отчёт",
@@ -640,6 +681,10 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
         f"Оценка: {weekly_score(analytics)}/10",
         f"Среднее: {analytics.average_kcal:.0f} / {analytics.target_kcal} ккал",
         f"Дней рядом с целью: {analytics.days_in_target}",
+        "",
+        *_week_highlight_lines(analytics),
+        "",
+        *_habit_lines(habits),
         "",
         f"🧠 {weekly_coach_note(analytics)}",
     ]
@@ -656,6 +701,57 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
         )
 
     return "\n".join(lines)
+
+
+def _week_highlight_lines(analytics) -> list[str]:
+    tracked = [day for day in analytics.days if day.entries_count]
+    if not tracked:
+        return ["Итог: пока мало данных для разбора."]
+
+    best = min(tracked, key=lambda day: abs(day.kcal - analytics.target_kcal))
+    average_protein = sum(day.protein for day in tracked) / len(tracked)
+    average_delta = analytics.average_kcal - analytics.target_kcal
+    if abs(average_delta) <= 150:
+        delta_text = "средняя калорийность рядом с целью"
+    elif average_delta > 0:
+        delta_text = f"средний перебор около {average_delta:.0f} ккал"
+    else:
+        delta_text = f"средний недобор около {abs(average_delta):.0f} ккал"
+
+    return [
+        "Коротко:",
+        f"Лучший день по цели: {best.date_label} ({best.kcal:.0f} ккал).",
+        f"Белок в среднем: {average_protein:.0f} г/день.",
+        f"Главный вывод: {delta_text}.",
+    ]
+
+
+def _habit_lines(habits) -> list[str]:
+    return [
+        "Серии и привычки:",
+        f"Еда: {habits.food_streak_days} дн. подряд, {habits.tracked_food_days_30}/30 дней.",
+        f"Вода: {habits.water_streak_days} дн. подряд, {habits.tracked_water_days_30}/30 дней.",
+        f"Вес: {habits.weight_streak_days} дн. подряд, {habits.tracked_weight_days_30}/30 дней.",
+        f"Сильная привычка сейчас: {habits.best_habit}.",
+    ]
+
+
+def _weight_chart(logs) -> str:
+    if len(logs) == 1:
+        return f"График: {logs[0].weight_kg:.1f} кг"
+
+    values = [log.weight_kg for log in logs]
+    minimum = min(values)
+    maximum = max(values)
+    blocks = "▁▂▃▄▅▆▇█"
+    if maximum == minimum:
+        spark = blocks[3] * len(values)
+    else:
+        spark = "".join(
+            blocks[round((value - minimum) / (maximum - minimum) * (len(blocks) - 1))]
+            for value in values
+        )
+    return f"График, последние записи: {spark}\nДиапазон: {minimum:.1f}-{maximum:.1f} кг"
 
 
 def _today_view(
@@ -805,6 +901,7 @@ def _reminders_text(user) -> str:
             f"Обед: {user.lunch_reminder_time or '14:00'}",
             f"Вечер: {user.dinner_reminder_time or '20:30'}",
             f"Вес: {weight_status}, {user.weight_reminder_time or '09:00'}",
+            "Поведение: если приём пищи уже записан, лишний пинг не отправляю.",
         ]
     )
 

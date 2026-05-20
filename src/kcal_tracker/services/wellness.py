@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, time
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, time
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -9,6 +10,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from kcal_tracker.models import ActivityLog, FavoriteFood, FoodEntry, User, WaterLog, WeightLog
 from kcal_tracker.schemas import ActivityEstimate, FoodEntryCreate
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
+
+
+@dataclass(frozen=True)
+class WeightTrend:
+    logs: list[WeightLog]
+    latest_kg: float | None
+    average_7d_kg: float | None
+    delta_7d_kg: float | None
+    trend_label: str
+
+
+@dataclass(frozen=True)
+class HabitSummary:
+    food_streak_days: int
+    water_streak_days: int
+    weight_streak_days: int
+    tracked_food_days_30: int
+    tracked_water_days_30: int
+    tracked_weight_days_30: int
+    best_habit: str
 
 
 class WellnessService:
@@ -49,6 +70,59 @@ class WellnessService:
         )
         return result.scalar_one_or_none()
 
+    async def weight_history(self, user: User, days: int = 30) -> list[WeightLog]:
+        tz = ZoneInfo(user.timezone)
+        today = datetime.now(tz).date()
+        start_date = today.fromordinal(today.toordinal() - days + 1)
+        start = datetime.combine(start_date, time.min, tzinfo=tz)
+        result = await self.session.execute(
+            select(WeightLog)
+            .where(
+                WeightLog.user_id == user.id,
+                WeightLog.created_at >= start,
+            )
+            .order_by(WeightLog.created_at.asc())
+        )
+        return list(result.scalars())
+
+    async def weight_trend(self, user: User, days: int = 30) -> WeightTrend:
+        logs = await self.weight_history(user, days=days)
+        if not logs:
+            return WeightTrend(
+                logs=[],
+                latest_kg=None,
+                average_7d_kg=None,
+                delta_7d_kg=None,
+                trend_label="пока нет данных",
+            )
+
+        tz = ZoneInfo(user.timezone)
+        latest = logs[-1]
+        latest_date = _as_user_date(latest.created_at, tz)
+        window_start = latest_date.fromordinal(latest_date.toordinal() - 6)
+        recent = [
+            log
+            for log in logs
+            if _as_user_date(log.created_at, tz) >= window_start
+        ]
+        average_7d = sum(log.weight_kg for log in recent) / len(recent)
+        previous = next(
+            (
+                log
+                for log in reversed(logs)
+                if _as_user_date(log.created_at, tz) <= window_start
+            ),
+            logs[0] if len(logs) > 1 else None,
+        )
+        delta = latest.weight_kg - previous.weight_kg if previous is not None else 0.0
+        return WeightTrend(
+            logs=logs,
+            latest_kg=latest.weight_kg,
+            average_7d_kg=average_7d,
+            delta_7d_kg=delta,
+            trend_label=_trend_label(delta),
+        )
+
     async def add_activity(
         self,
         user: User,
@@ -76,6 +150,38 @@ class WellnessService:
             )
         )
         return sum(log.kcal for log in result.scalars())
+
+    async def habit_summary(self, user: User, days: int = 30) -> HabitSummary:
+        tz = ZoneInfo(user.timezone)
+        today = datetime.now(tz).date()
+        dates = [today.fromordinal(today.toordinal() - offset) for offset in range(days)]
+        start = datetime.combine(dates[-1], time.min, tzinfo=tz)
+        end = datetime.combine(today, time.max, tzinfo=tz)
+
+        food_dates = await self._log_dates(FoodEntry, user, start, end, tz)
+        water_dates = await self._log_dates(WaterLog, user, start, end, tz)
+        weight_dates = await self._log_dates(WeightLog, user, start, end, tz)
+
+        food_streak = _current_streak(dates, food_dates)
+        water_streak = _current_streak(dates, water_dates)
+        weight_streak = _current_streak(dates, weight_dates)
+        best_habit = max(
+            (
+                ("еда", food_streak),
+                ("вода", water_streak),
+                ("вес", weight_streak),
+            ),
+            key=lambda item: item[1],
+        )[0]
+        return HabitSummary(
+            food_streak_days=food_streak,
+            water_streak_days=water_streak,
+            weight_streak_days=weight_streak,
+            tracked_food_days_30=len(food_dates),
+            tracked_water_days_30=len(water_dates),
+            tracked_weight_days_30=len(weight_dates),
+            best_habit=best_habit if max(food_streak, water_streak, weight_streak) else "еда",
+        )
 
     async def add_favorite_from_entry(self, user: User, entry: FoodEntry) -> FavoriteFood:
         favorite = FavoriteFood(
@@ -163,3 +269,38 @@ class WellnessService:
     def _day_end(self, user: User) -> datetime:
         tz = ZoneInfo(user.timezone)
         return datetime.combine(datetime.now(tz).date(), time.max, tzinfo=tz)
+
+    async def _log_dates(self, model, user: User, start: datetime, end: datetime, tz: ZoneInfo):
+        result = await self.session.execute(
+            select(model.created_at).where(
+                model.user_id == user.id,
+                model.created_at >= start,
+                model.created_at <= end,
+            )
+        )
+        return {_as_user_date(created_at, tz) for created_at in result.scalars()}
+
+
+def _as_user_date(value: datetime, tz: ZoneInfo) -> date:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(tz).date()
+
+
+def _trend_label(delta_kg: float) -> str:
+    if delta_kg <= -0.3:
+        return "снижается"
+    if delta_kg >= 0.3:
+        return "растёт"
+    return "стабилен"
+
+
+def _current_streak(dates_desc: list[date], log_dates: set[date]) -> int:
+    streak = 0
+    for day in dates_desc:
+        if day not in log_dates:
+            if streak == 0 and day == dates_desc[0]:
+                continue
+            break
+        streak += 1
+    return streak

@@ -3,7 +3,7 @@ from __future__ import annotations
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
 from kcal_tracker.bot.keyboards import (
     activity_keyboard,
@@ -14,6 +14,7 @@ from kcal_tracker.bot.keyboards import (
     settings_keyboard,
 )
 from kcal_tracker.database import SessionLocal
+from kcal_tracker.services.export import ExportService
 from kcal_tracker.services.profile import (
     apply_default_macro_targets,
     calculate_daily_kcal_target,
@@ -174,6 +175,28 @@ async def _settings_view(telegram_id: int, username: str | None) -> str:
             username,
         )
         return profile_summary(user)
+
+
+@router.callback_query(F.data == "settings:export")
+async def export_data(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        export = ExportService(session)
+        food_csv = await export.food_csv(user)
+        wellness_csv = await export.wellness_csv(user)
+
+    await callback.message.answer_document(
+        BufferedInputFile(food_csv.encode("utf-8"), filename="kcal_food.csv"),
+        caption="Еда: все записи дневника.",
+    )
+    await callback.message.answer_document(
+        BufferedInputFile(wellness_csv.encode("utf-8"), filename="kcal_wellness.csv"),
+        caption="Вода, вес и активность.",
+    )
+    await callback.answer("Экспорт готов.")
 
 
 @router.callback_query(F.data == "settings:language")

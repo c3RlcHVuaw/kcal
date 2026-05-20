@@ -6,9 +6,13 @@ from kcal_tracker.bot.handlers.diary import (
     _entries_by_meal,
     _entry_line,
     _entry_time_label,
+    _habit_lines,
     _meal_summary_lines,
     _today_view,
+    _week_highlight_lines,
+    _weight_chart,
 )
+from kcal_tracker.bot.handlers.food import _format_estimate_confirmation, _scale_estimate
 from kcal_tracker.bot.keyboards import food_entries_keyboard
 from kcal_tracker.bot.text_parsing import (
     looks_like_activity,
@@ -32,6 +36,7 @@ from kcal_tracker.services.nutrition import (
     weekly_coach_note,
     weekly_score,
 )
+from kcal_tracker.services.reminders import _has_meal_entry
 
 
 def test_confidence_must_be_less_than_one() -> None:
@@ -296,11 +301,68 @@ def test_food_entries_keyboard_expands_entry_actions() -> None:
     assert rows[-1][1].callback_data == "coach:meal"
 
 
+def test_weight_chart_returns_sparkline_for_recent_logs() -> None:
+    logs = [
+        SimpleNamespace(weight_kg=80.0),
+        SimpleNamespace(weight_kg=79.5),
+        SimpleNamespace(weight_kg=79.0),
+    ]
+    text = _weight_chart(logs)
+    assert "График" in text
+    assert "79.0-80.0 кг" in text
+
+
+def test_week_highlights_name_best_day_and_average_protein() -> None:
+    analytics = SimpleNamespace(
+        average_kcal=2050,
+        target_kcal=2000,
+        days=[
+            SimpleNamespace(date_label="18.05", kcal=2600, protein=70, entries_count=2),
+            SimpleNamespace(date_label="19.05", kcal=1980, protein=110, entries_count=3),
+        ],
+    )
+    lines = _week_highlight_lines(analytics)
+    assert any("19.05" in line for line in lines)
+    assert any("90 г/день" in line for line in lines)
+
+
+def test_habit_lines_show_streaks_and_coverage() -> None:
+    habits = SimpleNamespace(
+        food_streak_days=4,
+        water_streak_days=2,
+        weight_streak_days=1,
+        tracked_food_days_30=20,
+        tracked_water_days_30=12,
+        tracked_weight_days_30=5,
+        best_habit="еда",
+    )
+    text = "\n".join(_habit_lines(habits))
+    assert "Еда: 4 дн. подряд, 20/30 дней." in text
+    assert "Сильная привычка сейчас: еда." in text
+
+
 def test_photo_recognition_user_text_includes_caption_hint() -> None:
     text = photo_recognition_user_text("это половина порции, плюс 30 г соуса")
     assert "Уточнение пользователя" in text
     assert "половина порции" in text
     assert "30 г соуса" in text
+
+
+def test_photo_confirmation_can_show_portion_hint() -> None:
+    text = _format_estimate_confirmation(
+        FoodEstimate(name="паста", weight_g=300, kcal=600),
+        show_portion_hint=True,
+    )
+    assert "½" in text
+    assert "2×" in text
+
+
+def test_scale_estimate_uses_original_portion_ratio() -> None:
+    estimate = FoodEstimate(name="паста", weight_g=300, kcal=600, protein=20, fat=18, carbs=90)
+    scaled = _scale_estimate(estimate, 0.5)
+    assert scaled.weight_g == 150
+    assert scaled.kcal == 300
+    assert scaled.carbs == 45
 
 
 def test_food_refinement_user_text_includes_current_estimate_and_hint() -> None:
@@ -320,6 +382,12 @@ def test_entry_time_label_uses_user_timezone_for_utc_timestamp() -> None:
 
 def test_entry_time_label_treats_naive_timestamp_as_utc() -> None:
     assert _entry_time_label(datetime(2026, 5, 19, 7, 48), "Europe/Samara") == "11:48"
+
+
+def test_reminder_meal_detection_uses_user_timezone() -> None:
+    entries = [SimpleNamespace(created_at=datetime(2026, 5, 19, 8, 30, tzinfo=UTC))]
+    assert _has_meal_entry(entries, "Europe/Samara", "lunch")
+    assert not _has_meal_entry(entries, "Europe/Samara", "breakfast")
 
 
 def test_parse_int_accepts_units() -> None:
