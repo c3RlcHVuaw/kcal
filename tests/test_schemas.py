@@ -1,7 +1,11 @@
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
-from kcal_tracker.api.routes import _steps_to_kcal
+from kcal_tracker.api.routes import (
+    _extract_numeric_value,
+    _normalize_apple_health_payload,
+    _steps_to_kcal,
+)
 from kcal_tracker.bot.handlers.diary import (
     ADVANCED_PATTERNS_UPSELL,
     _entries_by_meal,
@@ -520,3 +524,38 @@ def test_settings_keyboard_has_apple_health_button() -> None:
 
 def test_steps_to_kcal_estimate_is_conservative() -> None:
     assert _steps_to_kcal(10000) == 400
+
+
+def test_apple_health_extracts_shortcuts_numeric_shapes() -> None:
+    assert _extract_numeric_value(8200) == 8200
+    assert _extract_numeric_value("8200") == 8200
+    assert _extract_numeric_value({"value": 8200}) == 8200
+    assert _extract_numeric_value({"quantity": {"doubleValue": 8200}}) == 8200
+    assert _extract_numeric_value({"sample": {"quantity": {"doubleValue": "8200"}}}) == 8200
+
+
+def test_apple_health_normalizes_payload_and_ignores_unknown_fields() -> None:
+    payload, errors = _normalize_apple_health_payload(
+        {
+            "weight_kg": {"value": "74.5", "unit": "kg"},
+            "steps": {"quantity": {"doubleValue": 8200}},
+            "active_kcal": "340",
+            "unknown": {"not": "used"},
+        }
+    )
+    assert errors == {}
+    assert payload.weight_kg == 74.5
+    assert payload.steps == 8200
+    assert payload.active_kcal == 340
+
+
+def test_apple_health_normalization_keeps_valid_fields_when_one_is_invalid() -> None:
+    payload, errors = _normalize_apple_health_payload(
+        {
+            "weight_kg": {"value": 74.5},
+            "steps": {"value": "not a number"},
+        }
+    )
+    assert payload.weight_kg == 74.5
+    assert payload.steps is None
+    assert errors == {"steps": "Could not extract numeric value"}

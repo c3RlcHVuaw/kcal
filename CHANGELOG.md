@@ -2,6 +2,8 @@
 
 ## 2026-05-20
 
+- Made the Apple Health Shortcuts webhook tolerant of HealthKit-style payloads
+  with numeric strings, nested value objects, and unknown fields.
 - Added an Apple Health Shortcuts webhook with per-user tokens for importing
   weight, active calories, and steps from iOS Shortcuts.
 - Added soft inactivity reminders that nudge users back after 3+ silent diary days,

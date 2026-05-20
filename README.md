@@ -47,7 +47,7 @@ API health should return:
 - Users can track water, weight, favorite foods, and macro targets.
 - Weight tracking includes a recent mini-chart, 7-day average, and trend label.
 - Settings can generate an Apple Health iOS Shortcuts webhook URL for importing
-  weight, active calories, and steps.
+  weight, active calories, and steps, including HealthKit-style nested values.
 - Optional reminders can separately nudge meal logging and morning weigh-ins.
 - Meal reminders support morning, lunch, and evening smart hints.
 - Meal reminders skip redundant nudges when that meal is already logged.
