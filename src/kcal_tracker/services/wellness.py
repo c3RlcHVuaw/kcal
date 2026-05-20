@@ -7,7 +7,15 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from kcal_tracker.models import ActivityLog, FavoriteFood, FoodEntry, User, WaterLog, WeightLog
+from kcal_tracker.models import (
+    ActivityLog,
+    AppleHealthDailySync,
+    FavoriteFood,
+    FoodEntry,
+    User,
+    WaterLog,
+    WeightLog,
+)
 from kcal_tracker.schemas import ActivityEstimate, FoodEntryCreate
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
 
@@ -150,6 +158,34 @@ class WellnessService:
             )
         )
         return sum(log.kcal for log in result.scalars())
+
+    async def apple_health_delta(self, user: User, metric: str, value: float) -> float:
+        sync_date = datetime.now(ZoneInfo(user.timezone)).date()
+        result = await self.session.execute(
+            select(AppleHealthDailySync).where(
+                AppleHealthDailySync.user_id == user.id,
+                AppleHealthDailySync.sync_date == sync_date,
+                AppleHealthDailySync.metric == metric,
+            )
+        )
+        sync = result.scalar_one_or_none()
+        if sync is None:
+            sync = AppleHealthDailySync(
+                user_id=user.id,
+                sync_date=sync_date,
+                metric=metric,
+                value=value,
+            )
+            self.session.add(sync)
+            await self.session.commit()
+            return max(value, 0)
+
+        delta = value - sync.value
+        if value > sync.value:
+            sync.value = value
+            await self.session.commit()
+            return delta
+        return 0
 
     async def habit_summary(self, user: User, days: int = 30) -> HabitSummary:
         tz = ZoneInfo(user.timezone)

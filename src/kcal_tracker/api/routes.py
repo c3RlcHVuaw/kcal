@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from dataclasses import dataclass
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -104,24 +105,27 @@ async def import_apple_health(
         await wellness.add_weight(user, payload.weight_kg)
         saved.append("weight")
     if payload.active_kcal is not None and payload.active_kcal > 0:
-        await wellness.add_activity(
-            user,
-            ActivityEstimate(
-                name=payload.note or "Apple Health active energy",
-                kcal=payload.active_kcal,
-                confidence=None,
-            ),
-            "apple_health",
-        )
-        saved.append("active_kcal")
+        delta = await wellness.apple_health_delta(user, "active_kcal", payload.active_kcal)
+        if delta > 0:
+            await wellness.add_activity(
+                user,
+                ActivityEstimate(
+                    name=payload.note or "Apple Health active energy",
+                    kcal=delta,
+                    confidence=None,
+                ),
+                "apple_health",
+            )
+            saved.append("active_kcal")
     elif payload.steps is not None and payload.steps > 0:
-        kcal = _steps_to_kcal(payload.steps)
-        if kcal > 0:
+        step_delta = await wellness.apple_health_delta(user, "steps", payload.steps)
+        kcal_delta = _steps_to_kcal(int(step_delta))
+        if kcal_delta > 0:
             await wellness.add_activity(
                 user,
                 ActivityEstimate(
                     name=f"Apple Health steps: {payload.steps}",
-                    kcal=kcal,
+                    kcal=kcal_delta,
                     confidence=None,
                 ),
                 "apple_health",
@@ -129,6 +133,8 @@ async def import_apple_health(
             saved.append("steps")
 
     if not saved:
+        if payload.has_values:
+            return AppleHealthImportResult(ok=True, saved=saved)
         detail: dict[str, Any] = {"message": "Nothing to import"}
         if errors:
             detail["errors"] = errors
@@ -204,20 +210,32 @@ def _extract_numeric_value(input_value: Any) -> float | None:
                 return value
         return None
     if isinstance(input_value, dict):
-        for key in (
-            "value",
+        priority_keys = (
+            "quantity",
+            "sumQuantity",
+            "total",
+            "totalQuantity",
             "doubleValue",
             "floatValue",
             "intValue",
             "numericValue",
-            "quantity",
+            "value",
             "sample",
+            "samples",
             "result",
-        ):
+            "results",
+        )
+        for key in priority_keys:
             if key in input_value:
                 value = _extract_numeric_value(input_value[key])
                 if value is not None:
                     return value
+        for key, nested_value in input_value.items():
+            if key in priority_keys:
+                continue
+            value = _extract_numeric_value(nested_value)
+            if value is not None:
+                return value
     return None
 
 
@@ -235,18 +253,20 @@ def _number_from_string(value: str) -> float | None:
             return None
 
 
+@dataclass(frozen=True)
 class AppleHealthPayload:
-    def __init__(
-        self,
-        weight_kg: float | None,
-        steps: int | None,
-        active_kcal: float | None,
-        note: str | None,
-    ) -> None:
-        self.weight_kg = weight_kg
-        self.steps = steps
-        self.active_kcal = active_kcal
-        self.note = note
+    weight_kg: float | None
+    steps: int | None
+    active_kcal: float | None
+    note: str | None
+
+    @property
+    def has_values(self) -> bool:
+        return (
+            self.weight_kg is not None
+            or self.steps is not None
+            or self.active_kcal is not None
+        )
 
 
 def _steps_to_kcal(steps: int) -> float:

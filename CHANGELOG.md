@@ -2,6 +2,8 @@
 
 ## 2026-05-20
 
+- Changed Apple Health activity imports to use same-day cumulative deltas, so
+  hourly Shortcut runs only add newly gained active calories or steps.
 - Made the Apple Health Shortcuts webhook tolerant of HealthKit-style payloads
   with numeric strings, nested value objects, and unknown fields.
 - Added an Apple Health Shortcuts webhook with per-user tokens for importing

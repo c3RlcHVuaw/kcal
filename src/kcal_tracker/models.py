@@ -89,6 +89,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    apple_health_syncs: Mapped[list[AppleHealthDailySync]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
 
 class FoodEntry(Base):
@@ -207,6 +211,30 @@ class ActivityLog(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="activity_logs")
+
+
+class AppleHealthDailySync(Base):
+    __tablename__ = "apple_health_daily_syncs"
+    __table_args__ = (
+        UniqueConstraint("user_id", "sync_date", "metric"),
+        Index("ix_apple_health_sync_user_date", "user_id", "sync_date"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    sync_date: Mapped[date] = mapped_column(Date, nullable=False)
+    metric: Mapped[str] = mapped_column(String(32), nullable=False)
+    value: Mapped[float] = mapped_column(Float, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped[User] = relationship(back_populates="apple_health_syncs")
 
 
 class AIUsage(Base):

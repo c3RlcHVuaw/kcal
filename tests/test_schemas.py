@@ -511,6 +511,7 @@ def test_apple_health_shortcut_text_contains_endpoint_and_payload() -> None:
     assert "Получить содержимое URL" in text
     assert "https://example.com/integrations/apple-health/token" in text
     assert '"steps": 8200' in text
+    assert "разницу с прошлой" in text
 
 
 def test_settings_keyboard_has_apple_health_button() -> None:
@@ -532,6 +533,8 @@ def test_apple_health_extracts_shortcuts_numeric_shapes() -> None:
     assert _extract_numeric_value({"value": 8200}) == 8200
     assert _extract_numeric_value({"quantity": {"doubleValue": 8200}}) == 8200
     assert _extract_numeric_value({"sample": {"quantity": {"doubleValue": "8200"}}}) == 8200
+    assert _extract_numeric_value({"value": 4, "quantity": {"doubleValue": 70}}) == 70
+    assert _extract_numeric_value({"healthKit": {"energy": {"doubleValue": 70}}}) == 70
 
 
 def test_apple_health_normalizes_payload_and_ignores_unknown_fields() -> None:
@@ -547,6 +550,7 @@ def test_apple_health_normalizes_payload_and_ignores_unknown_fields() -> None:
     assert payload.weight_kg == 74.5
     assert payload.steps == 8200
     assert payload.active_kcal == 340
+    assert payload.has_values
 
 
 def test_apple_health_normalization_keeps_valid_fields_when_one_is_invalid() -> None:
