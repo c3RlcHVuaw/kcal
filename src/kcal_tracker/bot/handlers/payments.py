@@ -6,6 +6,7 @@ from aiogram.types import CallbackQuery, LabeledPrice, Message, PreCheckoutQuery
 from kcal_tracker.bot.keyboards import subscription_keyboard
 from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
+from kcal_tracker.services.growth import GrowthService
 from kcal_tracker.services.subscriptions import (
     SUBSCRIPTION_PAYLOAD,
     SubscriptionService,
@@ -43,6 +44,7 @@ async def _subscription_text(telegram_id: int, username: str | None) -> str:
             "",
             "Можно попробовать AI бесплатно: 3 запроса до подписки.",
             f"AI по фото, тексту и голосу: {settings.ai_subscription_stars} ⭐ на 30 дней.",
+            "За друга, который оформит подписку по твоей ссылке, дадим 7 дней AI.",
         ]
     )
 
@@ -84,4 +86,81 @@ async def successful_payment(message: Message) -> None:
             telegram_payment_charge_id=payment.telegram_payment_charge_id,
             provider_payment_charge_id=payment.provider_payment_charge_id,
         )
+        referrer = await GrowthService(session).reward_referrer_for_first_payment(user)
     await message.answer(f"Готово, AI открыт до {until:%d.%m.%Y}.")
+    if referrer is not None:
+        await message.bot.send_message(
+            referrer.telegram_id,
+            "Друг оформил подписку по твоей ссылке. Добавил тебе 7 дней AI.",
+        )
+
+
+@router.callback_query(F.data == "subscription:trial")
+async def activate_premium_trial(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        until = await GrowthService(session).grant_premium_trial(user)
+
+    if until is None:
+        await callback.answer(
+            "Пробный premium-день уже использован или AI уже активен.",
+            show_alert=True,
+        )
+        return
+    await callback.message.edit_text(
+        f"Готово, пробный premium-день включён до {until:%d.%m.%Y %H:%M} UTC.",
+        reply_markup=subscription_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "subscription:winback")
+async def activate_winback_offer(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        until = await GrowthService(session).grant_winback_offer(user)
+
+    if until is None:
+        await callback.answer(
+            "Этот бонус доступен один раз после окончания подписки.",
+            show_alert=True,
+        )
+        return
+    await callback.message.edit_text(
+        f"Вернул AI на день — доступ открыт до {until:%d.%m.%Y %H:%M} UTC.",
+        reply_markup=subscription_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "subscription:referral")
+async def show_referral_link(callback: CallbackQuery) -> None:
+    bot = await callback.bot.me()
+    if bot.username is None:
+        await callback.answer("Не смог собрать ссылку для этого бота.", show_alert=True)
+        return
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        link = await GrowthService(session).referral_link(user, bot.username)
+
+    await callback.message.edit_text(
+        "\n".join(
+            [
+                "Твоя ссылка для друзей:",
+                link,
+                "",
+                "Когда друг оформит подписку по этой ссылке, тебе добавится 7 дней AI.",
+            ]
+        ),
+        reply_markup=subscription_keyboard(),
+    )
+    await callback.answer()

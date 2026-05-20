@@ -6,6 +6,7 @@ from aiogram.types import Message
 
 from kcal_tracker.bot.keyboards import language_keyboard, main_menu
 from kcal_tracker.database import SessionLocal
+from kcal_tracker.services.growth import GrowthService
 from kcal_tracker.services.users import UserService
 
 router = Router()
@@ -13,11 +14,14 @@ router = Router()
 
 @router.message(CommandStart())
 async def start(message: Message) -> None:
+    start_payload = _start_payload(message.text)
     async with SessionLocal() as session:
-        user = await UserService(session).get_or_create(
+        users = UserService(session)
+        user = await users.get_or_create(
             telegram_id=message.from_user.id,
             username=message.from_user.username,
         )
+        await GrowthService(session).apply_referral_start(user, start_payload)
     if not user.onboarding_completed:
         await message.answer(
             "Давай настроим дневник. Выбери язык.",
@@ -44,3 +48,12 @@ def _help_text() -> str:
             "Во время ввода можно нажать «❌ Отмена» или написать /cancel.",
         ]
     )
+
+
+def _start_payload(text: str | None) -> str | None:
+    if not text:
+        return None
+    parts = text.split(maxsplit=1)
+    if len(parts) < 2:
+        return None
+    return parts[1]

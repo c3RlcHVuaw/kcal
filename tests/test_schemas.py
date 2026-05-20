@@ -37,6 +37,7 @@ from kcal_tracker.schemas import FoodEstimate
 from kcal_tracker.services.ai_food import food_refinement_user_text, photo_recognition_user_text
 from kcal_tracker.services.diary import NutritionPatterns, estimate_from_entry
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
+from kcal_tracker.services.growth import _referral_code_from_payload, progress_share_url
 from kcal_tracker.services.media import _sample_timestamps
 from kcal_tracker.services.nutrition import (
     automatic_pattern_notes,
@@ -72,6 +73,17 @@ def test_food_insights_add_emoji_and_advice() -> None:
 def test_food_insights_detect_common_foods() -> None:
     assert food_emoji("гречка с курицей") == "🥣"
     assert "Белка" in food_advice("курица", kcal=220, protein=35, fat=6, carbs=0)
+
+
+def test_referral_payload_parsing() -> None:
+    assert _referral_code_from_payload("ref_abc123") == "abc123"
+    assert _referral_code_from_payload("start") is None
+
+
+def test_progress_share_url_encodes_text() -> None:
+    url = progress_share_url("Мой прогресс: 8/10")
+    assert url.startswith("https://t.me/share/url?text=")
+    assert "%D0%9C%D0%BE%D0%B9" in url
 
 
 def test_high_calorie_warning_when_day_is_already_dense() -> None:

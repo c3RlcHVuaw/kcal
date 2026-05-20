@@ -445,5 +445,31 @@ def subscription_keyboard() -> InlineKeyboardMarkup:
                     callback_data="subscription:buy",
                 )
             ],
+            [
+                InlineKeyboardButton(
+                    text="🎁 Пробный premium-день",
+                    callback_data="subscription:trial",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🤝 Пригласить друга",
+                    callback_data="subscription:referral",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="↩️ Вернуть AI на день",
+                    callback_data="subscription:winback",
+                )
+            ],
+        ]
+    )
+
+
+def progress_share_keyboard(share_url: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Поделиться прогрессом", url=share_url)],
         ]
     )

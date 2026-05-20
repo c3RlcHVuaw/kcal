@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     ai_trial_request_limit: int = Field(default=3, ge=0)
     ai_subscription_stars: int = Field(default=199, ge=1)
     ai_subscription_days: int = Field(default=30, ge=1)
+    referral_reward_days: int = Field(default=7, ge=0)
+    premium_trial_days: int = Field(default=1, ge=0)
+    winback_offer_days: int = Field(default=1, ge=0)
 
     @property
     def is_production(self) -> bool:

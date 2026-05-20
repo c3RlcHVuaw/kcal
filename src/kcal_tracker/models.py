@@ -41,6 +41,15 @@ class User(Base):
     goal: Mapped[str | None] = mapped_column(String(64))
     daily_kcal_target: Mapped[int] = mapped_column(Integer, nullable=False, default=2200)
     subscription_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    referral_code: Mapped[str | None] = mapped_column(String(32), unique=True, index=True)
+    referred_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        index=True,
+    )
+    referral_rewarded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    premium_trial_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    winback_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     protein_target_g: Mapped[float | None] = mapped_column(Float)
     fat_target_g: Mapped[float | None] = mapped_column(Float)
     carbs_target_g: Mapped[float | None] = mapped_column(Float)

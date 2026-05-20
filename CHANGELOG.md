@@ -2,6 +2,8 @@
 
 ## 2026-05-20
 
+- Added referral links, weekly progress sharing, one-day premium trials, and
+  one-time win-back AI day offers for expired subscribers.
 - Fixed barcode scans failing completely when the native decoder rejects one
   image candidate, so the bot now keeps trying other frames and variants.
 - Added activity management in Today so users can delete incorrect activity

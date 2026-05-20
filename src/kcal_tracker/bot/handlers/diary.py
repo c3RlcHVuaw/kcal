@@ -16,6 +16,7 @@ from kcal_tracker.bot.keyboards import (
     after_water_save_keyboard,
     favorites_keyboard,
     food_entries_keyboard,
+    progress_share_keyboard,
     reminders_keyboard,
     water_keyboard,
     weight_dashboard_keyboard,
@@ -33,6 +34,7 @@ from kcal_tracker.services.ai_food import AIFoodService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.diary import DiaryService, estimate_from_entry
 from kcal_tracker.services.food_insights import food_label
+from kcal_tracker.services.growth import GrowthService, progress_share_url
 from kcal_tracker.services.nutrition import (
     automatic_pattern_notes,
     daily_focus,
@@ -818,13 +820,35 @@ async def save_reminder_time(message: Message, state: FSMContext) -> None:
 
 @router.message(lambda message: message.text in {"📈 7 дней", "📈 Неделя"})
 async def show_week(message: Message) -> None:
-    await message.answer(await _week_view(message.from_user.id, message.from_user.username))
+    text = await _week_view(message.from_user.id, message.from_user.username)
+    bot = await message.bot.me()
+    if bot.username is None:
+        await message.answer(text)
+        return
+    reply_markup = await _progress_share_markup(
+        message.from_user.id,
+        message.from_user.username,
+        bot.username,
+        text,
+    )
+    await message.answer(text, reply_markup=reply_markup)
 
 
 @router.callback_query(F.data == "nav:week")
 async def show_week_inline(callback: CallbackQuery) -> None:
     text = await _week_view(callback.from_user.id, callback.from_user.username)
-    await callback.message.edit_text(text)
+    bot = await callback.bot.me()
+    if bot.username is None:
+        await callback.message.edit_text(text)
+        await callback.answer()
+        return
+    reply_markup = await _progress_share_markup(
+        callback.from_user.id,
+        callback.from_user.username,
+        bot.username,
+        text,
+    )
+    await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
 
 
@@ -878,6 +902,40 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
         )
 
     return "\n".join(lines)
+
+
+async def _progress_share_markup(
+    telegram_id: int,
+    username: str | None,
+    bot_username: str,
+    week_text: str,
+):
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=telegram_id,
+            username=username,
+        )
+        referral_link = await GrowthService(session).referral_link(user, bot_username)
+
+    score_line = next(
+        (line for line in week_text.splitlines() if line.startswith("Оценка:")),
+        "",
+    )
+    average_line = next(
+        (line for line in week_text.splitlines() if line.startswith("Среднее:")),
+        "",
+    )
+    share_text = "\n".join(
+        line
+        for line in (
+            "Мой недельный прогресс в Kcal:",
+            score_line,
+            average_line,
+            f"Попробуй тоже: {referral_link}",
+        )
+        if line
+    )
+    return progress_share_keyboard(progress_share_url(share_text))
 
 
 async def _month_view(telegram_id: int, username: str | None) -> str:

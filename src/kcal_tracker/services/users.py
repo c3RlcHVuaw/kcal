@@ -21,6 +21,32 @@ class UserService:
         result = await self.session.execute(select(User).where(User.apple_health_token == token))
         return result.scalar_one_or_none()
 
+    async def get_by_referral_code(self, code: str) -> User | None:
+        result = await self.session.execute(select(User).where(User.referral_code == code))
+        return result.scalar_one_or_none()
+
+    async def ensure_referral_code(self, user: User) -> str:
+        if user.referral_code:
+            return user.referral_code
+        while True:
+            code = _make_referral_code()
+            if await self.get_by_referral_code(code) is None:
+                user.referral_code = code
+                await self.session.commit()
+                await self.session.refresh(user)
+                return code
+
+    async def attach_referrer(self, user: User, referral_code: str | None) -> bool:
+        if not referral_code or user.referred_by_user_id is not None:
+            return False
+        referrer = await self.get_by_referral_code(referral_code)
+        if referrer is None or referrer.id == user.id:
+            return False
+        user.referred_by_user_id = referrer.id
+        await self.session.commit()
+        await self.session.refresh(user)
+        return True
+
     async def ensure_apple_health_token(self, user: User) -> str:
         if user.apple_health_token:
             return user.apple_health_token
@@ -41,13 +67,23 @@ class UserService:
                 await self.session.refresh(user)
             return user
 
+        while True:
+            code = _make_referral_code()
+            if await self.get_by_referral_code(code) is None:
+                break
+
         user = User(
             telegram_id=telegram_id,
             username=username,
             timezone=settings.default_timezone,
             daily_kcal_target=settings.default_daily_kcal_target,
+            referral_code=code,
         )
         self.session.add(user)
         await self.session.commit()
         await self.session.refresh(user)
         return user
+
+
+def _make_referral_code() -> str:
+    return secrets.token_urlsafe(8).replace("-", "").replace("_", "")[:10]
