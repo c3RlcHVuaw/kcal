@@ -55,6 +55,7 @@ class User(Base):
     last_lunch_reminder_date: Mapped[date | None] = mapped_column(Date)
     last_dinner_reminder_date: Mapped[date | None] = mapped_column(Date)
     last_weight_reminder_date: Mapped[date | None] = mapped_column(Date)
+    last_inactivity_reminder_date: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

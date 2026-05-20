@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
 from kcal_tracker.bot.handlers.diary import (
@@ -38,7 +38,11 @@ from kcal_tracker.services.nutrition import (
     weekly_coach_note,
     weekly_score,
 )
-from kcal_tracker.services.reminders import _has_meal_entry
+from kcal_tracker.services.reminders import (
+    _has_meal_entry,
+    _inactivity_reminder_due,
+    _inactivity_reminder_text,
+)
 
 
 def test_confidence_must_be_less_than_one() -> None:
@@ -433,6 +437,42 @@ def test_reminder_meal_detection_uses_user_timezone() -> None:
     entries = [SimpleNamespace(created_at=datetime(2026, 5, 19, 8, 30, tzinfo=UTC))]
     assert _has_meal_entry(entries, "Europe/Samara", "lunch")
     assert not _has_meal_entry(entries, "Europe/Samara", "breakfast")
+
+
+def test_inactivity_reminder_waits_for_three_silent_days() -> None:
+    now = datetime(2026, 5, 20, 12, 5, tzinfo=UTC)
+    assert _inactivity_reminder_due(
+        now,
+        latest_entry_at=now - timedelta(days=3, minutes=1),
+        user_created_at=now - timedelta(days=20),
+        last_sent_date=None,
+    )
+    assert not _inactivity_reminder_due(
+        now,
+        latest_entry_at=now - timedelta(days=2),
+        user_created_at=now - timedelta(days=20),
+        last_sent_date=None,
+    )
+
+
+def test_inactivity_reminder_repeats_at_most_weekly() -> None:
+    now = datetime(2026, 5, 20, 12, 5, tzinfo=UTC)
+    assert not _inactivity_reminder_due(
+        now,
+        latest_entry_at=now - timedelta(days=10),
+        user_created_at=now - timedelta(days=20),
+        last_sent_date=date(2026, 5, 16),
+    )
+
+
+def test_inactivity_reminder_text_is_soft_return() -> None:
+    text = _inactivity_reminder_text(
+        latest_entry_at=datetime(2026, 5, 17, 8, 0, tzinfo=UTC),
+        user_created_at=datetime(2026, 5, 1, 8, 0, tzinfo=UTC),
+        timezone_name="Europe/Samara",
+    )
+    assert "Вернёмся мягко" in text
+    assert "один приём пищи" in text
 
 
 def test_parse_int_accepts_units() -> None:

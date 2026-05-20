@@ -2,6 +2,8 @@
 
 ## 2026-05-20
 
+- Added soft inactivity reminders that nudge users back after 3+ silent diary days,
+  capped to at most once per week.
 - Added AI correction for saved AI food entries from the Today entry actions.
 - Added photo follow-up prompts for sauces/oil and drinks before saving AI food estimates.
 - Added a 30-day monthly report with tracking coverage, calorie patterns,

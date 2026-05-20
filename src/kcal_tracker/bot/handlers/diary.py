@@ -1075,6 +1075,7 @@ def _reminders_text(user) -> str:
             f"Вечер: {user.dinner_reminder_time or '20:30'}",
             f"Вес: {weight_status}, {user.weight_reminder_time or '09:00'}",
             "Поведение: если приём пищи уже записан, лишний пинг не отправляю.",
+            "После тишины: мягко напомню вернуться, если дневник пустует 3+ дня.",
         ]
     )
 

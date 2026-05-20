@@ -9,7 +9,7 @@ from aiogram import Bot
 from sqlalchemy import select
 
 from kcal_tracker.database import SessionLocal
-from kcal_tracker.models import User
+from kcal_tracker.models import FoodEntry, User
 from kcal_tracker.services.diary import DiaryService
 from kcal_tracker.services.nutrition import (
     end_of_day_forecast,
@@ -20,6 +20,9 @@ from kcal_tracker.services.nutrition import (
 from kcal_tracker.services.subscriptions import has_active_subscription
 
 logger = logging.getLogger(__name__)
+INACTIVITY_REMINDER_DAYS = 3
+INACTIVITY_REMINDER_REPEAT_DAYS = 7
+INACTIVITY_REMINDER_TIME = "12:00"
 
 
 async def reminder_loop(bot: Bot) -> None:
@@ -118,6 +121,19 @@ async def _send_due_reminders(bot: Bot) -> None:
                     )
                     user.last_dinner_reminder_date = today
 
+            latest_entry_at = await _latest_food_entry_at(session, user)
+            if _inactivity_reminder_due(
+                now,
+                latest_entry_at,
+                user.created_at,
+                user.last_inactivity_reminder_date,
+            ):
+                await bot.send_message(
+                    user.telegram_id,
+                    _inactivity_reminder_text(latest_entry_at, user.created_at, user.timezone),
+                )
+                user.last_inactivity_reminder_date = today
+
         await session.commit()
 
 
@@ -138,6 +154,50 @@ def _parse_time(value: str) -> tuple[int, int]:
     if not (0 <= hour <= 23 and 0 <= minute <= 59):
         return 9, 0
     return hour, minute
+
+
+async def _latest_food_entry_at(session, user: User) -> datetime | None:
+    result = await session.execute(
+        select(FoodEntry.created_at)
+        .where(FoodEntry.user_id == user.id)
+        .order_by(FoodEntry.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+def _inactivity_reminder_due(
+    now: datetime,
+    latest_entry_at: datetime | None,
+    user_created_at: datetime,
+    last_sent_date,
+) -> bool:
+    if not _is_due(now, INACTIVITY_REMINDER_TIME, last_sent_date):
+        return False
+    if last_sent_date is not None:
+        days_since_last_ping = (now.date() - last_sent_date).days
+        if days_since_last_ping < INACTIVITY_REMINDER_REPEAT_DAYS:
+            return False
+
+    last_active_at = latest_entry_at or user_created_at
+    last_active_date = _as_user_date(last_active_at, now.tzinfo or ZoneInfo("Europe/Samara"))
+    return (now.date() - last_active_date).days >= INACTIVITY_REMINDER_DAYS
+
+
+def _inactivity_reminder_text(
+    latest_entry_at: datetime | None,
+    user_created_at: datetime,
+    timezone_name: str,
+) -> str:
+    tz = _safe_timezone(timezone_name)
+    last_active_at = latest_entry_at or user_created_at
+    days = max(0, (datetime.now(tz).date() - _as_user_date(last_active_at, tz)).days)
+    prefix = f"Дневник молчит уже {days} дн." if days else "Дневник сегодня тихий."
+    return (
+        f"{prefix}\n"
+        "Вернёмся мягко: просто запиши один приём пищи или напиши примерно, что было. "
+        "Без идеальности, нам важнее снова поймать ритм."
+    )
 
 
 def _breakfast_reminder_intro(summary) -> str:
@@ -165,10 +225,7 @@ def _has_meal_entry(entries, timezone_name: str, meal: str) -> bool:
 
 
 def _meal_key(created_at: datetime, timezone_name: str) -> str:
-    try:
-        tz = ZoneInfo(timezone_name)
-    except Exception:
-        tz = ZoneInfo("Europe/Samara")
+    tz = _safe_timezone(timezone_name)
     if created_at.tzinfo is None:
         created_at = created_at.replace(tzinfo=UTC)
     hour = created_at.astimezone(tz).hour
@@ -179,3 +236,16 @@ def _meal_key(created_at: datetime, timezone_name: str) -> str:
     if 18 <= hour < 23:
         return "dinner"
     return "snacks"
+
+
+def _as_user_date(value: datetime, tz) -> object:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(tz).date()
+
+
+def _safe_timezone(timezone_name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(timezone_name)
+    except Exception:
+        return ZoneInfo("Europe/Samara")

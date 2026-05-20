@@ -49,6 +49,8 @@ API health should return:
 - Optional reminders can separately nudge meal logging and morning weigh-ins.
 - Meal reminders support morning, lunch, and evening smart hints.
 - Meal reminders skip redundant nudges when that meal is already logged.
+- If the diary is silent for 3+ days, reminders can send a soft return nudge
+  at most once per week.
 - Multi-product AI results can be saved one by one or all at once.
 - Photo food estimates support quick portion scaling before saving.
 - Photo food estimates ask explicit follow-up questions about sauces/oil and drinks.
