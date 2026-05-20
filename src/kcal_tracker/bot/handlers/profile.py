@@ -13,6 +13,7 @@ from kcal_tracker.bot.keyboards import (
     main_menu,
     settings_keyboard,
 )
+from kcal_tracker.config import settings as app_settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.services.export import ExportService
 from kcal_tracker.services.profile import (
@@ -199,6 +200,22 @@ async def export_data(callback: CallbackQuery) -> None:
     await callback.answer("Экспорт готов.")
 
 
+@router.callback_query(F.data == "settings:apple-health")
+async def apple_health_shortcut(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user_service = UserService(session)
+        user = await user_service.get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        token = await user_service.ensure_apple_health_token(user)
+
+    endpoint = f"{app_settings.public_api_url.rstrip('/')}/integrations/apple-health/{token}"
+    text = _apple_health_shortcut_text(endpoint)
+    await callback.message.edit_text(text, reply_markup=settings_keyboard())
+    await callback.answer()
+
+
 @router.callback_query(F.data == "settings:language")
 async def settings_language(callback: CallbackQuery) -> None:
     await callback.message.edit_text("Выбери язык.", reply_markup=language_keyboard("settings"))
@@ -373,3 +390,26 @@ def _parse_macros(text: str) -> tuple[float, float, float] | None:
     if not (20 <= protein <= 400 and 20 <= fat <= 250 and 20 <= carbs <= 800):
         return None
     return protein, fat, carbs
+
+
+def _apple_health_shortcut_text(endpoint: str) -> str:
+    return "\n".join(
+        [
+            "Apple Health через Команды iOS",
+            "",
+            "1. Открой Команды на iPhone.",
+            "2. Создай личную автоматизацию, например утром или вечером.",
+            "3. Добавь действия «Найти образцы здоровья» для веса, шагов или активной энергии.",
+            "4. Добавь «Получить содержимое URL».",
+            "5. Method: POST.",
+            "6. Request Body: JSON.",
+            "7. URL:",
+            endpoint,
+            "",
+            "Пример JSON:",
+            '{"weight_kg": 74.5, "steps": 8200, "active_kcal": 340}',
+            "",
+            "Можно отправлять только часть полей. Вес сохранится как вес, "
+            "active_kcal как активность, а шаги примерно пересчитаются в ккал.",
+        ]
+    )

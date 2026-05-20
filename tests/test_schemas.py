@@ -1,6 +1,7 @@
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
+from kcal_tracker.api.routes import _steps_to_kcal
 from kcal_tracker.bot.handlers.diary import (
     ADVANCED_PATTERNS_UPSELL,
     _entries_by_meal,
@@ -15,7 +16,12 @@ from kcal_tracker.bot.handlers.diary import (
     _weight_chart,
 )
 from kcal_tracker.bot.handlers.food import _format_estimate_confirmation, _scale_estimate
-from kcal_tracker.bot.keyboards import food_confirmation_keyboard, food_entries_keyboard
+from kcal_tracker.bot.handlers.profile import _apple_health_shortcut_text
+from kcal_tracker.bot.keyboards import (
+    food_confirmation_keyboard,
+    food_entries_keyboard,
+    settings_keyboard,
+)
 from kcal_tracker.bot.text_parsing import (
     looks_like_activity,
     parse_activity_kcal,
@@ -494,3 +500,23 @@ def test_parse_activity_kcal_from_plain_text() -> None:
 
 def test_sample_timestamps_cover_whole_video() -> None:
     assert _sample_timestamps(4.0, 5) == [0.0, 0.975, 1.95, 2.925, 3.9]
+
+
+def test_apple_health_shortcut_text_contains_endpoint_and_payload() -> None:
+    text = _apple_health_shortcut_text("https://example.com/integrations/apple-health/token")
+    assert "Получить содержимое URL" in text
+    assert "https://example.com/integrations/apple-health/token" in text
+    assert '"steps": 8200' in text
+
+
+def test_settings_keyboard_has_apple_health_button() -> None:
+    callbacks = [
+        button.callback_data
+        for row in settings_keyboard().inline_keyboard
+        for button in row
+    ]
+    assert "settings:apple-health" in callbacks
+
+
+def test_steps_to_kcal_estimate_is_conservative() -> None:
+    assert _steps_to_kcal(10000) == 400

@@ -22,7 +22,7 @@ class FoodEstimateList(BaseModel):
 
 
 class FoodEntryCreate(FoodEstimate):
-    source: str = Field(pattern="^(ai_photo|manual|barcode)$")
+    source: str = Field(pattern="^(ai_photo|manual|barcode|apple_health)$")
 
 
 class FoodEntryRead(FoodEntryCreate):
@@ -36,6 +36,18 @@ class ActivityEstimate(BaseModel):
     name: str
     kcal: float = Field(ge=0)
     confidence: float | None = Field(default=None, ge=0, lt=1)
+
+
+class AppleHealthImport(BaseModel):
+    weight_kg: float | None = Field(default=None, ge=30, le=250)
+    steps: int | None = Field(default=None, ge=0, le=100000)
+    active_kcal: float | None = Field(default=None, ge=0, le=5000)
+    note: str | None = Field(default=None, max_length=255)
+
+
+class AppleHealthImportResult(BaseModel):
+    ok: bool
+    saved: list[str]
 
 
 class DiarySummary(BaseModel):

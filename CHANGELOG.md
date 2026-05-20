@@ -2,6 +2,8 @@
 
 ## 2026-05-20
 
+- Added an Apple Health Shortcuts webhook with per-user tokens for importing
+  weight, active calories, and steps from iOS Shortcuts.
 - Added soft inactivity reminders that nudge users back after 3+ silent diary days,
   capped to at most once per week.
 - Added AI correction for saved AI food entries from the Today entry actions.
