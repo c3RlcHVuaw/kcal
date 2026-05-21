@@ -95,7 +95,13 @@ async def parse_manual_food(message: Message, state: FSMContext) -> None:
         await _show_confirmation(message, state, free_estimate, "food_search")
         return
 
-    if not await _ensure_ai_available(message):
+    if not await _can_use_ai(message):
+        await message.answer(
+            "В базе продуктов не нашёл. Попробуй написать короче, например "
+            "«ореховый латте», отправить цифры штрихкода или фото штрихкода. "
+            "AI-поиск доступен по подписке.",
+            reply_markup=subscription_cta_keyboard(),
+        )
         return
 
     estimates = await AIFoodService().parse_text(message.text or "")
