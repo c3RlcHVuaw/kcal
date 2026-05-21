@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 
-from kcal_tracker.services.fatsecret import FatSecretService, _estimate_from_food
+from kcal_tracker.services.fatsecret import FatSecretService, _estimate_from_food, _query_variants
 
 
 def test_fatsecret_estimate_uses_default_metric_serving_per_100g() -> None:
@@ -54,6 +54,11 @@ def test_fatsecret_estimate_parses_basic_food_description() -> None:
     assert estimate.protein == 12.3
     assert estimate.fat == 11.7
     assert estimate.carbs == 30.3
+
+
+def test_fatsecret_query_variants_translate_common_russian_foods() -> None:
+    assert _query_variants("чизкейк додо") == ["чизкейк додо", "cheesecake dodo", "cheesecake"]
+    assert _query_variants("пицца") == ["пицца", "pizza"]
 
 
 def test_fatsecret_search_returns_empty_without_credentials() -> None:

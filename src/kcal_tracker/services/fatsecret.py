@@ -18,6 +18,32 @@ TOKEN_URL = "https://oauth.fatsecret.com/connect/token"
 SEARCH_URL = "https://platform.fatsecret.com/rest/foods/search/v3"
 BASIC_SEARCH_URL = "https://platform.fatsecret.com/rest/server.api"
 
+FOOD_QUERY_ALIASES = {
+    "пицца": "pizza",
+    "чизкейк": "cheesecake",
+    "бургер": "burger",
+    "гамбургер": "hamburger",
+    "ролл": "roll",
+    "суши": "sushi",
+    "курица": "chicken",
+    "говядина": "beef",
+    "свинина": "pork",
+    "лосось": "salmon",
+    "рис": "rice",
+    "гречка": "buckwheat",
+    "овсянка": "oatmeal",
+    "йогурт": "yogurt",
+    "творог": "cottage cheese",
+    "сыр": "cheese",
+    "латте": "latte",
+    "капучино": "cappuccino",
+}
+
+BRAND_QUERY_ALIASES = {
+    "додо": "dodo",
+    "вкусвилл": "vkusvill",
+}
+
 
 @dataclass
 class _TokenCache:
@@ -49,21 +75,15 @@ class FatSecretService:
                 return []
 
         async with httpx.AsyncClient(timeout=6.0) as client:
-            payload = await _premium_search(client, token, query, limit)
-            if _has_api_error(payload):
-                basic_token = await self._access_token("basic")
-                payload = await _basic_search(client, basic_token, query, limit)
-
-        if not payload:
-            return []
-
-        foods = _foods_from_payload(payload)
-        estimates = []
-        for food in foods:
-            estimate = _estimate_from_food(food)
-            if estimate is not None:
-                estimates.append(estimate)
-        return estimates[:limit]
+            for search_query in _query_variants(query):
+                payload = await _premium_search(client, token, search_query, limit)
+                if _has_api_error(payload):
+                    basic_token = await self._access_token("basic")
+                    payload = await _basic_search(client, basic_token, search_query, limit)
+                estimates = _estimates_from_payload(payload)
+                if estimates:
+                    return estimates[:limit]
+        return []
 
     async def _access_token(self, scope: str) -> str:
         now = time.time()
@@ -208,10 +228,46 @@ def _foods_from_payload(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return _as_list(payload.get("foods", {}).get("food"))
 
 
+def _estimates_from_payload(payload: dict[str, Any] | None) -> list[FoodEstimate]:
+    if not payload:
+        return []
+    estimates = []
+    for food in _foods_from_payload(payload):
+        estimate = _estimate_from_food(food)
+        if estimate is not None:
+            estimates.append(estimate)
+    return estimates
+
+
 def _has_api_error(payload: dict[str, Any] | None) -> bool:
     if not payload:
         return True
     return bool(payload.get("error"))
+
+
+def _query_variants(query: str) -> list[str]:
+    normalized = " ".join(query.casefold().replace("ё", "е").split())
+    variants = [query]
+
+    translated_tokens = []
+    food_tokens = []
+    for token in normalized.split():
+        food_alias = FOOD_QUERY_ALIASES.get(token)
+        brand_alias = BRAND_QUERY_ALIASES.get(token)
+        if food_alias:
+            translated_tokens.append(food_alias)
+            food_tokens.append(food_alias)
+        elif brand_alias:
+            translated_tokens.append(brand_alias)
+        else:
+            translated_tokens.append(token)
+
+    translated = " ".join(translated_tokens)
+    food_only = " ".join(food_tokens)
+    for variant in (translated, food_only):
+        if variant and variant not in variants:
+            variants.append(variant)
+    return variants
 
 
 def _estimate_from_description(name: str, description: Any) -> FoodEstimate | None:
