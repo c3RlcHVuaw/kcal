@@ -21,12 +21,14 @@ from kcal_tracker.bot.handlers.diary import (
     _weight_chart,
 )
 from kcal_tracker.bot.handlers.food import _format_estimate_confirmation, _scale_estimate
+from kcal_tracker.bot.handlers.payments import _payment_choice_from_callback
 from kcal_tracker.bot.handlers.profile import _apple_health_shortcut_text
 from kcal_tracker.bot.keyboards import (
     activity_menu_keyboard,
     food_confirmation_keyboard,
     food_entries_keyboard,
     settings_keyboard,
+    subscription_payment_method_keyboard,
 )
 from kcal_tracker.bot.text_parsing import (
     looks_like_activity,
@@ -581,6 +583,25 @@ def test_settings_keyboard_has_apple_health_button() -> None:
         for button in row
     ]
     assert "settings:apple-health" in callbacks
+
+
+def test_subscription_payment_keyboard_uses_single_yookassa_choice_per_plan() -> None:
+    callbacks = [
+        button.callback_data
+        for row in subscription_payment_method_keyboard().inline_keyboard
+        for button in row
+    ]
+    assert "subscription:yookassa:basic:auto" in callbacks
+    assert "subscription:yookassa:unlimited:auto" in callbacks
+    assert "subscription:yookassa:basic:sbp" not in callbacks
+    assert "subscription:yookassa:basic:bank_card" not in callbacks
+
+
+def test_yookassa_payment_callback_defaults_to_auto_method() -> None:
+    basic_plan, basic_method = _payment_choice_from_callback("subscription:yookassa:basic:auto")
+    legacy_plan, legacy_method = _payment_choice_from_callback("subscription:yookassa:unlimited")
+    assert (basic_plan.code, basic_method) == ("basic", "auto")
+    assert (legacy_plan.code, legacy_method) == ("unlimited", "auto")
 
 
 def test_steps_to_kcal_estimate_is_conservative() -> None:

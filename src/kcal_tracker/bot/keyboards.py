@@ -470,12 +470,8 @@ def subscription_payment_method_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"СБП Старт {settings.ai_subscription_rub} ₽",
-                    callback_data="subscription:yookassa:basic:sbp",
-                ),
-                InlineKeyboardButton(
-                    text=f"Карта Старт {settings.ai_subscription_rub} ₽",
-                    callback_data="subscription:yookassa:basic:bank_card",
+                    text=f"Карта/СБП Старт {settings.ai_subscription_rub} ₽",
+                    callback_data="subscription:yookassa:basic:auto",
                 ),
             ],
             [
@@ -486,12 +482,8 @@ def subscription_payment_method_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text=f"СБП Безлимит {settings.ai_unlimited_subscription_rub} ₽",
-                    callback_data="subscription:yookassa:unlimited:sbp",
-                ),
-                InlineKeyboardButton(
-                    text=f"Карта Безлимит {settings.ai_unlimited_subscription_rub} ₽",
-                    callback_data="subscription:yookassa:unlimited:bank_card",
+                    text=f"Карта/СБП Безлимит {settings.ai_unlimited_subscription_rub} ₽",
+                    callback_data="subscription:yookassa:unlimited:auto",
                 ),
             ],
             [

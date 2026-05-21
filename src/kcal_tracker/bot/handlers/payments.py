@@ -25,7 +25,9 @@ from kcal_tracker.services.growth import GrowthService
 from kcal_tracker.services.subscriptions import (
     SUBSCRIPTION_PAYLOAD,
     SUBSCRIPTION_PLAN_BASIC,
+    YOOKASSA_FORCED_PAYMENT_METHODS,
     YOOKASSA_PAYLOAD,
+    YOOKASSA_PAYMENT_METHOD_AUTO,
     PaymentConfigurationError,
     SubscriptionPlan,
     SubscriptionService,
@@ -107,7 +109,8 @@ async def choose_subscription_payment(callback: CallbackQuery) -> None:
                 f"Старт: {settings.ai_subscription_rub} ₽, "
                 f"{settings.ai_basic_daily_request_limit} AI-запросов в день.",
                 f"Безлимит: {settings.ai_unlimited_subscription_rub} ₽.",
-                "Выбери способ оплаты:",
+                "YooKassa откроет оплату картой или СБП, если способы доступны в магазине.",
+                "Или можно оплатить Звёздами Telegram.",
             ]
         ),
         reply_markup=subscription_payment_method_keyboard(),
@@ -159,7 +162,7 @@ async def buy_subscription_with_yookassa(callback: CallbackQuery) -> None:
             await callback.answer(str(exc), show_alert=True)
             return
 
-    method_text = "картой" if method == "bank_card" else "через СБП"
+    method_text = _yookassa_method_text(method)
     await callback.message.answer(
         "\n".join(
             [
@@ -434,22 +437,20 @@ async def _send_yookassa_invoice(callback: CallbackQuery, plan_code: str, method
             await callback.answer("ЮKassa ещё не настроена на сервере.", show_alert=True)
             return
 
-    method_text = "Карта" if method == "bank_card" else "СБП"
-    provider_data = json.dumps(
-        {
-            "payment_method_data": {"type": method},
-            "metadata": {
-                "payment_id": str(payment.id),
-                "telegram_id": str(callback.from_user.id),
-                "plan": plan.code,
-            },
+    provider_payload: dict[str, object] = {
+        "metadata": {
+            "payment_id": str(payment.id),
+            "telegram_id": str(callback.from_user.id),
+            "plan": plan.code,
         },
-        ensure_ascii=False,
-    )
+    }
+    if method in YOOKASSA_FORCED_PAYMENT_METHODS:
+        provider_payload["payment_method_data"] = {"type": method}
+    provider_data = json.dumps(provider_payload, ensure_ascii=False)
     try:
         await callback.bot.send_invoice(
             chat_id=callback.message.chat.id,
-            title=f"AI в Kcal: {plan.title}, {method_text}",
+            title=_yookassa_invoice_title(plan, method),
             description="Распознавание еды по фото, тексту и голосу на 30 дней.",
             payload=f"{YOOKASSA_PAYLOAD}:{plan.code}:{method}:{payment.id}",
             provider_token=settings.yookassa_provider_token,
@@ -526,10 +527,28 @@ def _payment_id_from_yookassa_payload(payload: str) -> int | None:
 def _payment_choice_from_callback(data: str) -> tuple[SubscriptionPlan, str]:
     parts = data.split(":")
     if len(parts) == 3:
+        if parts[2] in subscription_plans():
+            return subscription_plan(parts[2]), YOOKASSA_PAYMENT_METHOD_AUTO
         return subscription_plan(SUBSCRIPTION_PLAN_BASIC), parts[2]
     if len(parts) == 4:
         return subscription_plan(parts[2]), parts[3]
-    return subscription_plan(SUBSCRIPTION_PLAN_BASIC), "sbp"
+    return subscription_plan(SUBSCRIPTION_PLAN_BASIC), YOOKASSA_PAYMENT_METHOD_AUTO
+
+
+def _yookassa_method_text(method: str) -> str:
+    if method == "bank_card":
+        return "картой"
+    if method == "sbp":
+        return "через СБП"
+    return "через YooKassa"
+
+
+def _yookassa_invoice_title(plan: SubscriptionPlan, method: str) -> str:
+    if method == "bank_card":
+        return f"AI в Kcal: {plan.title}, карта"
+    if method == "sbp":
+        return f"AI в Kcal: {plan.title}, СБП"
+    return f"AI в Kcal: {plan.title}"
 
 
 def _plan_from_callback(data: str, *, default: str) -> SubscriptionPlan:

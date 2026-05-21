@@ -19,7 +19,9 @@ SUBSCRIPTION_PLAN_BASIC = "basic"
 SUBSCRIPTION_PLAN_UNLIMITED = "unlimited"
 YOOKASSA_PENDING_STATUSES = {"pending", "waiting_for_capture"}
 YOOKASSA_FINAL_STATUSES = {"succeeded", "canceled", "expired", "failed"}
-YOOKASSA_PAYMENT_METHODS = {"bank_card", "sbp"}
+YOOKASSA_PAYMENT_METHOD_AUTO = "auto"
+YOOKASSA_FORCED_PAYMENT_METHODS = {"bank_card", "sbp"}
+YOOKASSA_PAYMENT_METHODS = YOOKASSA_FORCED_PAYMENT_METHODS | {YOOKASSA_PAYMENT_METHOD_AUTO}
 YOOKASSA_TELEGRAM_PENDING_STATUS = "invoice_sent"
 
 
@@ -349,12 +351,13 @@ async def _create_yookassa_payment(
             "value": f"{Decimal(amount_rub):.2f}",
             "currency": "RUB",
         },
-        "payment_method_data": {"type": method},
         "confirmation": {"type": "redirect", "return_url": return_url},
         "capture": True,
         "description": description,
         "metadata": metadata,
     }
+    if method in YOOKASSA_FORCED_PAYMENT_METHODS:
+        body["payment_method_data"] = {"type": method}
     return await _yookassa_request("POST", "/payments", json=body)
 
 
