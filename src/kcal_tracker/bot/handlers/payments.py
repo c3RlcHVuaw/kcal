@@ -4,6 +4,7 @@ import json
 from datetime import UTC, datetime
 
 from aiogram import F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -423,21 +424,31 @@ async def _send_yookassa_invoice(callback: CallbackQuery, method: str) -> None:
         },
         ensure_ascii=False,
     )
-    await callback.bot.send_invoice(
-        chat_id=callback.message.chat.id,
-        title=f"AI в Kcal: {method_text}",
-        description="Распознавание еды по фото, тексту и голосу на 30 дней.",
-        payload=f"{YOOKASSA_PAYLOAD}:{method}:{payment.id}",
-        provider_token=settings.yookassa_provider_token,
-        currency="RUB",
-        prices=[
-            LabeledPrice(
-                label=f"AI на {settings.ai_subscription_days} дней",
-                amount=settings.ai_subscription_rub * 100,
+    try:
+        await callback.bot.send_invoice(
+            chat_id=callback.message.chat.id,
+            title=f"AI в Kcal: {method_text}",
+            description="Распознавание еды по фото, тексту и голосу на 30 дней.",
+            payload=f"{YOOKASSA_PAYLOAD}:{method}:{payment.id}",
+            provider_token=settings.yookassa_provider_token,
+            currency="RUB",
+            prices=[
+                LabeledPrice(
+                    label=f"AI на {settings.ai_subscription_days} дней",
+                    amount=settings.ai_subscription_rub * 100,
+                )
+            ],
+            provider_data=provider_data,
+        )
+    except TelegramBadRequest as exc:
+        if "PAYMENT_PROVIDER_INVALID" in str(exc):
+            await callback.answer(
+                "ЮKassa отклонила токен платежей. Нужен provider token из BotFather "
+                "для этого бота, не API-ключ ЮKassa.",
+                show_alert=True,
             )
-        ],
-        provider_data=provider_data,
-    )
+            return
+        raise
     await callback.answer()
 
 

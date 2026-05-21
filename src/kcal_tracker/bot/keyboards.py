@@ -440,12 +440,6 @@ def subscription_keyboard() -> InlineKeyboardMarkup:
     rows = [
         [InlineKeyboardButton(text="Оформить подписку", callback_data="subscription:subscribe")],
         [
-            InlineKeyboardButton(
-                text=f"Звёзды за {settings.ai_subscription_stars} ⭐",
-                callback_data="subscription:stars",
-            )
-        ],
-        [
             InlineKeyboardButton(text="🤝 Пригласить друга", callback_data="subscription:referral"),
             InlineKeyboardButton(
                 text="📊 Реферальный кабинет",
@@ -469,6 +463,12 @@ def subscription_payment_method_keyboard() -> InlineKeyboardMarkup:
                     text=f"СБП {settings.ai_subscription_rub} ₽",
                     callback_data="subscription:yookassa:sbp",
                 ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text=f"Звёзды Telegram {settings.ai_subscription_stars} ⭐",
+                    callback_data="subscription:stars",
+                )
             ],
             [InlineKeyboardButton(text="Назад", callback_data="subscription:open")],
         ]
