@@ -26,8 +26,8 @@ def test_decode_first_returns_none_when_candidate_decode_fails(monkeypatch) -> N
 
 def test_decode_first_returns_decoded_barcode(monkeypatch) -> None:
     def decode(_image):
-        return [SimpleNamespace(data=b"4601234567890")]
+        return [SimpleNamespace(data=b"4601234567893")]
 
     _install_fake_pyzbar(monkeypatch, decode)
 
-    assert _decode_first(object()) == "4601234567890"
+    assert _decode_first(object()) == "4601234567893"

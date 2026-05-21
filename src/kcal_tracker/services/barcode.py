@@ -47,8 +47,9 @@ def _decode_first(image: Image.Image) -> str | None:
             value = code.data.decode("utf-8").strip()
         except UnicodeDecodeError:
             continue
-        if value:
-            return value
+        normalized = _normalize_barcode(value)
+        if normalized is not None:
+            return normalized
     return None
 
 
@@ -60,6 +61,7 @@ def _barcode_candidates(image: Image.Image) -> Iterable[Image.Image]:
             enhanced = _enhance_for_barcode(rotated)
             yield enhanced
             yield _upscale(enhanced, factor=2)
+            yield _upscale(enhanced, factor=3)
 
             grayscale = ImageOps.grayscale(enhanced)
             yield grayscale
@@ -94,7 +96,7 @@ def _grid_crops(image: Image.Image) -> list[Image.Image]:
         return []
 
     crops = []
-    for crop_ratio in (0.62, 0.5):
+    for crop_ratio in (0.8, 0.62, 0.5, 0.36):
         crop_width = int(width * crop_ratio)
         crop_height = int(height * crop_ratio)
         if crop_width < 120 or crop_height < 120:
@@ -114,7 +116,7 @@ def _grid_crops(image: Image.Image) -> list[Image.Image]:
             left = min(max(center_x - crop_width // 2, 0), width - crop_width)
             top = min(max(center_y - crop_height // 2, 0), height - crop_height)
             crops.append(image.crop((left, top, left + crop_width, top + crop_height)))
-    side_width = max(int(width * 0.42), 120)
+    side_width = max(int(width * 0.65), 160)
     crops.extend(
         [
             image.crop((0, 0, side_width, height)),
@@ -142,3 +144,23 @@ def _upscale(image: Image.Image, factor: int) -> Image.Image:
     if max(width, height) >= 2400:
         return image
     return image.resize((width * factor, height * factor), Image.Resampling.LANCZOS)
+
+
+def _normalize_barcode(value: str) -> str | None:
+    digits = "".join(character for character in value if character.isdigit())
+    if len(digits) in {8, 12, 13, 14} and _has_valid_checksum(digits):
+        return digits
+    return None
+
+
+def _has_valid_checksum(digits: str) -> bool:
+    if len(digits) not in {8, 12, 13, 14}:
+        return False
+    body = digits[:-1]
+    checksum = int(digits[-1])
+    total = 0
+    for index, character in enumerate(reversed(body), start=1):
+        multiplier = 3 if index % 2 else 1
+        total += int(character) * multiplier
+    return (10 - total % 10) % 10 == checksum
+

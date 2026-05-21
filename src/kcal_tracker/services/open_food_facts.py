@@ -12,6 +12,12 @@ class ProductNotFoundError(RuntimeError):
     pass
 
 
+OPEN_FOOD_FACTS_HEADERS = {
+    "User-Agent": "KcalTrackerBot/0.1 (+https://t.me/trackerkcal_bot)",
+    "Accept": "application/json",
+}
+
+
 class OpenFoodFactsService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -23,17 +29,23 @@ class OpenFoodFactsService:
 
         url = f"https://world.openfoodfacts.org/api/v2/product/{barcode}.json"
         async with httpx.AsyncClient(timeout=4.0) as client:
-            response = await client.get(
-                url,
-                params={
-                    "fields": (
-                        "product_name_ru,product_name,product_name_en,"
-                        "generic_name_ru,nutriments,quantity"
-                    ),
-                },
-            )
-            response.raise_for_status()
-            payload = response.json()
+            try:
+                response = await client.get(
+                    url,
+                    params={
+                        "fields": (
+                            "product_name_ru,product_name,product_name_en,"
+                            "generic_name_ru,nutriments,quantity"
+                        ),
+                    },
+                    headers=OPEN_FOOD_FACTS_HEADERS,
+                )
+                if response.status_code == 404:
+                    raise ProductNotFoundError("Product not found")
+                response.raise_for_status()
+                payload = response.json()
+            except (httpx.HTTPError, ValueError) as exc:
+                raise ProductNotFoundError("OpenFoodFacts is unavailable") from exc
 
         if payload.get("status") != 1:
             raise ProductNotFoundError("Product not found")
@@ -67,28 +79,49 @@ class OpenFoodFactsService:
             return None
 
         async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.get(
+            for base_url in (
+                "https://ru.openfoodfacts.org/cgi/search.pl",
                 "https://world.openfoodfacts.org/cgi/search.pl",
-                params={
-                    "search_terms": query,
-                    "search_simple": 1,
-                    "action": "process",
-                    "json": 1,
-                    "page_size": 5,
-                    "fields": (
-                        "product_name_ru,product_name,product_name_en,"
-                        "generic_name_ru,nutriments"
-                    ),
-                },
-            )
-            response.raise_for_status()
-            payload = response.json()
-
-        for product in payload.get("products") or []:
-            estimate = _estimate_from_product(product)
-            if estimate is not None:
-                return estimate
+            ):
+                payload = await _search_payload(client, base_url, query)
+                if payload is None:
+                    continue
+                for product in payload.get("products") or []:
+                    estimate = _estimate_from_product(product)
+                    if estimate is not None:
+                        return estimate
         return None
+
+
+async def _search_payload(
+    client: httpx.AsyncClient,
+    base_url: str,
+    query: str,
+) -> dict | None:
+    try:
+        response = await client.get(
+            base_url,
+            params={
+                "search_terms": query,
+                "search_simple": 1,
+                "action": "process",
+                "json": 1,
+                "page_size": 10,
+                "sort_by": "popularity_key",
+                "fields": (
+                    "product_name_ru,product_name,product_name_en,"
+                    "generic_name_ru,nutriments"
+                ),
+            },
+            headers=OPEN_FOOD_FACTS_HEADERS,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except (httpx.HTTPError, ValueError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    return payload
 
 
 def _estimate_from_product(product: dict) -> FoodEstimate | None:
