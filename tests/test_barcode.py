@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from types import ModuleType, SimpleNamespace
 
-from kcal_tracker.services.barcode import _decode_first
+from kcal_tracker.services.barcode import _decode_first, normalize_barcode
 
 
 def _install_fake_pyzbar(monkeypatch, decode):
@@ -31,3 +31,16 @@ def test_decode_first_returns_decoded_barcode(monkeypatch) -> None:
     _install_fake_pyzbar(monkeypatch, decode)
 
     assert _decode_first(object()) == "4601234567893"
+
+
+def test_decode_first_rejects_partial_number(monkeypatch) -> None:
+    def decode(_image):
+        return [SimpleNamespace(data=b"941921")]
+
+    _install_fake_pyzbar(monkeypatch, decode)
+
+    assert _decode_first(object()) is None
+
+
+def test_normalize_barcode_accepts_digits_with_spaces() -> None:
+    assert normalize_barcode("4 601234 567893") == "4601234567893"

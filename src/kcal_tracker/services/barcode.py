@@ -29,6 +29,10 @@ class BarcodeService:
         raise BarcodeNotFoundError("Barcode not found")
 
 
+def normalize_barcode(value: str) -> str | None:
+    return _normalize_barcode(value)
+
+
 def _decode_first(image: Image.Image) -> str | None:
     try:
         from pyzbar.pyzbar import decode
@@ -163,4 +167,3 @@ def _has_valid_checksum(digits: str) -> bool:
         multiplier = 3 if index % 2 else 1
         total += int(character) * multiplier
     return (10 - total % 10) % 10 == checksum
-

@@ -22,7 +22,7 @@ from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate, FoodEstimateList
 from kcal_tracker.services.ai_audio import AIAudioService
 from kcal_tracker.services.ai_food import AIFoodService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
-from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService
+from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
 from kcal_tracker.services.diary import DiaryService
 from kcal_tracker.services.food_insights import enrich_food_payload, food_label
 from kcal_tracker.services.food_search import estimate_common_food
@@ -213,10 +213,27 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
 
 
 async def _free_food_estimate(text: str) -> FoodEstimate | None:
+    barcode = normalize_barcode(text)
     estimate = estimate_common_food(text)
     if estimate is not None:
         return estimate
     async with SessionLocal() as session:
+        if barcode is not None:
+            try:
+                product = await OpenFoodFactsService(session).get_product(barcode)
+            except ProductNotFoundError:
+                return None
+            return enrich_food_payload(
+                FoodEstimate(
+                    name=product.product_name,
+                    weight_g=100,
+                    kcal=product.kcal_100g or 0,
+                    protein=product.protein_100g or 0,
+                    fat=product.fat_100g or 0,
+                    carbs=product.carbs_100g or 0,
+                    confidence=0.9,
+                )
+            )
         try:
             return await OpenFoodFactsService(session).search_product(text)
         except Exception:
@@ -945,7 +962,10 @@ def _barcode_retry_text(message: Message) -> str:
             "Штрихкод из кружочка не считался. Лучше пришли обычное фото штрихкода "
             "крупно, ровно и без движения."
         )
-    return "Штрихкод не считался. Попробуй фото ближе, без бликов и под прямым углом."
+    return (
+        "Штрихкод не считался. Попробуй фото ближе, без бликов и под прямым углом "
+        "или отправь цифры под штрихкодом."
+    )
 
 
 def _format_estimate_confirmation(
