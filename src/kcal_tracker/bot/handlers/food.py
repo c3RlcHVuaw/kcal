@@ -25,6 +25,7 @@ from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService
 from kcal_tracker.services.diary import DiaryService
 from kcal_tracker.services.food_insights import enrich_food_payload, food_label
+from kcal_tracker.services.food_search import estimate_common_food
 from kcal_tracker.services.media import (
     MediaProcessingError,
     convert_audio_to_mp3,
@@ -89,6 +90,11 @@ async def ask_barcode_from_inline(callback: CallbackQuery, state: FSMContext) ->
 @router.message(FoodFlow.waiting_manual, F.text)
 @router.message(FoodFlow.waiting_barcode_photo, F.text)
 async def parse_manual_food(message: Message, state: FSMContext) -> None:
+    free_estimate = await _free_food_estimate(message.text or "")
+    if free_estimate is not None:
+        await _show_confirmation(message, state, free_estimate, "food_search")
+        return
+
     if not await _ensure_ai_available(message):
         return
 
@@ -148,6 +154,14 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
             barcode = await _decode_barcode_from_frames(image_frames)
             if barcode is None:
                 if message.photo:
+                    if not await _can_use_ai(message):
+                        await message.answer(
+                            "Штрихкод не считался. Попробуй снять ближе и ровнее, "
+                            "чтобы полоски занимали большую часть кадра. "
+                            "AI-распознавание фото доступно по подписке.",
+                            reply_markup=subscription_cta_keyboard(),
+                        )
+                        return
                     await _recognize_food_photo(
                         message,
                         state,
@@ -188,6 +202,18 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
         return
 
     await _recognize_food_photo(message, state, image_bytes, text_hint=message.caption)
+
+
+async def _free_food_estimate(text: str) -> FoodEstimate | None:
+    estimate = estimate_common_food(text)
+    if estimate is not None:
+        return estimate
+    async with SessionLocal() as session:
+        try:
+            return await OpenFoodFactsService(session).search_product(text)
+        except Exception:
+            logger.debug("OpenFoodFacts text search failed", exc_info=True)
+            return None
 
 
 @router.message(F.text.in_({"⚡ Частое", "⭐ Частые продукты"}))
@@ -767,6 +793,23 @@ async def _ensure_ai_available(message: Message, request_count: int = 1) -> bool
             await usage_service.ensure_allowed(user, request_count=request_count)
         except AILimitReachedError:
             await message.answer("Лимит AI на сегодня закончился. Штрихкоды всё ещё работают.")
+            return False
+    return True
+
+
+async def _can_use_ai(message: Message, request_count: int = 1) -> bool:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=message.from_user.id,
+            username=message.from_user.username,
+        )
+        usage_service = AIUsageService(session)
+        try:
+            if has_active_subscription(user):
+                await usage_service.ensure_allowed(user, request_count=request_count)
+            else:
+                await usage_service.ensure_trial_allowed(user, request_count=request_count)
+        except AILimitReachedError:
             return False
     return True
 

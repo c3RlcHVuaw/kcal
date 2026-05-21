@@ -106,12 +106,21 @@ def _grid_crops(image: Image.Image) -> list[Image.Image]:
             (0.75, 0.75),
             (0.5, 0.25),
             (0.5, 0.75),
+            (0.88, 0.5),
+            (0.12, 0.5),
         ):
             center_x = int(width * x_ratio)
             center_y = int(height * y_ratio)
             left = min(max(center_x - crop_width // 2, 0), width - crop_width)
             top = min(max(center_y - crop_height // 2, 0), height - crop_height)
             crops.append(image.crop((left, top, left + crop_width, top + crop_height)))
+    side_width = max(int(width * 0.42), 120)
+    crops.extend(
+        [
+            image.crop((0, 0, side_width, height)),
+            image.crop((width - side_width, 0, width, height)),
+        ]
+    )
     return crops
 
 
