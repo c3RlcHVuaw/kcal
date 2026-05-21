@@ -23,6 +23,8 @@ YOOKASSA_PAYMENT_METHOD_AUTO = "auto"
 YOOKASSA_FORCED_PAYMENT_METHODS = {"bank_card", "sbp"}
 YOOKASSA_PAYMENT_METHODS = YOOKASSA_FORCED_PAYMENT_METHODS | {YOOKASSA_PAYMENT_METHOD_AUTO}
 YOOKASSA_TELEGRAM_PENDING_STATUS = "invoice_sent"
+REFUND_WINDOW_HOURS = 24
+REFUNDED_PAYMENT_STATUS = "refunded"
 
 
 class SubscriptionRequiredError(RuntimeError):
@@ -47,6 +49,10 @@ class YooKassaPaymentError(RuntimeError):
     pass
 
 
+class YooKassaRefundError(RuntimeError):
+    pass
+
+
 @dataclass(frozen=True)
 class SubscriptionPlan:
     code: str
@@ -54,6 +60,14 @@ class SubscriptionPlan:
     rub: int
     stars: int
     daily_limit: int | None
+
+
+@dataclass(frozen=True)
+class PaymentRefundResult:
+    payment: Payment
+    status: str
+    subscription_expires_at: datetime | None
+    refund_id: str | None = None
 
 
 def subscription_plans() -> dict[str, SubscriptionPlan]:
@@ -301,6 +315,91 @@ class SubscriptionService:
         )
         return list(result.scalars().all())
 
+    async def latest_refundable_payment(self, user: User) -> Payment | None:
+        cutoff = datetime.now(UTC) - timedelta(hours=REFUND_WINDOW_HOURS)
+        result = await self.session.execute(
+            select(Payment)
+            .where(Payment.user_id == user.id)
+            .where(Payment.status == "succeeded")
+            .where(Payment.paid_at.is_not(None))
+            .where(Payment.paid_at >= cutoff)
+            .order_by(Payment.paid_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def refund_yookassa_payment(self, payment: Payment) -> PaymentRefundResult:
+        if payment.currency != "RUB" or payment.method not in YOOKASSA_PAYMENT_METHODS:
+            raise YooKassaRefundError("Это не платёж YooKassa.")
+        if payment.amount_kopecks is None:
+            raise YooKassaRefundError("Не нашёл сумму платежа.")
+        if not _payment_is_inside_refund_window(payment):
+            raise YooKassaRefundError("24 часа на автоматический возврат уже прошли.")
+        if not settings.yookassa_shop_id or not settings.yookassa_secret_key:
+            raise PaymentConfigurationError("YooKassa shop id and secret key are required")
+
+        yookassa_payment_id = payment.yookassa_payment_id or payment.provider_payment_charge_id
+        if not yookassa_payment_id:
+            raise YooKassaRefundError("Не нашёл номер платежа YooKassa для возврата.")
+
+        response = await _create_yookassa_refund(
+            payment_id=yookassa_payment_id,
+            amount_kopecks=payment.amount_kopecks,
+            metadata={"payment_id": str(payment.id), "telegram_user_id": str(payment.user_id)},
+        )
+        status = str(response.get("status") or "pending")
+        refund_id = str(response.get("id") or "") or None
+
+        if status == "succeeded":
+            result = await self.mark_payment_refunded(payment, refund_id=refund_id)
+            user = await self.session.get(User, result.user_id)
+            return PaymentRefundResult(
+                payment=result,
+                status=status,
+                subscription_expires_at=user.subscription_expires_at if user else None,
+                refund_id=refund_id,
+            )
+        if status == "canceled":
+            payment.last_error = (
+                _extract_cancellation_reason(response) or "Возврат отменён YooKassa."
+            )
+            await self.session.commit()
+            await self.session.refresh(payment)
+            raise YooKassaRefundError(payment.last_error)
+
+        payment.status = "refund_pending"
+        payment.last_error = f"refund_id={refund_id}"[:512] if refund_id else "Возврат в обработке."
+        await self.session.commit()
+        await self.session.refresh(payment)
+        result = await self.session.get(User, payment.user_id)
+        return PaymentRefundResult(
+            payment=payment,
+            status=status,
+            subscription_expires_at=result.subscription_expires_at if result else None,
+            refund_id=refund_id,
+        )
+
+    async def mark_payment_refunded(
+        self,
+        payment: Payment,
+        *,
+        refund_id: str | None = None,
+    ) -> Payment:
+        result = await self.session.execute(select(User).where(User.id == payment.user_id))
+        user = result.scalar_one()
+        now = datetime.now(UTC)
+        if user.subscription_expires_at is not None:
+            reduced_until = user.subscription_expires_at - timedelta(
+                days=settings.ai_subscription_days
+            )
+            user.subscription_expires_at = reduced_until if reduced_until > now else now
+        payment.status = REFUNDED_PAYMENT_STATUS
+        payment.last_error = f"refund_id={refund_id}"[:512] if refund_id else None
+        await self.session.commit()
+        await self.session.refresh(payment)
+        await self.session.refresh(user)
+        return payment
+
     async def _activate_from_yookassa_payment(self, payment: Payment) -> datetime:
         if payment.paid_at is not None:
             result = await self.session.execute(select(User).where(User.id == payment.user_id))
@@ -338,6 +437,12 @@ def _plan_from_payload(payload: str) -> str:
     return SUBSCRIPTION_PLAN_BASIC
 
 
+def _payment_is_inside_refund_window(payment: Payment) -> bool:
+    if payment.paid_at is None:
+        return False
+    return payment.paid_at >= datetime.now(UTC) - timedelta(hours=REFUND_WINDOW_HOURS)
+
+
 async def _create_yookassa_payment(
     *,
     amount_rub: int,
@@ -363,6 +468,24 @@ async def _create_yookassa_payment(
 
 async def _get_yookassa_payment(payment_id: str) -> dict[str, Any]:
     return await _yookassa_request("GET", f"/payments/{payment_id}")
+
+
+async def _create_yookassa_refund(
+    *,
+    payment_id: str,
+    amount_kopecks: int,
+    metadata: dict[str, str],
+) -> dict[str, Any]:
+    amount_rub = Decimal(amount_kopecks) / Decimal(100)
+    body = {
+        "amount": {
+            "value": f"{amount_rub:.2f}",
+            "currency": "RUB",
+        },
+        "payment_id": payment_id,
+        "metadata": metadata,
+    }
+    return await _yookassa_request("POST", "/refunds", json=body)
 
 
 async def _yookassa_request(method: str, path: str, **kwargs: Any) -> dict[str, Any]:

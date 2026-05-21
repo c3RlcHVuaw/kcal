@@ -32,6 +32,7 @@ from kcal_tracker.services.subscriptions import (
     SubscriptionPlan,
     SubscriptionService,
     YooKassaPaymentError,
+    YooKassaRefundError,
     subscription_plan,
     subscription_plans,
     subscription_until_text,
@@ -109,7 +110,8 @@ async def choose_subscription_payment(callback: CallbackQuery) -> None:
                 f"Старт: {settings.ai_subscription_rub} ₽, "
                 f"{settings.ai_basic_daily_request_limit} AI-запросов в день.",
                 f"Безлимит: {settings.ai_unlimited_subscription_rub} ₽.",
-                "YooKassa откроет оплату картой или СБП, если способы доступны в магазине.",
+                "СБП откроется на странице YooKassa с QR-кодом или выбором банка.",
+                "Карта/SberPay откроется встроенной оплатой Telegram.",
                 "Или можно оплатить Звёздами Telegram.",
             ]
         ),
@@ -125,7 +127,7 @@ async def show_subscription_bonuses(callback: CallbackQuery) -> None:
             [
                 "Бонусы",
                 "",
-                "Здесь лежат разовые предложения: пробный premium-день и возврат AI на день.",
+                "Здесь лежат разовые предложения и служебные действия по подписке.",
             ]
         ),
         reply_markup=subscription_bonuses_keyboard(),
@@ -133,10 +135,95 @@ async def show_subscription_bonuses(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+@router.callback_query(F.data == "subscription:refund")
+async def show_refund_info(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(
+        "\n".join(
+            [
+                "Возврат оплаты",
+                "",
+                "Автоматический возврат доступен для последней успешной оплаты за 24 часа.",
+                "После возврата 30 дней AI будут сняты с подписки.",
+                "",
+                "Продолжить?",
+            ]
+        ),
+        reply_markup=_refund_confirmation_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "subscription:refund:confirm")
+async def confirm_refund(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        service = SubscriptionService(session)
+        payment = await service.latest_refundable_payment(user)
+        if payment is None:
+            await callback.answer(
+                "Не нашёл успешную оплату за последние 24 часа.",
+                show_alert=True,
+            )
+            return
+        if payment.method == "stars":
+            if not payment.telegram_payment_charge_id:
+                await callback.answer("Не нашёл номер платежа Stars.", show_alert=True)
+                return
+            try:
+                await callback.bot.refund_star_payment(
+                    user_id=callback.from_user.id,
+                    telegram_payment_charge_id=payment.telegram_payment_charge_id,
+                )
+            except TelegramBadRequest as exc:
+                await callback.answer(
+                    f"Telegram не принял возврат Stars: {exc.message}",
+                    show_alert=True,
+                )
+                return
+            await service.mark_payment_refunded(payment)
+            await session.refresh(user)
+            until = user.subscription_expires_at
+            refund_status = "succeeded"
+        else:
+            try:
+                refund = await service.refund_yookassa_payment(payment)
+            except PaymentConfigurationError:
+                await callback.answer(
+                    "Возврат через YooKassa ещё не настроен: нужен shop id и secret key.",
+                    show_alert=True,
+                )
+                return
+            except YooKassaRefundError as exc:
+                await callback.answer(str(exc), show_alert=True)
+                return
+            until = refund.subscription_expires_at
+            refund_status = refund.status
+
+    if refund_status == "succeeded":
+        await callback.message.edit_text(
+            "\n".join(
+                [
+                    "Возврат оформлен.",
+                    _subscription_after_refund_text(until),
+                ]
+            ),
+            reply_markup=subscription_keyboard(),
+        )
+    else:
+        await callback.message.edit_text(
+            "Возврат создан и ещё обрабатывается. Если статус не обновится, напиши в поддержку.",
+            reply_markup=subscription_keyboard(),
+        )
+    await callback.answer("Готово.")
+
+
 @router.callback_query(F.data.startswith("subscription:yookassa:"))
 async def buy_subscription_with_yookassa(callback: CallbackQuery) -> None:
     plan, method = _payment_choice_from_callback(callback.data)
-    if settings.yookassa_provider_token:
+    if settings.yookassa_provider_token and method != "sbp":
         await _send_yookassa_invoice(callback, plan.code, method)
         return
 
@@ -255,7 +342,10 @@ async def successful_payment(message: Message) -> None:
     if payment.invoice_payload.startswith(f"{YOOKASSA_PAYLOAD}:"):
         await _handle_successful_yookassa_invoice(message)
         return
-    if payment.invoice_payload != SUBSCRIPTION_PAYLOAD:
+    if not (
+        payment.invoice_payload == SUBSCRIPTION_PAYLOAD
+        or payment.invoice_payload.startswith(f"{SUBSCRIPTION_PAYLOAD}:")
+    ):
         await message.answer("Платёж получен, но назначение не распознано. Напиши в поддержку.")
         return
     async with SessionLocal() as session:
@@ -418,6 +508,26 @@ def _yookassa_payment_keyboard(
         [InlineKeyboardButton(text="Вернуться к подписке", callback_data="subscription:open")]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def _refund_confirmation_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Подтвердить возврат",
+                    callback_data="subscription:refund:confirm",
+                )
+            ],
+            [InlineKeyboardButton(text="Назад", callback_data="subscription:bonuses")],
+        ]
+    )
+
+
+def _subscription_after_refund_text(until: datetime | None) -> str:
+    if until is None or until <= datetime.now(UTC):
+        return "AI-подписка сейчас не активна."
+    return f"AI открыт до {until:%d.%m.%Y}."
 
 
 async def _send_yookassa_invoice(callback: CallbackQuery, plan_code: str, method: str) -> None:

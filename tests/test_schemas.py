@@ -28,6 +28,7 @@ from kcal_tracker.bot.keyboards import (
     food_confirmation_keyboard,
     food_entries_keyboard,
     settings_keyboard,
+    subscription_bonuses_keyboard,
     subscription_payment_method_keyboard,
 )
 from kcal_tracker.bot.text_parsing import (
@@ -585,15 +586,16 @@ def test_settings_keyboard_has_apple_health_button() -> None:
     assert "settings:apple-health" in callbacks
 
 
-def test_subscription_payment_keyboard_uses_single_yookassa_choice_per_plan() -> None:
+def test_subscription_payment_keyboard_separates_sbp_from_telegram_invoice() -> None:
     callbacks = [
         button.callback_data
         for row in subscription_payment_method_keyboard().inline_keyboard
         for button in row
     ]
+    assert "subscription:yookassa:basic:sbp" in callbacks
     assert "subscription:yookassa:basic:auto" in callbacks
+    assert "subscription:yookassa:unlimited:sbp" in callbacks
     assert "subscription:yookassa:unlimited:auto" in callbacks
-    assert "subscription:yookassa:basic:sbp" not in callbacks
     assert "subscription:yookassa:basic:bank_card" not in callbacks
 
 
@@ -602,6 +604,15 @@ def test_yookassa_payment_callback_defaults_to_auto_method() -> None:
     legacy_plan, legacy_method = _payment_choice_from_callback("subscription:yookassa:unlimited")
     assert (basic_plan.code, basic_method) == ("basic", "auto")
     assert (legacy_plan.code, legacy_method) == ("unlimited", "auto")
+
+
+def test_subscription_bonuses_hide_refund_action() -> None:
+    callbacks = [
+        button.callback_data
+        for row in subscription_bonuses_keyboard().inline_keyboard
+        for button in row
+    ]
+    assert "subscription:refund" in callbacks
 
 
 def test_steps_to_kcal_estimate_is_conservative() -> None:

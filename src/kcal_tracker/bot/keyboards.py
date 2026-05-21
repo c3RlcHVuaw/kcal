@@ -470,7 +470,11 @@ def subscription_payment_method_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"Карта/СБП Старт {settings.ai_subscription_rub} ₽",
+                    text=f"СБП Старт {settings.ai_subscription_rub} ₽",
+                    callback_data="subscription:yookassa:basic:sbp",
+                ),
+                InlineKeyboardButton(
+                    text=f"Карта/SberPay Старт {settings.ai_subscription_rub} ₽",
                     callback_data="subscription:yookassa:basic:auto",
                 ),
             ],
@@ -482,7 +486,11 @@ def subscription_payment_method_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text=f"Карта/СБП Безлимит {settings.ai_unlimited_subscription_rub} ₽",
+                    text=f"СБП Безлимит {settings.ai_unlimited_subscription_rub} ₽",
+                    callback_data="subscription:yookassa:unlimited:sbp",
+                ),
+                InlineKeyboardButton(
+                    text=f"Карта/SberPay Безлимит {settings.ai_unlimited_subscription_rub} ₽",
                     callback_data="subscription:yookassa:unlimited:auto",
                 ),
             ],
@@ -513,6 +521,12 @@ def subscription_bonuses_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(
                     text="↩️ Вернуть AI на день",
                     callback_data="subscription:winback",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="Возврат оплаты за 24 часа",
+                    callback_data="subscription:refund",
                 )
             ],
             [InlineKeyboardButton(text="Назад", callback_data="subscription:open")],
