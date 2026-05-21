@@ -25,6 +25,7 @@ from kcal_tracker.services.ai_food import AIFoodService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
 from kcal_tracker.services.diary import DiaryService
+from kcal_tracker.services.fatsecret import FatSecretService
 from kcal_tracker.services.food_insights import enrich_food_payload, food_label
 from kcal_tracker.services.food_search import estimate_common_food
 from kcal_tracker.services.media import (
@@ -229,17 +230,13 @@ async def _free_food_estimate(text: str) -> FoodEstimate | None:
 
 async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimate]:
     barcode = normalize_barcode(text)
-    estimates: list[FoodEstimate] = []
-    estimate = estimate_common_food(text)
-    if estimate is not None:
-        estimates.append(estimate)
     async with SessionLocal() as session:
         if barcode is not None:
             try:
                 product = await OpenFoodFactsService(session).get_product(barcode)
             except ProductNotFoundError:
-                return estimates
-            estimates.append(
+                return []
+            return [
                 enrich_food_payload(
                     FoodEstimate(
                         name=product.product_name,
@@ -251,13 +248,23 @@ async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimat
                         confidence=0.9,
                     )
                 )
-            )
-            return _dedupe_estimates(estimates, limit=limit)
+            ]
         try:
-            estimates.extend(await OpenFoodFactsService(session).search_products(text, limit=limit))
+            estimates = await OpenFoodFactsService(session).search_products(text, limit=limit)
         except Exception:
             logger.debug("OpenFoodFacts text search failed", exc_info=True)
-    return _dedupe_estimates(estimates, limit=limit)
+            estimates = []
+    if estimates:
+        return _dedupe_estimates(estimates, limit=limit)
+
+    estimates = await FatSecretService().search_products(text, limit=limit)
+    if estimates:
+        return _dedupe_estimates(estimates, limit=limit)
+
+    estimate = estimate_common_food(text)
+    if estimate is not None:
+        return [estimate]
+    return []
 
 
 async def _show_search_results(

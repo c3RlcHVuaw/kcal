@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     openai_vision_model: str = "gpt-4o-mini"
     openai_text_model: str = "gpt-4o-mini"
     openai_transcribe_model: str = "gpt-4o-mini-transcribe"
+    fatsecret_client_id: str = ""
+    fatsecret_client_secret: str = ""
+    fatsecret_scope: str = "premier localization"
+    fatsecret_region: str = "RU"
+    fatsecret_language: str = "ru"
 
     default_timezone: str = "Europe/Samara"
     default_daily_kcal_target: int = 2200
