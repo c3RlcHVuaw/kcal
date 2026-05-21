@@ -30,6 +30,7 @@ from kcal_tracker.bot.keyboards import (
     settings_keyboard,
     subscription_bonuses_keyboard,
     subscription_payment_method_keyboard,
+    subscription_plan_keyboard,
 )
 from kcal_tracker.bot.text_parsing import (
     looks_like_activity,
@@ -586,16 +587,28 @@ def test_settings_keyboard_has_apple_health_button() -> None:
     assert "settings:apple-health" in callbacks
 
 
-def test_subscription_payment_keyboard_separates_sbp_from_telegram_invoice() -> None:
+def test_subscription_plan_keyboard_keeps_payment_choices_separate() -> None:
     callbacks = [
         button.callback_data
-        for row in subscription_payment_method_keyboard().inline_keyboard
+        for row in subscription_plan_keyboard().inline_keyboard
+        for button in row
+    ]
+    assert "subscription:plan:basic" in callbacks
+    assert "subscription:plan:unlimited" in callbacks
+    assert not any(callback.startswith("subscription:yookassa:") for callback in callbacks)
+
+
+def test_subscription_payment_keyboard_shows_only_selected_plan() -> None:
+    callbacks = [
+        button.callback_data
+        for row in subscription_payment_method_keyboard("basic").inline_keyboard
         for button in row
     ]
     assert "subscription:yookassa:basic:sbp" in callbacks
     assert "subscription:yookassa:basic:auto" in callbacks
-    assert "subscription:yookassa:unlimited:sbp" in callbacks
-    assert "subscription:yookassa:unlimited:auto" in callbacks
+    assert "subscription:stars:basic" in callbacks
+    assert "subscription:yookassa:unlimited:sbp" not in callbacks
+    assert "subscription:yookassa:unlimited:auto" not in callbacks
     assert "subscription:yookassa:basic:bank_card" not in callbacks
 
 
@@ -609,10 +622,15 @@ def test_yookassa_payment_callback_defaults_to_auto_method() -> None:
 def test_subscription_bonuses_hide_refund_action() -> None:
     callbacks = [
         button.callback_data
-        for row in subscription_bonuses_keyboard().inline_keyboard
+        for row in subscription_bonuses_keyboard(
+            trial_available=False,
+            winback_available=False,
+            refund_available=True,
+        ).inline_keyboard
         for button in row
     ]
     assert "subscription:refund" in callbacks
+    assert "subscription:trial" not in callbacks
 
 
 def test_yookassa_credentials_error_is_user_friendly() -> None:

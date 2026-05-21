@@ -57,18 +57,30 @@ def main_menu() -> ReplyKeyboardMarkup:
     )
 
 
-def more_menu_keyboard() -> InlineKeyboardMarkup:
+def more_menu_keyboard(
+    *,
+    has_frequent_foods: bool = True,
+    has_yesterday_entries: bool = True,
+) -> InlineKeyboardMarkup:
+    food_shortcuts = [InlineKeyboardButton(text="⚡ Шаблоны", callback_data="nav:templates")]
+    if has_frequent_foods:
+        food_shortcuts.insert(
+            0,
+            InlineKeyboardButton(text="⚡ Частое", callback_data="nav:frequent"),
+        )
+
+    history_shortcuts = [InlineKeyboardButton(text="📈 7 дней", callback_data="nav:week")]
+    if has_yesterday_entries:
+        history_shortcuts.insert(
+            0,
+            InlineKeyboardButton(text="↩️ Как вчера", callback_data="nav:yesterday"),
+        )
+
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal")],
-            [
-                InlineKeyboardButton(text="⚡ Частое", callback_data="nav:frequent"),
-                InlineKeyboardButton(text="⚡ Шаблоны", callback_data="nav:templates"),
-            ],
-            [
-                InlineKeyboardButton(text="↩️ Как вчера", callback_data="nav:yesterday"),
-                InlineKeyboardButton(text="📈 7 дней", callback_data="nav:week"),
-            ],
+            food_shortcuts,
+            history_shortcuts,
             [InlineKeyboardButton(text="📅 Месяц", callback_data="nav:month")],
             [
                 InlineKeyboardButton(text="🏃 Активность", callback_data="nav:activity"),
@@ -450,9 +462,18 @@ def settings_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def subscription_keyboard() -> InlineKeyboardMarkup:
+def subscription_keyboard(
+    *,
+    active: bool = False,
+    bonuses_available: bool = True,
+) -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(text="Оформить подписку", callback_data="subscription:subscribe")],
+        [
+            InlineKeyboardButton(
+                text="Продлить подписку" if active else "Оформить подписку",
+                callback_data="subscription:subscribe",
+            )
+        ],
         [
             InlineKeyboardButton(text="🤝 Пригласить друга", callback_data="subscription:referral"),
             InlineKeyboardButton(
@@ -460,47 +481,28 @@ def subscription_keyboard() -> InlineKeyboardMarkup:
                 callback_data="subscription:referral-dashboard",
             ),
         ],
-        [InlineKeyboardButton(text="🎁 Бонусы", callback_data="subscription:bonuses")],
     ]
+    if bonuses_available:
+        rows.append([InlineKeyboardButton(text="🎁 Бонусы", callback_data="subscription:bonuses")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def subscription_payment_method_keyboard() -> InlineKeyboardMarkup:
+def subscription_plan_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"СБП Старт {settings.ai_subscription_rub} ₽",
-                    callback_data="subscription:yookassa:basic:sbp",
-                ),
-                InlineKeyboardButton(
-                    text=f"Карта/SberPay Старт {settings.ai_subscription_rub} ₽",
-                    callback_data="subscription:yookassa:basic:auto",
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text=f"Звёзды Telegram Старт {settings.ai_subscription_stars} ⭐",
-                    callback_data="subscription:stars:basic",
+                    text=(
+                        f"Старт {settings.ai_subscription_rub} ₽ "
+                        f"({settings.ai_basic_daily_request_limit}/день)"
+                    ),
+                    callback_data="subscription:plan:basic",
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text=f"СБП Безлимит {settings.ai_unlimited_subscription_rub} ₽",
-                    callback_data="subscription:yookassa:unlimited:sbp",
-                ),
-                InlineKeyboardButton(
-                    text=f"Карта/SberPay Безлимит {settings.ai_unlimited_subscription_rub} ₽",
-                    callback_data="subscription:yookassa:unlimited:auto",
-                ),
-            ],
-            [
-                InlineKeyboardButton(
-                    text=(
-                        "Звёзды Telegram Безлимит "
-                        f"{settings.ai_unlimited_subscription_stars} ⭐"
-                    ),
-                    callback_data="subscription:stars:unlimited",
+                    text=f"Безлимит {settings.ai_unlimited_subscription_rub} ₽",
+                    callback_data="subscription:plan:unlimited",
                 )
             ],
             [InlineKeyboardButton(text="Назад", callback_data="subscription:open")],
@@ -508,29 +510,80 @@ def subscription_payment_method_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def subscription_bonuses_keyboard() -> InlineKeyboardMarkup:
+def subscription_payment_method_keyboard(plan_code: str) -> InlineKeyboardMarkup:
+    is_unlimited = plan_code == "unlimited"
+    title = "Безлимит" if is_unlimited else "Старт"
+    rub = settings.ai_unlimited_subscription_rub if is_unlimited else settings.ai_subscription_rub
+    stars = (
+        settings.ai_unlimited_subscription_stars if is_unlimited else settings.ai_subscription_stars
+    )
     return InlineKeyboardMarkup(
         inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text=f"СБП {rub} ₽",
+                    callback_data=f"subscription:yookassa:{plan_code}:sbp",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=f"Карта/SberPay {rub} ₽",
+                    callback_data=f"subscription:yookassa:{plan_code}:auto",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=f"Звёзды Telegram {stars} ⭐",
+                    callback_data=f"subscription:stars:{plan_code}",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=f"Назад к тарифам ({title})",
+                    callback_data="subscription:subscribe",
+                )
+            ],
+        ]
+    )
+
+
+def subscription_bonuses_keyboard(
+    *,
+    trial_available: bool,
+    winback_available: bool,
+    refund_available: bool,
+) -> InlineKeyboardMarkup:
+    rows = []
+    if trial_available:
+        rows.append(
             [
                 InlineKeyboardButton(
                     text="🎁 Пробный premium-день",
                     callback_data="subscription:trial",
                 )
-            ],
+            ]
+        )
+    if winback_available:
+        rows.append(
             [
                 InlineKeyboardButton(
                     text="↩️ Вернуть AI на день",
                     callback_data="subscription:winback",
                 )
-            ],
+            ]
+        )
+    if refund_available:
+        rows.append(
             [
                 InlineKeyboardButton(
                     text="Возврат оплаты за 24 часа",
                     callback_data="subscription:refund",
                 )
-            ],
-            [InlineKeyboardButton(text="Назад", callback_data="subscription:open")],
-        ]
+            ]
+        )
+    rows.append([InlineKeyboardButton(text="Назад", callback_data="subscription:open")])
+    return InlineKeyboardMarkup(
+        inline_keyboard=rows
     )
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from aiogram import F, Router
@@ -18,6 +19,7 @@ from kcal_tracker.bot.keyboards import (
     subscription_bonuses_keyboard,
     subscription_keyboard,
     subscription_payment_method_keyboard,
+    subscription_plan_keyboard,
 )
 from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
@@ -33,6 +35,7 @@ from kcal_tracker.services.subscriptions import (
     SubscriptionService,
     YooKassaPaymentError,
     YooKassaRefundError,
+    has_active_subscription,
     subscription_plan,
     subscription_plans,
     subscription_until_text,
@@ -42,41 +45,97 @@ from kcal_tracker.services.users import UserService
 router = Router()
 
 
+@dataclass(frozen=True)
+class SubscriptionActionFlags:
+    trial_available: bool
+    winback_available: bool
+    refund_available: bool
+
+    @property
+    def any_bonus(self) -> bool:
+        return self.trial_available or self.winback_available or self.refund_available
+
+
 @router.message(F.text == "💎 Подписка")
 async def subscription_menu(message: Message) -> None:
-    text = await _subscription_text(message.from_user.id, message.from_user.username)
-    await message.answer(text, reply_markup=subscription_keyboard())
+    text, reply_markup = await _subscription_view(message.from_user.id, message.from_user.username)
+    await message.answer(text, reply_markup=reply_markup)
 
 
 @router.callback_query(F.data == "subscription:open")
 async def subscription_menu_inline(callback: CallbackQuery) -> None:
-    text = await _subscription_text(callback.from_user.id, callback.from_user.username)
-    await callback.message.edit_text(text, reply_markup=subscription_keyboard())
+    text, reply_markup = await _subscription_view(
+        callback.from_user.id,
+        callback.from_user.username,
+    )
+    await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
 
 
-async def _subscription_text(telegram_id: int, username: str | None) -> str:
+async def _subscription_view(
+    telegram_id: int,
+    username: str | None,
+) -> tuple[str, InlineKeyboardMarkup]:
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
             telegram_id,
             username,
         )
         text = subscription_until_text(user)
+        active = has_active_subscription(user)
+        flags = await _subscription_action_flags(session, user)
 
-    return "\n".join(
-        [
-            text,
-            "",
-            "AI по фото, тексту и голосу на 30 дней.",
-            (
-                f"Старт: {settings.ai_subscription_rub} ₽, "
-                f"{settings.ai_basic_daily_request_limit} AI-запросов в день."
-            ),
-            f"Безлимит: {settings.ai_unlimited_subscription_rub} ₽.",
-            f"Звёзды Telegram дороже: от {settings.ai_subscription_stars} ⭐.",
-            "За первого активного друга дадим 7 дней AI. "
-            "За следующих — 7 дней после их первой оплаты.",
-        ]
+    return (
+        "\n".join(
+            [
+                text,
+                "",
+                "AI по фото, тексту и голосу на 30 дней.",
+                (
+                    f"Старт: {settings.ai_subscription_rub} ₽, "
+                    f"{settings.ai_basic_daily_request_limit} AI-запросов в день."
+                ),
+                f"Безлимит: {settings.ai_unlimited_subscription_rub} ₽.",
+                f"Звёзды Telegram дороже: от {settings.ai_subscription_stars} ⭐.",
+                "За первого активного друга дадим 7 дней AI. "
+                "За следующих — 7 дней после их первой оплаты.",
+            ]
+        ),
+        subscription_keyboard(active=active, bonuses_available=flags.any_bonus),
+    )
+
+
+async def _subscription_markup_for_user(
+    telegram_id: int,
+    username: str | None,
+) -> InlineKeyboardMarkup:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(telegram_id, username)
+        flags = await _subscription_action_flags(session, user)
+        return subscription_keyboard(
+            active=has_active_subscription(user),
+            bonuses_available=flags.any_bonus,
+        )
+
+
+async def _subscription_action_flags(session, user) -> SubscriptionActionFlags:
+    active = has_active_subscription(user)
+    refund_available = (
+        await SubscriptionService(session).latest_refundable_payment(user) is not None
+    )
+    return SubscriptionActionFlags(
+        trial_available=(
+            settings.premium_trial_days > 0
+            and user.premium_trial_used_at is None
+            and not active
+        ),
+        winback_available=(
+            settings.winback_offer_days > 0
+            and user.winback_used_at is None
+            and not active
+            and user.subscription_expires_at is not None
+        ),
+        refund_available=refund_available,
     )
 
 
@@ -101,36 +160,71 @@ async def buy_subscription_with_stars(callback: CallbackQuery) -> None:
 
 
 @router.callback_query(F.data == "subscription:subscribe")
-async def choose_subscription_payment(callback: CallbackQuery) -> None:
+async def choose_subscription_plan(callback: CallbackQuery) -> None:
     await callback.message.edit_text(
         "\n".join(
             [
-                "Оформить подписку",
+                "Выбери тариф",
                 "",
                 f"Старт: {settings.ai_subscription_rub} ₽, "
                 f"{settings.ai_basic_daily_request_limit} AI-запросов в день.",
                 f"Безлимит: {settings.ai_unlimited_subscription_rub} ₽.",
-                "СБП откроется на странице YooKassa с QR-кодом или выбором банка.",
-                "Карта/SberPay откроется встроенной оплатой Telegram.",
-                "Или можно оплатить Звёздами Telegram.",
             ]
         ),
-        reply_markup=subscription_payment_method_keyboard(),
+        reply_markup=subscription_plan_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("subscription:plan:"))
+async def choose_subscription_payment(callback: CallbackQuery) -> None:
+    plan = _plan_from_callback(callback.data, default=SUBSCRIPTION_PLAN_BASIC)
+    limit_text = (
+        "без дневного лимита"
+        if plan.daily_limit is None
+        else f"{plan.daily_limit} AI-запросов в день"
+    )
+    await callback.message.edit_text(
+        "\n".join(
+            [
+                f"Тариф «{plan.title}»",
+                "",
+                f"30 дней, {limit_text}.",
+                f"Цена: {plan.rub} ₽ или {plan.stars} ⭐.",
+                "",
+                "СБП откроется на странице YooKassa с QR-кодом или выбором банка.",
+                "Карта/SberPay откроется встроенной оплатой Telegram.",
+            ]
+        ),
+        reply_markup=subscription_payment_method_keyboard(plan.code),
     )
     await callback.answer()
 
 
 @router.callback_query(F.data == "subscription:bonuses")
 async def show_subscription_bonuses(callback: CallbackQuery) -> None:
-    await callback.message.edit_text(
-        "\n".join(
-            [
-                "Бонусы",
-                "",
-                "Здесь лежат разовые предложения и служебные действия по подписке.",
-            ]
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        flags = await _subscription_action_flags(session, user)
+    lines = [
+        "Бонусы",
+        "",
+        (
+            "Доступные действия по подписке:"
+            if flags.any_bonus
+            else "Сейчас нет доступных бонусов или возврата."
         ),
-        reply_markup=subscription_bonuses_keyboard(),
+    ]
+    await callback.message.edit_text(
+        "\n".join(lines),
+        reply_markup=subscription_bonuses_keyboard(
+            trial_available=flags.trial_available,
+            winback_available=flags.winback_available,
+            refund_available=flags.refund_available,
+        ),
     )
     await callback.answer()
 
@@ -203,6 +297,10 @@ async def confirm_refund(callback: CallbackQuery) -> None:
             refund_status = refund.status
 
     if refund_status == "succeeded":
+        reply_markup = await _subscription_markup_for_user(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
         await callback.message.edit_text(
             "\n".join(
                 [
@@ -210,12 +308,16 @@ async def confirm_refund(callback: CallbackQuery) -> None:
                     _subscription_after_refund_text(until),
                 ]
             ),
-            reply_markup=subscription_keyboard(),
+            reply_markup=reply_markup,
         )
     else:
+        reply_markup = await _subscription_markup_for_user(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
         await callback.message.edit_text(
             "Возврат создан и ещё обрабатывается. Если статус не обновится, напиши в поддержку.",
-            reply_markup=subscription_keyboard(),
+            reply_markup=reply_markup,
         )
     await callback.answer("Готово.")
 
@@ -285,9 +387,13 @@ async def check_yookassa_payment(callback: CallbackQuery) -> None:
         )
 
     if until is not None:
+        reply_markup = await _subscription_markup_for_user(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
         await callback.message.answer(
             f"Готово, AI открыт до {until:%d.%m.%Y}.",
-            reply_markup=subscription_keyboard(),
+            reply_markup=reply_markup,
         )
         if referrer is not None:
             await callback.bot.send_message(
@@ -361,9 +467,13 @@ async def successful_payment(message: Message) -> None:
             provider_payment_charge_id=payment.provider_payment_charge_id,
         )
         referrer = await GrowthService(session).reward_referrer_for_first_payment(user)
+    reply_markup = await _subscription_markup_for_user(
+        message.from_user.id,
+        message.from_user.username,
+    )
     await message.answer(
         f"Готово, AI открыт до {until:%d.%m.%Y}.",
-        reply_markup=subscription_keyboard(),
+        reply_markup=reply_markup,
     )
     if referrer is not None:
         await message.bot.send_message(
@@ -387,9 +497,13 @@ async def activate_premium_trial(callback: CallbackQuery) -> None:
             show_alert=True,
         )
         return
+    reply_markup = await _subscription_markup_for_user(
+        callback.from_user.id,
+        callback.from_user.username,
+    )
     await callback.message.edit_text(
         f"Готово, пробный premium-день включён до {until:%d.%m.%Y %H:%M} UTC.",
-        reply_markup=subscription_keyboard(),
+        reply_markup=reply_markup,
     )
     await callback.answer()
 
@@ -409,9 +523,13 @@ async def activate_winback_offer(callback: CallbackQuery) -> None:
             show_alert=True,
         )
         return
+    reply_markup = await _subscription_markup_for_user(
+        callback.from_user.id,
+        callback.from_user.username,
+    )
     await callback.message.edit_text(
         f"Вернул AI на день — доступ открыт до {until:%d.%m.%Y %H:%M} UTC.",
-        reply_markup=subscription_keyboard(),
+        reply_markup=reply_markup,
     )
     await callback.answer()
 
@@ -429,6 +547,10 @@ async def show_referral_link(callback: CallbackQuery) -> None:
         )
         link = await GrowthService(session).referral_link(user, bot.username)
 
+    reply_markup = await _subscription_markup_for_user(
+        callback.from_user.id,
+        callback.from_user.username,
+    )
     await callback.message.edit_text(
         "\n".join(
             [
@@ -440,7 +562,7 @@ async def show_referral_link(callback: CallbackQuery) -> None:
                 "За следующих друзей бонус начисляется после их первой оплаты.",
             ]
         ),
-        reply_markup=subscription_keyboard(),
+        reply_markup=reply_markup,
     )
     await callback.answer()
 
@@ -485,7 +607,11 @@ async def show_referral_dashboard(callback: CallbackQuery) -> None:
     else:
         lines.extend(["", "Пока никто не пришёл по ссылке."])
 
-    await callback.message.edit_text("\n".join(lines), reply_markup=subscription_keyboard())
+    reply_markup = await _subscription_markup_for_user(
+        callback.from_user.id,
+        callback.from_user.username,
+    )
+    await callback.message.edit_text("\n".join(lines), reply_markup=reply_markup)
     await callback.answer()
 
 
@@ -619,9 +745,13 @@ async def _handle_successful_yookassa_invoice(message: Message) -> None:
         )
         referrer = await GrowthService(session).reward_referrer_for_first_payment(user)
 
+    reply_markup = await _subscription_markup_for_user(
+        message.from_user.id,
+        message.from_user.username,
+    )
     await message.answer(
         f"Готово, AI открыт до {until:%d.%m.%Y}.",
-        reply_markup=subscription_keyboard(),
+        reply_markup=reply_markup,
     )
     if referrer is not None:
         await message.bot.send_message(
