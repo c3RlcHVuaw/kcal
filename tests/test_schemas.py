@@ -21,7 +21,7 @@ from kcal_tracker.bot.handlers.diary import (
     _weight_chart,
 )
 from kcal_tracker.bot.handlers.food import _format_estimate_confirmation, _scale_estimate
-from kcal_tracker.bot.handlers.payments import _payment_choice_from_callback
+from kcal_tracker.bot.handlers.payments import _payment_choice_from_callback, _payment_error_message
 from kcal_tracker.bot.handlers.profile import _apple_health_shortcut_text
 from kcal_tracker.bot.keyboards import (
     activity_menu_keyboard,
@@ -613,6 +613,11 @@ def test_subscription_bonuses_hide_refund_action() -> None:
         for button in row
     ]
     assert "subscription:refund" in callbacks
+
+
+def test_yookassa_credentials_error_is_user_friendly() -> None:
+    message = _payment_error_message("Error in shopId or secret key. Check their validity.")
+    assert "правильный ShopID" in message
 
 
 def test_steps_to_kcal_estimate_is_conservative() -> None:

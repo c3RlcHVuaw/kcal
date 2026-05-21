@@ -197,7 +197,7 @@ async def confirm_refund(callback: CallbackQuery) -> None:
                 )
                 return
             except YooKassaRefundError as exc:
-                await callback.answer(str(exc), show_alert=True)
+                await callback.answer(_payment_error_message(str(exc)), show_alert=True)
                 return
             until = refund.subscription_expires_at
             refund_status = refund.status
@@ -246,7 +246,7 @@ async def buy_subscription_with_yookassa(callback: CallbackQuery) -> None:
             )
             return
         except YooKassaPaymentError as exc:
-            await callback.answer(str(exc), show_alert=True)
+            await callback.answer(_payment_error_message(str(exc)), show_alert=True)
             return
 
     method_text = _yookassa_method_text(method)
@@ -528,6 +528,16 @@ def _subscription_after_refund_text(until: datetime | None) -> str:
     if until is None or until <= datetime.now(UTC):
         return "AI-подписка сейчас не активна."
     return f"AI открыт до {until:%d.%m.%Y}."
+
+
+def _payment_error_message(message: str) -> str:
+    lowered = message.lower()
+    if "shopid or secret key" in lowered or ("shopid" in lowered and "secret key" in lowered):
+        return (
+            "СБП через YooKassa пока не настроен: нужен правильный ShopID "
+            "из личного кабинета YooKassa и secret key от этого же магазина."
+        )
+    return message
 
 
 async def _send_yookassa_invoice(callback: CallbackQuery, plan_code: str, method: str) -> None:
