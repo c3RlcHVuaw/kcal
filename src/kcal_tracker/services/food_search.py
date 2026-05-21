@@ -42,6 +42,8 @@ COMMON_FOODS: dict[str, FoodNutrition] = {
     "латте": FoodNutrition("латте", 55, 3, 2, 5),
     "сыр": FoodNutrition("сыр", 350, 25, 27, 2),
     "хлеб": FoodNutrition("хлеб", 250, 8, 3, 49),
+    "пицца": FoodNutrition("пицца", 260, 11, 10, 32),
+    "чизкейк": FoodNutrition("чизкейк", 321, 6, 22, 26),
 }
 
 

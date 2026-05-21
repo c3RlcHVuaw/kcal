@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from dataclasses import dataclass
 
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +14,12 @@ from kcal_tracker.services.food_insights import enrich_food_payload
 
 class ProductNotFoundError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class ProductSearchCandidate:
+    estimate: FoodEstimate
+    score: int
 
 
 OPEN_FOOD_FACTS_HEADERS = {
@@ -94,13 +101,18 @@ class OpenFoodFactsService:
         return cache
 
     async def search_product(self, query: str) -> FoodEstimate | None:
+        products = await self.search_products(query, limit=1)
+        return products[0] if products else None
+
+    async def search_products(self, query: str, *, limit: int = 5) -> list[FoodEstimate]:
         query = " ".join(query.split())
         if len(query) < 2:
-            return None
+            return []
 
         query_variants = _search_queries(query)
+        candidates: dict[str, ProductSearchCandidate] = {}
         async with httpx.AsyncClient(timeout=5.0) as client:
-            for search_query in query_variants:
+            for query_index, search_query in enumerate(query_variants):
                 for base_url in SEARCH_ENDPOINTS:
                     payload = await _search_payload(client, base_url, search_query)
                     if payload is None:
@@ -109,9 +121,15 @@ class OpenFoodFactsService:
                         if not _is_relevant_product(product, search_query):
                             continue
                         estimate = _estimate_from_product(product)
-                        if estimate is not None:
-                            return estimate
-        return None
+                        if estimate is None:
+                            continue
+                        key = _estimate_key(estimate)
+                        score = _product_score(product, search_query) - query_index
+                        existing = candidates.get(key)
+                        if existing is None or score > existing.score:
+                            candidates[key] = ProductSearchCandidate(estimate=estimate, score=score)
+        ranked = sorted(candidates.values(), key=lambda item: item.score, reverse=True)
+        return [candidate.estimate for candidate in ranked[:limit]]
 
 
 async def _search_payload(
@@ -240,6 +258,30 @@ def _is_relevant_product(product: dict, query: str) -> bool:
     if len(query_tokens) <= 2:
         return matches == len(query_tokens)
     return matches >= 2
+
+
+def _product_score(product: dict, query: str) -> int:
+    name = _product_name(product)
+    query_tokens = _meaningful_tokens(query)
+    name_tokens = set(_meaningful_tokens(name))
+    score = sum(10 for token in query_tokens if token in name_tokens)
+    if product.get("product_name_ru") or product.get("generic_name_ru"):
+        score += 8
+    if product.get("product_name"):
+        score += 2
+    nutriments = product.get("nutriments") or {}
+    for key in ("energy-kcal_100g", "proteins_100g", "fat_100g", "carbohydrates_100g"):
+        if nutriments.get(key) is not None:
+            score += 1
+    normalized_name = _normalize_search_text(name)
+    normalized_query = _normalize_search_text(query)
+    if normalized_query and normalized_query in normalized_name:
+        score += 12
+    return score
+
+
+def _estimate_key(estimate: FoodEstimate) -> str:
+    return f"{_normalize_search_text(estimate.name)}:{round(estimate.kcal or 0)}"
 
 
 def _meaningful_tokens(value: str) -> list[str]:

@@ -334,6 +334,20 @@ def multi_food_keyboard(count: int, added_indices: set[int] | None = None) -> In
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
+def food_search_results_keyboard(count: int) -> InlineKeyboardMarkup:
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=f"Выбрать #{index}",
+                callback_data=f"foodsearch:choose:{index - 1}",
+            )
+        ]
+        for index in range(1, count + 1)
+    ]
+    rows.append([InlineKeyboardButton(text="❌ Отмена", callback_data="foodsearch:cancel")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 def reminders_keyboard(user) -> InlineKeyboardMarkup:
     toggle_text = (
         "Выключить все напоминания" if user.reminders_enabled else "Включить напоминания"

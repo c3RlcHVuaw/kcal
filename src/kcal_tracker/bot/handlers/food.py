@@ -12,6 +12,7 @@ from kcal_tracker.bot.keyboards import (
     after_save_keyboard,
     calorie_warning_keyboard,
     food_confirmation_keyboard,
+    food_search_results_keyboard,
     frequent_foods_keyboard,
     multi_food_keyboard,
     repeat_yesterday_keyboard,
@@ -90,9 +91,12 @@ async def ask_barcode_from_inline(callback: CallbackQuery, state: FSMContext) ->
 @router.message(FoodFlow.waiting_manual, F.text)
 @router.message(FoodFlow.waiting_barcode_photo, F.text)
 async def parse_manual_food(message: Message, state: FSMContext) -> None:
-    free_estimate = await _free_food_estimate(message.text or "")
-    if free_estimate is not None:
-        await _show_confirmation(message, state, free_estimate, "food_search")
+    free_estimates = await _free_food_estimates(message.text or "")
+    if len(free_estimates) == 1:
+        await _show_confirmation(message, state, free_estimates[0], "food_search")
+        return
+    if len(free_estimates) > 1:
+        await _show_search_results(message, state, free_estimates)
         return
 
     if not await _can_use_ai(message):
@@ -219,32 +223,99 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
 
 
 async def _free_food_estimate(text: str) -> FoodEstimate | None:
+    estimates = await _free_food_estimates(text, limit=1)
+    return estimates[0] if estimates else None
+
+
+async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimate]:
     barcode = normalize_barcode(text)
+    estimates: list[FoodEstimate] = []
     estimate = estimate_common_food(text)
     if estimate is not None:
-        return estimate
+        estimates.append(estimate)
     async with SessionLocal() as session:
         if barcode is not None:
             try:
                 product = await OpenFoodFactsService(session).get_product(barcode)
             except ProductNotFoundError:
-                return None
-            return enrich_food_payload(
-                FoodEstimate(
-                    name=product.product_name,
-                    weight_g=100,
-                    kcal=product.kcal_100g or 0,
-                    protein=product.protein_100g or 0,
-                    fat=product.fat_100g or 0,
-                    carbs=product.carbs_100g or 0,
-                    confidence=0.9,
+                return estimates
+            estimates.append(
+                enrich_food_payload(
+                    FoodEstimate(
+                        name=product.product_name,
+                        weight_g=100,
+                        kcal=product.kcal_100g or 0,
+                        protein=product.protein_100g or 0,
+                        fat=product.fat_100g or 0,
+                        carbs=product.carbs_100g or 0,
+                        confidence=0.9,
+                    )
                 )
             )
+            return _dedupe_estimates(estimates, limit=limit)
         try:
-            return await OpenFoodFactsService(session).search_product(text)
+            estimates.extend(await OpenFoodFactsService(session).search_products(text, limit=limit))
         except Exception:
             logger.debug("OpenFoodFacts text search failed", exc_info=True)
-            return None
+    return _dedupe_estimates(estimates, limit=limit)
+
+
+async def _show_search_results(
+    message: Message,
+    state: FSMContext,
+    estimates: list[FoodEstimate],
+) -> None:
+    await state.set_state(FoodFlow.confirming)
+    estimate_list = FoodEstimateList(foods=estimates)
+    await state.update_data(search_estimates=estimate_list.model_dump_json(), source="food_search")
+    await message.answer(
+        _format_search_results(estimates),
+        reply_markup=food_search_results_keyboard(len(estimates)),
+    )
+
+
+@router.callback_query(F.data.startswith("foodsearch:choose:"))
+async def choose_food_search_result(callback: CallbackQuery, state: FSMContext) -> None:
+    try:
+        index = int(callback.data.rsplit(":", 1)[1])
+    except ValueError:
+        await callback.answer("Не понял вариант.", show_alert=True)
+        return
+
+    data = await state.get_data()
+    if "search_estimates" not in data:
+        await callback.answer("Поиск уже устарел. Напиши продукт ещё раз.", show_alert=True)
+        return
+    estimates = FoodEstimateList.model_validate_json(data["search_estimates"])
+    if index >= len(estimates.foods):
+        await callback.answer("Не нашёл этот вариант.", show_alert=True)
+        return
+
+    await state.update_data(estimate=estimates.foods[index].model_dump_json(), source="food_search")
+    await callback.message.edit_text(
+        _format_estimate_confirmation(estimates.foods[index]),
+        reply_markup=food_confirmation_keyboard("food"),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "foodsearch:cancel")
+async def cancel_food_search(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.clear()
+    await callback.message.edit_text("Хорошо, ничего не добавляю.")
+    await callback.answer()
+
+
+def _dedupe_estimates(estimates: list[FoodEstimate], *, limit: int) -> list[FoodEstimate]:
+    deduped: list[FoodEstimate] = []
+    seen: set[str] = set()
+    for estimate in estimates:
+        key = f"{estimate.name.casefold()}:{round(estimate.kcal or 0)}"
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(estimate)
+    return deduped[:limit]
 
 
 @router.message(F.text.in_({"⚡ Частое", "⭐ Частые продукты"}))
@@ -999,6 +1070,20 @@ def _format_estimate_confirmation(
             ]
         )
     lines.extend(["", "Добавить в дневник?"])
+    return "\n".join(lines)
+
+
+def _format_search_results(estimates: list[FoodEstimate]) -> str:
+    lines = ["Нашёл несколько вариантов. Выбери самый похожий:", ""]
+    for index, estimate in enumerate(estimates, start=1):
+        lines.append(
+            f"#{index} {food_label(estimate)} — {estimate.weight_g or 100:.0f}г, "
+            f"{estimate.kcal:.0f} ккал"
+        )
+        lines.append(
+            f"   Б {estimate.protein:.0f} / Ж {estimate.fat:.0f} / У {estimate.carbs:.0f} г"
+        )
+    lines.extend(["", "Если ничего не подходит, можно отменить и написать точнее."])
     return "\n".join(lines)
 
 
