@@ -28,10 +28,14 @@ class Settings(BaseSettings):
     default_timezone: str = "Europe/Samara"
     default_daily_kcal_target: int = 2200
     rate_limit_per_minute: int = Field(default=30, ge=1)
-    ai_daily_request_limit: int = Field(default=100, ge=0)
+    ai_daily_request_limit: int = Field(default=30, ge=0)
+    ai_basic_daily_request_limit: int = Field(default=30, ge=0)
+    ai_unlimited_daily_request_limit: int = Field(default=0, ge=0)
     ai_trial_request_limit: int = Field(default=3, ge=0)
-    ai_subscription_stars: int = Field(default=199, ge=1)
+    ai_subscription_stars: int = Field(default=499, ge=1)
     ai_subscription_rub: int = Field(default=299, ge=1)
+    ai_unlimited_subscription_stars: int = Field(default=1199, ge=1)
+    ai_unlimited_subscription_rub: int = Field(default=699, ge=1)
     ai_subscription_days: int = Field(default=30, ge=1)
     yookassa_provider_token: str = ""
     yookassa_shop_id: str = ""

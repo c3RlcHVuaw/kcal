@@ -41,6 +41,7 @@ class User(Base):
     goal: Mapped[str | None] = mapped_column(String(64))
     daily_kcal_target: Mapped[int] = mapped_column(Integer, nullable=False, default=2200)
     subscription_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    subscription_plan: Mapped[str] = mapped_column(String(32), nullable=False, default="basic")
     referral_code: Mapped[str | None] = mapped_column(String(32), unique=True, index=True)
     referred_by_user_id: Mapped[int | None] = mapped_column(
         BigInteger,

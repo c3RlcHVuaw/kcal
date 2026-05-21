@@ -15,6 +15,7 @@ from kcal_tracker.bot.keyboards import (
     frequent_foods_keyboard,
     multi_food_keyboard,
     repeat_yesterday_keyboard,
+    subscription_cta_keyboard,
 )
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate, FoodEstimateList
@@ -752,7 +753,8 @@ async def _ensure_ai_available(message: Message, request_count: int = 1) -> bool
                 if await usage_service.remaining_trial(user) <= 0:
                     await message.answer(
                         "Бесплатные 3 AI-запроса закончились. "
-                        "Подписку можно открыть в разделе «💎 Подписка»."
+                        "Подписку можно открыть ниже.",
+                        reply_markup=subscription_cta_keyboard(),
                     )
                 else:
                     await message.answer(

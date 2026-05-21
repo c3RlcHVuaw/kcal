@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -14,6 +15,8 @@ from kcal_tracker.models import Payment, User
 
 SUBSCRIPTION_PAYLOAD = "ai_subscription_30d"
 YOOKASSA_PAYLOAD = "ai_subscription_30d_yookassa"
+SUBSCRIPTION_PLAN_BASIC = "basic"
+SUBSCRIPTION_PLAN_UNLIMITED = "unlimited"
 YOOKASSA_PENDING_STATUSES = {"pending", "waiting_for_capture"}
 YOOKASSA_FINAL_STATUSES = {"succeeded", "canceled", "expired", "failed"}
 YOOKASSA_PAYMENT_METHODS = {"bank_card", "sbp"}
@@ -42,6 +45,49 @@ class YooKassaPaymentError(RuntimeError):
     pass
 
 
+@dataclass(frozen=True)
+class SubscriptionPlan:
+    code: str
+    title: str
+    rub: int
+    stars: int
+    daily_limit: int | None
+
+
+def subscription_plans() -> dict[str, SubscriptionPlan]:
+    return {
+        SUBSCRIPTION_PLAN_BASIC: SubscriptionPlan(
+            code=SUBSCRIPTION_PLAN_BASIC,
+            title="Старт",
+            rub=settings.ai_subscription_rub,
+            stars=settings.ai_subscription_stars,
+            daily_limit=settings.ai_basic_daily_request_limit,
+        ),
+        SUBSCRIPTION_PLAN_UNLIMITED: SubscriptionPlan(
+            code=SUBSCRIPTION_PLAN_UNLIMITED,
+            title="Безлимит",
+            rub=settings.ai_unlimited_subscription_rub,
+            stars=settings.ai_unlimited_subscription_stars,
+            daily_limit=(
+                None
+                if settings.ai_unlimited_daily_request_limit == 0
+                else settings.ai_unlimited_daily_request_limit
+            ),
+        ),
+    }
+
+
+def subscription_plan(plan_code: str | None) -> SubscriptionPlan:
+    plans = subscription_plans()
+    return plans.get(plan_code or SUBSCRIPTION_PLAN_BASIC, plans[SUBSCRIPTION_PLAN_BASIC])
+
+
+def user_ai_daily_limit(user: User) -> int | None:
+    if not has_active_subscription(user):
+        return settings.ai_daily_request_limit
+    return subscription_plan(user.subscription_plan).daily_limit
+
+
 class SubscriptionService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -58,9 +104,11 @@ class SubscriptionService:
         telegram_payment_charge_id: str,
         provider_payment_charge_id: str | None,
     ) -> datetime:
+        plan = subscription_plan(_plan_from_payload(payload))
         now = datetime.now(UTC)
         base = user.subscription_expires_at if has_active_subscription(user) else now
         user.subscription_expires_at = base + timedelta(days=settings.ai_subscription_days)
+        user.subscription_plan = plan.code
         self.session.add(
             Payment(
                 user_id=user.id,
@@ -82,7 +130,9 @@ class SubscriptionService:
         self,
         user: User,
         method: str,
+        plan_code: str = SUBSCRIPTION_PLAN_BASIC,
     ) -> Payment:
+        plan = subscription_plan(plan_code)
         if method not in YOOKASSA_PAYMENT_METHODS:
             raise ValueError(f"Unsupported YooKassa payment method: {method}")
         if not settings.yookassa_shop_id or not settings.yookassa_secret_key:
@@ -90,28 +140,29 @@ class SubscriptionService:
 
         now = datetime.now(UTC)
         expires_at = now + timedelta(minutes=settings.yookassa_payment_timeout_minutes)
-        amount_kopecks = settings.ai_subscription_rub * 100
+        amount_kopecks = plan.rub * 100
         payment = Payment(
             user_id=user.id,
             amount_kopecks=amount_kopecks,
             currency="RUB",
             method=method,
             status="creating",
-            payload=YOOKASSA_PAYLOAD,
+            payload=_payload_with_plan(YOOKASSA_PAYLOAD, plan.code),
             expires_at=expires_at,
         )
         self.session.add(payment)
         await self.session.flush()
 
         response = await _create_yookassa_payment(
-            amount_rub=settings.ai_subscription_rub,
+            amount_rub=plan.rub,
             method=method,
-            description=f"AI в Kcal на {settings.ai_subscription_days} дней",
+            description=f"AI в Kcal: {plan.title} на {settings.ai_subscription_days} дней",
             return_url=_yookassa_return_url(),
             metadata={
                 "payment_id": str(payment.id),
                 "telegram_id": str(user.telegram_id),
-                "payload": YOOKASSA_PAYLOAD,
+                "payload": _payload_with_plan(YOOKASSA_PAYLOAD, plan.code),
+                "plan": plan.code,
             },
         )
         confirmation_url = response.get("confirmation", {}).get("confirmation_url")
@@ -129,7 +180,13 @@ class SubscriptionService:
         await self.session.refresh(payment)
         return payment
 
-    async def create_yookassa_invoice_attempt(self, user: User, method: str) -> Payment:
+    async def create_yookassa_invoice_attempt(
+        self,
+        user: User,
+        method: str,
+        plan_code: str = SUBSCRIPTION_PLAN_BASIC,
+    ) -> Payment:
+        plan = subscription_plan(plan_code)
         if method not in YOOKASSA_PAYMENT_METHODS:
             raise ValueError(f"Unsupported YooKassa payment method: {method}")
         if not settings.yookassa_provider_token:
@@ -137,11 +194,11 @@ class SubscriptionService:
 
         payment = Payment(
             user_id=user.id,
-            amount_kopecks=settings.ai_subscription_rub * 100,
+            amount_kopecks=plan.rub * 100,
             currency="RUB",
             method=method,
             status=YOOKASSA_TELEGRAM_PENDING_STATUS,
-            payload=YOOKASSA_PAYLOAD,
+            payload=_payload_with_plan(YOOKASSA_PAYLOAD, plan.code),
             expires_at=datetime.now(UTC)
             + timedelta(minutes=settings.yookassa_payment_timeout_minutes),
         )
@@ -213,9 +270,11 @@ class SubscriptionService:
 
         result = await self.session.execute(select(User).where(User.id == payment.user_id))
         user = result.scalar_one()
+        plan = subscription_plan(_plan_from_payload(payment.payload))
         now = datetime.now(UTC)
         base = user.subscription_expires_at if has_active_subscription(user) else now
         user.subscription_expires_at = base + timedelta(days=settings.ai_subscription_days)
+        user.subscription_plan = plan.code
         payment.status = "succeeded"
         payment.telegram_payment_charge_id = telegram_payment_charge_id
         payment.provider_payment_charge_id = provider_payment_charge_id
@@ -248,9 +307,11 @@ class SubscriptionService:
 
         result = await self.session.execute(select(User).where(User.id == payment.user_id))
         user = result.scalar_one()
+        plan = subscription_plan(_plan_from_payload(payment.payload))
         now = datetime.now(UTC)
         base = user.subscription_expires_at if has_active_subscription(user) else now
         user.subscription_expires_at = base + timedelta(days=settings.ai_subscription_days)
+        user.subscription_plan = plan.code
         payment.paid_at = now
         payment.last_error = None
         await self.session.commit()
@@ -262,6 +323,17 @@ def _yookassa_return_url() -> str:
     if settings.yookassa_return_url:
         return settings.yookassa_return_url
     return f"{settings.public_api_url.rstrip('/')}/payments/yookassa/return"
+
+
+def _payload_with_plan(payload: str, plan_code: str) -> str:
+    return f"{payload}:{subscription_plan(plan_code).code}"
+
+
+def _plan_from_payload(payload: str) -> str:
+    parts = payload.split(":")
+    if len(parts) >= 2 and parts[1] in subscription_plans():
+        return parts[1]
+    return SUBSCRIPTION_PLAN_BASIC
 
 
 async def _create_yookassa_payment(

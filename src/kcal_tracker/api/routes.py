@@ -9,7 +9,6 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from kcal_tracker.config import settings
 from kcal_tracker.database import get_session
 from kcal_tracker.schemas import (
     ActivityEstimate,
@@ -22,6 +21,7 @@ from kcal_tracker.schemas import (
 )
 from kcal_tracker.services.ai_usage import AIUsageService
 from kcal_tracker.services.diary import DiaryService
+from kcal_tracker.services.subscriptions import user_ai_daily_limit
 from kcal_tracker.services.users import UserService
 from kcal_tracker.services.wellness import WellnessService
 
@@ -71,10 +71,11 @@ async def today_ai_usage(
 
     usage_service = AIUsageService(session)
     used_today = await usage_service.today_count(user)
+    daily_limit = user_ai_daily_limit(user)
     return AIUsageSummary(
         used_today=used_today,
-        remaining_today=max(settings.ai_daily_request_limit - used_today, 0),
-        daily_limit=settings.ai_daily_request_limit,
+        remaining_today=10**9 if daily_limit is None else max(daily_limit - used_today, 0),
+        daily_limit=0 if daily_limit is None else daily_limit,
     )
 
 

@@ -18,6 +18,7 @@ from kcal_tracker.bot.keyboards import (
     food_entries_keyboard,
     progress_share_keyboard,
     reminders_keyboard,
+    subscription_cta_keyboard,
     water_keyboard,
     weight_dashboard_keyboard,
 )
@@ -1378,7 +1379,8 @@ async def _ensure_ai_available(message: Message, request_count: int = 1) -> bool
             except AILimitReachedError:
                 await message.answer(
                     "Бесплатные AI-запросы закончились. "
-                    "Можно написать расход вручную: «я потратил 100 ккал»."
+                    "Можно написать расход вручную: «я потратил 100 ккал».",
+                    reply_markup=subscription_cta_keyboard(),
                 )
                 return False
             return True

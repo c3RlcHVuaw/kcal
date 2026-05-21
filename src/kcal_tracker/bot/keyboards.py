@@ -456,18 +456,37 @@ def subscription_payment_method_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"Карта {settings.ai_subscription_rub} ₽",
-                    callback_data="subscription:yookassa:bank_card",
+                    text=f"СБП Старт {settings.ai_subscription_rub} ₽",
+                    callback_data="subscription:yookassa:basic:sbp",
                 ),
                 InlineKeyboardButton(
-                    text=f"СБП {settings.ai_subscription_rub} ₽",
-                    callback_data="subscription:yookassa:sbp",
+                    text=f"Карта Старт {settings.ai_subscription_rub} ₽",
+                    callback_data="subscription:yookassa:basic:bank_card",
                 ),
             ],
             [
                 InlineKeyboardButton(
-                    text=f"Звёзды Telegram {settings.ai_subscription_stars} ⭐",
-                    callback_data="subscription:stars",
+                    text=f"Звёзды Telegram Старт {settings.ai_subscription_stars} ⭐",
+                    callback_data="subscription:stars:basic",
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=f"СБП Безлимит {settings.ai_unlimited_subscription_rub} ₽",
+                    callback_data="subscription:yookassa:unlimited:sbp",
+                ),
+                InlineKeyboardButton(
+                    text=f"Карта Безлимит {settings.ai_unlimited_subscription_rub} ₽",
+                    callback_data="subscription:yookassa:unlimited:bank_card",
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    text=(
+                        "Звёзды Telegram Безлимит "
+                        f"{settings.ai_unlimited_subscription_stars} ⭐"
+                    ),
+                    callback_data="subscription:stars:unlimited",
                 )
             ],
             [InlineKeyboardButton(text="Назад", callback_data="subscription:open")],
@@ -491,6 +510,14 @@ def subscription_bonuses_keyboard() -> InlineKeyboardMarkup:
                 )
             ],
             [InlineKeyboardButton(text="Назад", callback_data="subscription:open")],
+        ]
+    )
+
+
+def subscription_cta_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Оформить подписку", callback_data="subscription:subscribe")]
         ]
     )
 

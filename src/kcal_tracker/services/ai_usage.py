@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from kcal_tracker.config import settings
 from kcal_tracker.models import AIUsage, User
 from kcal_tracker.services.growth import GrowthService
+from kcal_tracker.services.subscriptions import user_ai_daily_limit
 
 
 class AILimitReachedError(RuntimeError):
@@ -38,13 +39,19 @@ class AIUsageService:
         return sum(item.request_count for item in result.scalars())
 
     async def remaining_today(self, user: User) -> int:
-        return max(settings.ai_daily_request_limit - await self.today_count(user), 0)
+        limit = user_ai_daily_limit(user)
+        if limit is None:
+            return 10**9
+        return max(limit - await self.today_count(user), 0)
 
     async def remaining_trial(self, user: User) -> int:
         return max(settings.ai_trial_request_limit - await self.lifetime_count(user), 0)
 
     async def ensure_allowed(self, user: User, request_count: int = 1) -> None:
-        if settings.ai_daily_request_limit == 0:
+        limit = user_ai_daily_limit(user)
+        if limit is None:
+            return
+        if limit == 0:
             raise AILimitReachedError("AI requests are disabled")
         if await self.remaining_today(user) < request_count:
             raise AILimitReachedError("Daily AI request limit reached")
