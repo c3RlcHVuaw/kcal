@@ -138,70 +138,78 @@ async def handle_voice(message: Message, state: FSMContext) -> None:
 @router.message(F.photo | F.video | F.video_note)
 async def handle_photo(message: Message, state: FSMContext) -> None:
     current_state = await state.get_state()
+    waiting_for_barcode = current_state == FoodFlow.waiting_barcode_photo.state
 
-    if current_state == FoodFlow.waiting_barcode_photo.state:
+    if waiting_for_barcode:
         if message.video_note:
             await message.answer("Кружочек получил, ищу штрихкод. Это может занять пару секунд.")
         elif message.video:
             await message.answer("Видео получил, ищу штрихкод. Это может занять пару секунд.")
 
-        image_frames = await _download_image_or_video_frames(message)
-        if not image_frames:
-            await message.answer("Не смог достать кадры из видео. Пришли фото штрихкода крупнее.")
-            return
+    image_frames = await _download_image_or_video_frames(message)
+    if not image_frames:
+        await message.answer("Не смог достать кадры из видео. Пришли фото штрихкода крупнее.")
+        return
 
-        async with SessionLocal() as session:
-            barcode = await _decode_barcode_from_frames(image_frames)
-            if barcode is None:
-                if message.photo:
-                    if not await _can_use_ai(message):
-                        await message.answer(
-                            "Штрихкод не считался. Попробуй снять ближе и ровнее, "
-                            "чтобы полоски занимали большую часть кадра. "
-                            "AI-распознавание фото доступно по подписке.",
-                            reply_markup=subscription_cta_keyboard(),
-                        )
-                        return
-                    await _recognize_food_photo(
-                        message,
-                        state,
-                        image_frames[0],
-                        text_hint=message.caption,
-                    )
-                    return
-                await message.answer(_barcode_retry_text(message))
-                return
+    async with SessionLocal() as session:
+        barcode_timeout = 25 if message.video or message.video_note else 8
+        barcode = await _decode_barcode_from_frames(image_frames, timeout=barcode_timeout)
+        if barcode is not None:
+            logger.info("Barcode decoded from incoming media: %s", barcode)
             try:
                 product = await OpenFoodFactsService(session).get_product(barcode)
             except ProductNotFoundError:
                 await message.answer(
-                    "Штрихкод считался, но продукта пока нет в базе. "
+                    f"Штрихкод {barcode} считался, но продукта пока нет в базе. "
                     "Можно добавить его вручную через «➕ Еда»."
                 )
                 return
 
-        estimate = enrich_food_payload(
-            FoodEstimate(
-                name=product.product_name,
-                weight_g=100,
-                kcal=product.kcal_100g or 0,
-                protein=product.protein_100g or 0,
-                fat=product.fat_100g or 0,
-                carbs=product.carbs_100g or 0,
-                confidence=0.9,
+            estimate = enrich_food_payload(
+                FoodEstimate(
+                    name=product.product_name,
+                    weight_g=100,
+                    kcal=product.kcal_100g or 0,
+                    protein=product.protein_100g or 0,
+                    fat=product.fat_100g or 0,
+                    carbs=product.carbs_100g or 0,
+                    confidence=0.9,
+                )
             )
-        )
-        await _show_confirmation(message, state, estimate, "barcode")
+            await _show_confirmation(message, state, estimate, "barcode")
+            return
+
+    logger.info(
+        "Barcode was not decoded from incoming media: user=%s photo=%s video=%s video_note=%s",
+        message.from_user.id if message.from_user else None,
+        bool(message.photo),
+        bool(message.video),
+        bool(message.video_note),
+    )
+
+    if waiting_for_barcode and not message.photo:
+        await message.answer(_barcode_retry_text(message))
         return
 
-    image_bytes = await _download_image_or_video_frame(message)
-    if image_bytes is None:
-        await message.answer(
-            "Для AI-еды лучше прислать фото. Видео сейчас использую для штрихкодов."
+    if message.photo:
+        if waiting_for_barcode and not await _can_use_ai(message):
+            await message.answer(
+                "Штрихкод не считался. Попробуй снять ближе и ровнее, "
+                "чтобы полоски занимали большую часть кадра. "
+                "AI-распознавание фото доступно по подписке.",
+                reply_markup=subscription_cta_keyboard(),
+            )
+            return
+
+        await _recognize_food_photo(
+            message,
+            state,
+            image_frames[0],
+            text_hint=message.caption,
         )
         return
 
-    await _recognize_food_photo(message, state, image_bytes, text_hint=message.caption)
+    await message.answer("Для AI-еды лучше прислать фото. Видео сейчас использую для штрихкодов.")
 
 
 async def _free_food_estimate(text: str) -> FoodEstimate | None:
@@ -907,11 +915,11 @@ async def _download_image_or_video_frames(message: Message) -> list[bytes]:
         return []
 
 
-async def _decode_barcode_from_frames(frames: list[bytes]) -> str | None:
+async def _decode_barcode_from_frames(frames: list[bytes], *, timeout: int = 25) -> str | None:
     try:
         return await asyncio.wait_for(
             asyncio.to_thread(_decode_barcode_from_frames_sync, frames),
-            timeout=25,
+            timeout=timeout,
         )
     except TimeoutError:
         logger.warning("Barcode decoding timed out")
