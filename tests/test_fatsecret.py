@@ -36,6 +36,26 @@ def test_fatsecret_estimate_uses_default_metric_serving_per_100g() -> None:
     assert estimate.carbs == 26
 
 
+def test_fatsecret_estimate_parses_basic_food_description() -> None:
+    estimate = _estimate_from_food(
+        {
+            "food_name": "Cheese Pizza",
+            "food_description": (
+                "Per 100g - Calories: 276kcal | Fat: 11.74g | "
+                "Carbs: 30.33g | Protein: 12.33g"
+            ),
+        }
+    )
+
+    assert estimate is not None
+    assert estimate.name == "Cheese Pizza"
+    assert estimate.weight_g == 100
+    assert estimate.kcal == 276
+    assert estimate.protein == 12.3
+    assert estimate.fat == 11.7
+    assert estimate.carbs == 30.3
+
+
 def test_fatsecret_search_returns_empty_without_credentials() -> None:
     service = FatSecretService()
     service.client_id = ""

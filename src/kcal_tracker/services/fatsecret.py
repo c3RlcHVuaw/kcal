@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -15,15 +16,17 @@ logger = logging.getLogger(__name__)
 
 TOKEN_URL = "https://oauth.fatsecret.com/connect/token"
 SEARCH_URL = "https://platform.fatsecret.com/rest/foods/search/v3"
+BASIC_SEARCH_URL = "https://platform.fatsecret.com/rest/server.api"
 
 
 @dataclass
 class _TokenCache:
     access_token: str
     expires_at: float
+    scope: str
 
 
-_token_cache: _TokenCache | None = None
+_token_cache: dict[str, _TokenCache] = {}
 
 
 class FatSecretService:
@@ -37,32 +40,24 @@ class FatSecretService:
             return []
 
         try:
-            token = await self._access_token()
+            token = await self._access_token(settings.fatsecret_scope)
         except FatSecretUnavailableError:
-            logger.debug("FatSecret token request failed", exc_info=True)
-            return []
-
-        async with httpx.AsyncClient(timeout=6.0) as client:
             try:
-                response = await client.get(
-                    SEARCH_URL,
-                    params={
-                        "search_expression": query,
-                        "max_results": min(max(limit, 1), 50),
-                        "format": "json",
-                        "region": settings.fatsecret_region,
-                        "language": settings.fatsecret_language,
-                        "flag_default_serving": "true",
-                    },
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-                response.raise_for_status()
-                payload = response.json()
-            except (httpx.HTTPError, ValueError):
-                logger.debug("FatSecret search failed", exc_info=True)
+                token = await self._access_token("basic")
+            except FatSecretUnavailableError:
+                logger.debug("FatSecret token request failed", exc_info=True)
                 return []
 
-        foods = _as_list(payload.get("foods_search", {}).get("results", {}).get("food"))
+        async with httpx.AsyncClient(timeout=6.0) as client:
+            payload = await _premium_search(client, token, query, limit)
+            if _has_api_error(payload):
+                basic_token = await self._access_token("basic")
+                payload = await _basic_search(client, basic_token, query, limit)
+
+        if not payload:
+            return []
+
+        foods = _foods_from_payload(payload)
         estimates = []
         for food in foods:
             estimate = _estimate_from_food(food)
@@ -70,20 +65,20 @@ class FatSecretService:
                 estimates.append(estimate)
         return estimates[:limit]
 
-    async def _access_token(self) -> str:
-        global _token_cache
+    async def _access_token(self, scope: str) -> str:
         now = time.time()
-        if _token_cache is not None and _token_cache.expires_at > now + 30:
-            return _token_cache.access_token
+        cached = _token_cache.get(scope)
+        if cached is not None and cached.expires_at > now + 30:
+            return cached.access_token
 
         async with httpx.AsyncClient(timeout=6.0) as client:
             try:
+                data = {"grant_type": "client_credentials"}
+                if scope:
+                    data["scope"] = scope
                 response = await client.post(
                     TOKEN_URL,
-                    data={
-                        "grant_type": "client_credentials",
-                        "scope": settings.fatsecret_scope,
-                    },
+                    data=data,
                     auth=(self.client_id, self.client_secret),
                 )
                 response.raise_for_status()
@@ -95,7 +90,11 @@ class FatSecretService:
         if not access_token:
             raise FatSecretUnavailableError("FatSecret token response has no access token")
         expires_in = _to_float(payload.get("expires_in")) or 3600
-        _token_cache = _TokenCache(access_token=access_token, expires_at=now + expires_in)
+        _token_cache[scope] = _TokenCache(
+            access_token=access_token,
+            expires_at=now + expires_in,
+            scope=scope,
+        )
         return access_token
 
 
@@ -107,6 +106,10 @@ def _estimate_from_food(food: dict[str, Any]) -> FoodEstimate | None:
     name = _food_name(food)
     if not name:
         return None
+
+    description_estimate = _estimate_from_description(name, food.get("food_description"))
+    if description_estimate is not None:
+        return description_estimate
 
     serving = _best_serving(_as_list(food.get("servings", {}).get("serving")))
     if serving is None:
@@ -144,6 +147,107 @@ def _food_name(food: dict[str, Any]) -> str:
     if brand_name and brand_name.casefold() not in food_name.casefold():
         return f"{brand_name} {food_name}"
     return food_name
+
+
+async def _premium_search(
+    client: httpx.AsyncClient,
+    token: str,
+    query: str,
+    limit: int,
+) -> dict[str, Any] | None:
+    try:
+        response = await client.get(
+            SEARCH_URL,
+            params={
+                "search_expression": query,
+                "max_results": min(max(limit, 1), 50),
+                "format": "json",
+                "region": settings.fatsecret_region,
+                "language": settings.fatsecret_language,
+                "flag_default_serving": "true",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except (httpx.HTTPError, ValueError):
+        logger.debug("FatSecret premium search failed", exc_info=True)
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+async def _basic_search(
+    client: httpx.AsyncClient,
+    token: str,
+    query: str,
+    limit: int,
+) -> dict[str, Any] | None:
+    try:
+        response = await client.get(
+            BASIC_SEARCH_URL,
+            params={
+                "method": "foods.search",
+                "search_expression": query,
+                "max_results": min(max(limit, 1), 50),
+                "format": "json",
+            },
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except (httpx.HTTPError, ValueError):
+        logger.debug("FatSecret basic search failed", exc_info=True)
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _foods_from_payload(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    premium_foods = payload.get("foods_search", {}).get("results", {}).get("food")
+    if premium_foods is not None:
+        return _as_list(premium_foods)
+    return _as_list(payload.get("foods", {}).get("food"))
+
+
+def _has_api_error(payload: dict[str, Any] | None) -> bool:
+    if not payload:
+        return True
+    return bool(payload.get("error"))
+
+
+def _estimate_from_description(name: str, description: Any) -> FoodEstimate | None:
+    if not isinstance(description, str):
+        return None
+    per_match = re.search(r"per\s+100\s*g", description, flags=re.IGNORECASE)
+    if not per_match:
+        return None
+    kcal = _extract_nutrient(description, "Calories", "kcal")
+    fat = _extract_nutrient(description, "Fat", "g") or 0
+    carbs = _extract_nutrient(description, "Carbs", "g") or 0
+    protein = _extract_nutrient(description, "Protein", "g") or 0
+    if kcal is None:
+        return None
+    return enrich_food_payload(
+        FoodEstimate(
+            name=name,
+            weight_g=100,
+            kcal=round(kcal, 1),
+            protein=round(protein, 1),
+            fat=round(fat, 1),
+            carbs=round(carbs, 1),
+            confidence=0.72,
+        )
+    )
+
+
+def _extract_nutrient(description: str, label: str, unit: str) -> float | None:
+    match = re.search(
+        rf"{re.escape(label)}:\s*([0-9]+(?:[.,][0-9]+)?)\s*{re.escape(unit)}",
+        description,
+        flags=re.IGNORECASE,
+    )
+    if not match:
+        return None
+    return _to_float(match.group(1).replace(",", "."))
 
 
 def _best_serving(servings: list[dict[str, Any]]) -> dict[str, Any] | None:
