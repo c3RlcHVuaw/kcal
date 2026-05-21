@@ -22,7 +22,7 @@ from kcal_tracker.bot.handlers.diary import (
 )
 from kcal_tracker.bot.handlers.food import _format_estimate_confirmation, _scale_estimate
 from kcal_tracker.bot.handlers.payments import _payment_choice_from_callback, _payment_error_message
-from kcal_tracker.bot.handlers.profile import _apple_health_shortcut_text
+from kcal_tracker.bot.handlers.profile import _apple_health_shortcut_text, _parse_birth_date
 from kcal_tracker.bot.keyboards import (
     activity_menu_keyboard,
     food_confirmation_keyboard,
@@ -55,6 +55,7 @@ from kcal_tracker.services.nutrition import (
     weekly_coach_note,
     weekly_score,
 )
+from kcal_tracker.services.profile import age_from_birth_date
 from kcal_tracker.services.reminders import (
     _has_meal_entry,
     _inactivity_reminder_due,
@@ -585,6 +586,24 @@ def test_settings_keyboard_has_apple_health_button() -> None:
         for button in row
     ]
     assert "settings:apple-health" in callbacks
+    assert "settings:birth-date" in callbacks
+    assert "settings:age" not in callbacks
+
+
+def test_birth_date_parser_accepts_common_formats() -> None:
+    assert _parse_birth_date("14.08.1998") == date(1998, 8, 14)
+    assert _parse_birth_date("1998-08-14") == date(1998, 8, 14)
+    assert _parse_birth_date("14/08/1998") == date(1998, 8, 14)
+
+
+def test_birth_date_parser_rejects_implausible_age() -> None:
+    assert _parse_birth_date("14.08.2024") is None
+    assert _parse_birth_date("14.08.1910") is None
+
+
+def test_age_from_birth_date_accounts_for_birthday() -> None:
+    assert age_from_birth_date(date(1998, 8, 14), today=date(2026, 8, 13)) == 27
+    assert age_from_birth_date(date(1998, 8, 14), today=date(2026, 8, 14)) == 28
 
 
 def test_subscription_plan_keyboard_keeps_payment_choices_separate() -> None:

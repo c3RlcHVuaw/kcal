@@ -26,7 +26,7 @@ async def start(message: Message) -> None:
             await GrowthService(session).apply_referral_start(user, start_payload)
     if not user.onboarding_completed:
         await message.answer(
-            "Давай настроим дневник. Выбери язык.",
+            "Привет. За минуту настроим дневник под тебя. Сначала выбери язык.",
             reply_markup=language_keyboard(),
         )
         return

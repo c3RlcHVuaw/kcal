@@ -35,6 +35,7 @@ class User(Base):
     onboarding_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     gender: Mapped[str | None] = mapped_column(String(32))
     age: Mapped[int | None] = mapped_column(Integer)
+    birth_date: Mapped[date | None] = mapped_column(Date)
     height: Mapped[float | None] = mapped_column(Float)
     weight: Mapped[float | None] = mapped_column(Float)
     activity: Mapped[str | None] = mapped_column(String(64))

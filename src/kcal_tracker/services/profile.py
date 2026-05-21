@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date
+
 from kcal_tracker.models import User
 
 ACTIVITY_MULTIPLIERS = {
@@ -15,12 +17,28 @@ GOAL_ADJUSTMENTS = {
 }
 
 
+def age_from_birth_date(birth_date: date, today: date | None = None) -> int:
+    today = today or date.today()
+    age = today.year - birth_date.year
+    if (today.month, today.day) < (birth_date.month, birth_date.day):
+        age -= 1
+    return age
+
+
+def user_age(user: User, today: date | None = None) -> int | None:
+    birth_date = getattr(user, "birth_date", None)
+    if birth_date:
+        return age_from_birth_date(birth_date, today)
+    return getattr(user, "age", None)
+
+
 def calculate_daily_kcal_target(user: User) -> int:
-    if not user.gender or not user.weight or not user.height or not user.age:
+    age = user_age(user)
+    if not user.gender or not user.weight or not user.height or not age:
         return user.daily_kcal_target
 
     gender_offset = 5 if user.gender == "male" else -161
-    bmr = 10 * user.weight + 6.25 * user.height - 5 * user.age + gender_offset
+    bmr = 10 * user.weight + 6.25 * user.height - 5 * age + gender_offset
     activity = ACTIVITY_MULTIPLIERS.get(user.activity or "medium", 1.45)
     goal = GOAL_ADJUSTMENTS.get(user.goal or "maintain", 0)
     return max(round((bmr * activity + goal) / 50) * 50, 1200)
@@ -50,13 +68,17 @@ def apply_default_macro_targets(user: User) -> None:
 def profile_summary(user: User) -> str:
     subscription = "активна" if user.subscription_expires_at else "не активна"
     protein, fat, carbs = calculate_macro_targets(user)
+    birth_date = getattr(user, "birth_date", None)
+    age = user_age(user)
+    birth_date_label = birth_date.strftime("%d.%m.%Y") if birth_date else "не указана"
+    age_label = f" ({age} лет)" if age else ""
     return "\n".join(
         [
             "Профиль:",
             "",
             f"Язык: {user.language}",
             f"Пол: {user.gender or 'не указан'}",
-            f"Возраст: {user.age or 'не указан'}",
+            f"Дата рождения: {birth_date_label}{age_label}",
             f"Рост: {user.height or 'не указан'} см",
             f"Вес: {user.weight or 'не указан'} кг",
             f"Активность: {user.activity or 'не указана'}",

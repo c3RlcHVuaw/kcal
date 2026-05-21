@@ -444,12 +444,57 @@ def goal_keyboard(prefix: str = "onboarding") -> InlineKeyboardMarkup:
     )
 
 
+def onboarding_start_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Собрать мой план",
+                    callback_data="onboarding:start",
+                )
+            ]
+        ]
+    )
+
+
+def onboarding_skip_keyboard(callback_data: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="Пропустить",
+                    callback_data=callback_data,
+                )
+            ]
+        ]
+    )
+
+
+def onboarding_finish_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="➕ Добавить первую еду",
+                    callback_data="nav:add-food",
+                )
+            ],
+            [InlineKeyboardButton(text="📊 Открыть дневник", callback_data="nav:today")],
+        ]
+    )
+
+
 def settings_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="Язык", callback_data="settings:language")],
             [InlineKeyboardButton(text="Пол", callback_data="settings:gender")],
-            [InlineKeyboardButton(text="Возраст", callback_data="settings:age")],
+            [
+                InlineKeyboardButton(
+                    text="Дата рождения",
+                    callback_data="settings:birth-date",
+                )
+            ],
             [InlineKeyboardButton(text="Рост", callback_data="settings:height")],
             [InlineKeyboardButton(text="Вес", callback_data="settings:weight")],
             [InlineKeyboardButton(text="Активность", callback_data="settings:activity")],

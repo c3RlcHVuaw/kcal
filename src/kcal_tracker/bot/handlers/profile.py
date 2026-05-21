@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date, datetime
+
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -11,12 +13,16 @@ from kcal_tracker.bot.keyboards import (
     goal_keyboard,
     language_keyboard,
     main_menu,
+    onboarding_finish_keyboard,
+    onboarding_skip_keyboard,
+    onboarding_start_keyboard,
     settings_keyboard,
 )
 from kcal_tracker.config import settings as app_settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.services.export import ExportService
 from kcal_tracker.services.profile import (
+    age_from_birth_date,
     apply_default_macro_targets,
     calculate_daily_kcal_target,
     profile_summary,
@@ -27,13 +33,13 @@ router = Router()
 
 
 class OnboardingFlow(StatesGroup):
-    age = State()
+    birth_date = State()
     height = State()
     weight = State()
 
 
 class SettingsFlow(StatesGroup):
-    age = State()
+    birth_date = State()
     height = State()
     weight = State()
     kcal = State()
@@ -51,7 +57,33 @@ async def onboarding_language(callback: CallbackQuery) -> None:
         user.language = language
         await session.commit()
     await callback.message.edit_text(
-        "Укажи пол, чтобы я точнее посчитал цель.",
+        _onboarding_intro_text(),
+        reply_markup=onboarding_start_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "onboarding:start")
+async def onboarding_start(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(
+        "Какая цель сейчас главная?",
+        reply_markup=goal_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("onboarding:goal:"))
+async def onboarding_goal(callback: CallbackQuery) -> None:
+    goal = callback.data.rsplit(":", 1)[1]
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=callback.from_user.id,
+            username=callback.from_user.username,
+        )
+        user.goal = goal
+        await session.commit()
+    await callback.message.edit_text(
+        "Укажи пол, чтобы я точнее посчитал дневную норму.",
         reply_markup=gender_keyboard(),
     )
     await callback.answer()
@@ -67,26 +99,47 @@ async def onboarding_gender(callback: CallbackQuery, state: FSMContext) -> None:
         )
         user.gender = gender
         await session.commit()
-    await state.set_state(OnboardingFlow.age)
-    await callback.message.edit_text("Сколько тебе лет?")
+    await state.set_state(OnboardingFlow.birth_date)
+    await callback.message.edit_text(
+        _birth_date_prompt(),
+        reply_markup=onboarding_skip_keyboard("onboarding:birth-date:skip"),
+    )
     await callback.answer()
 
 
-@router.message(OnboardingFlow.age, F.text)
-async def onboarding_age(message: Message, state: FSMContext) -> None:
-    age = _parse_int(message.text, 10, 100)
-    if age is None:
-        await message.answer("Напиши возраст числом, например 29.")
+@router.message(OnboardingFlow.birth_date, F.text)
+async def onboarding_birth_date(message: Message, state: FSMContext) -> None:
+    birth_date = _parse_birth_date(message.text)
+    if birth_date is None:
+        await message.answer(
+            "Напиши дату в формате 14.08.1998 или нажми «Пропустить»."
+        )
         return
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
             message.from_user.id,
             message.from_user.username,
         )
-        user.age = age
+        user.birth_date = birth_date
+        user.age = age_from_birth_date(birth_date)
         await session.commit()
     await state.set_state(OnboardingFlow.height)
-    await message.answer("Теперь рост в сантиметрах.")
+    await message.answer(
+        "Теперь рост в сантиметрах. "
+        "Это помогает точнее посчитать норму.",
+        reply_markup=onboarding_skip_keyboard("onboarding:height:skip"),
+    )
+
+
+@router.callback_query(F.data == "onboarding:birth-date:skip")
+async def onboarding_birth_date_skip(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(OnboardingFlow.height)
+    await callback.message.edit_text(
+        "Ок, можно заполнить позже. "
+        "Теперь рост в сантиметрах.",
+        reply_markup=onboarding_skip_keyboard("onboarding:height:skip"),
+    )
+    await callback.answer()
 
 
 @router.message(OnboardingFlow.height, F.text)
@@ -106,6 +159,15 @@ async def onboarding_height(message: Message, state: FSMContext) -> None:
     await message.answer("И текущий вес в кг.")
 
 
+@router.callback_query(F.data == "onboarding:height:skip")
+async def onboarding_height_skip(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(OnboardingFlow.weight)
+    await callback.message.edit_text(
+        "Ок, рост можно добавить позже. Напиши текущий вес в кг."
+    )
+    await callback.answer()
+
+
 @router.message(OnboardingFlow.weight, F.text)
 async def onboarding_weight(message: Message, state: FSMContext) -> None:
     weight = _parse_float(message.text, 30, 250)
@@ -119,12 +181,14 @@ async def onboarding_weight(message: Message, state: FSMContext) -> None:
         )
         user.weight = weight
         await session.commit()
-    await state.clear()
-    await message.answer("Какая у тебя обычная активность?", reply_markup=activity_keyboard())
+    await message.answer(
+        "Какая у тебя обычная активность?",
+        reply_markup=activity_keyboard(),
+    )
 
 
 @router.callback_query(F.data.startswith("onboarding:activity:"))
-async def onboarding_activity(callback: CallbackQuery) -> None:
+async def onboarding_activity(callback: CallbackQuery, state: FSMContext) -> None:
     activity = callback.data.rsplit(":", 1)[1]
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
@@ -132,27 +196,17 @@ async def onboarding_activity(callback: CallbackQuery) -> None:
             callback.from_user.username,
         )
         user.activity = activity
-        await session.commit()
-    await callback.message.edit_text("Какая сейчас цель?", reply_markup=goal_keyboard())
-    await callback.answer()
-
-
-@router.callback_query(F.data.startswith("onboarding:goal:"))
-async def onboarding_goal(callback: CallbackQuery) -> None:
-    goal = callback.data.rsplit(":", 1)[1]
-    async with SessionLocal() as session:
-        user = await UserService(session).get_or_create(
-            callback.from_user.id,
-            callback.from_user.username,
-        )
-        user.goal = goal
         user.daily_kcal_target = calculate_daily_kcal_target(user)
         apply_default_macro_targets(user)
         user.onboarding_completed = True
         target = user.daily_kcal_target
         await session.commit()
-    await callback.message.edit_text(f"Предлагаю ориентир: {target} ккал в день.")
-    await callback.message.answer("Готово. Можно вести дневник.", reply_markup=main_menu())
+    await state.clear()
+    await callback.message.edit_text(
+        _onboarding_finish_text(target),
+        reply_markup=onboarding_finish_keyboard(),
+    )
+    await callback.message.answer("Главное меню ниже.", reply_markup=main_menu())
     await callback.answer()
 
 
@@ -218,7 +272,10 @@ async def apple_health_shortcut(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "settings:language")
 async def settings_language(callback: CallbackQuery) -> None:
-    await callback.message.edit_text("Выбери язык.", reply_markup=language_keyboard("settings"))
+    await callback.message.edit_text(
+        "Выбери язык.",
+        reply_markup=language_keyboard("settings"),
+    )
     await callback.answer()
 
 
@@ -245,7 +302,10 @@ async def settings_gender_save(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "settings:activity")
 async def settings_activity(callback: CallbackQuery) -> None:
-    await callback.message.edit_text("Активность?", reply_markup=activity_keyboard("settings"))
+    await callback.message.edit_text(
+        "Активность?",
+        reply_markup=activity_keyboard("settings"),
+    )
     await callback.answer()
 
 
@@ -267,15 +327,24 @@ async def settings_goal_save(callback: CallbackQuery) -> None:
 
 @router.callback_query(
     F.data.in_(
-        {"settings:age", "settings:height", "settings:weight", "settings:kcal", "settings:macros"}
+        {
+            "settings:age",
+            "settings:birth-date",
+            "settings:height",
+            "settings:weight",
+            "settings:kcal",
+            "settings:macros",
+        }
     )
 )
 async def settings_ask_number(callback: CallbackQuery, state: FSMContext) -> None:
-    field = callback.data.split(":", 1)[1]
+    field = callback.data.split(":", 1)[1].replace("-", "_")
+    if field == "age":
+        field = "birth_date"
     await state.update_data(settings_field=field)
     await state.set_state(getattr(SettingsFlow, field))
     labels = {
-        "age": "Возраст?",
+        "birth_date": _birth_date_prompt(),
         "height": "Рост?",
         "weight": "Вес?",
         "kcal": "Сколько ккал в день поставить целью?",
@@ -285,7 +354,7 @@ async def settings_ask_number(callback: CallbackQuery, state: FSMContext) -> Non
     await callback.answer()
 
 
-@router.message(SettingsFlow.age, F.text)
+@router.message(SettingsFlow.birth_date, F.text)
 @router.message(SettingsFlow.height, F.text)
 @router.message(SettingsFlow.weight, F.text)
 @router.message(SettingsFlow.kcal, F.text)
@@ -295,7 +364,9 @@ async def settings_save_number(message: Message, state: FSMContext) -> None:
     field = data["settings_field"]
     value = _parse_settings_value(field, message.text or "")
     if value is None:
-        await message.answer("Не похоже на корректное значение. Попробуй ещё раз.")
+        await message.answer(
+            "Не похоже на корректное значение. Попробуй ещё раз."
+        )
         return
 
     async with SessionLocal() as session:
@@ -310,6 +381,11 @@ async def settings_save_number(message: Message, state: FSMContext) -> None:
             user.carbs_target_g = carbs
         elif field == "kcal":
             user.daily_kcal_target = int(value)
+            apply_default_macro_targets(user)
+        elif field == "birth_date":
+            user.birth_date = value
+            user.age = age_from_birth_date(value)
+            user.daily_kcal_target = calculate_daily_kcal_target(user)
             apply_default_macro_targets(user)
         else:
             setattr(user, field, value)
@@ -364,9 +440,27 @@ def _parse_float(text: str | None, minimum: float, maximum: float) -> float | No
     return value if minimum <= value <= maximum else None
 
 
-def _parse_settings_value(field: str, text: str) -> int | float | None:
-    if field == "age":
-        return _parse_int(text, 10, 100)
+def _parse_birth_date(text: str | None) -> date | None:
+    if not text:
+        return None
+    value = text.strip()
+    for date_format in ("%d.%m.%Y", "%d/%m/%Y", "%Y-%m-%d"):
+        try:
+            birth_date = datetime.strptime(value, date_format).date()
+        except ValueError:
+            continue
+        age = age_from_birth_date(birth_date)
+        if 10 <= age <= 100:
+            return birth_date
+    return None
+
+
+def _parse_settings_value(
+    field: str,
+    text: str,
+) -> int | float | date | tuple[float, float, float] | None:
+    if field == "birth_date":
+        return _parse_birth_date(text)
     if field == "height":
         return _parse_float(text, 100, 240)
     if field == "weight":
@@ -376,6 +470,43 @@ def _parse_settings_value(field: str, text: str) -> int | float | None:
     if field == "macros":
         return _parse_macros(text)
     return None
+
+
+def _onboarding_intro_text() -> str:
+    return "\n".join(
+        [
+            "Соберу твой дневной план калорий и БЖУ.",
+            "",
+            "После этого можно сразу добавлять еду текстом, "
+            "фото или штрихкодом, "
+            "а бот будет показывать остаток на день.",
+            "",
+            "Займёт меньше минуты.",
+        ]
+    )
+
+
+def _birth_date_prompt() -> str:
+    return "\n".join(
+        [
+            "Дата рождения?",
+            "",
+            "Она нужна только для расчёта возраста "
+            "и более точной нормы калорий.",
+            "Формат: 14.08.1998",
+        ]
+    )
+
+
+def _onboarding_finish_text(target: int) -> str:
+    return "\n".join(
+        [
+            f"Готово. Твоя цель на день: {target} ккал.",
+            "",
+            "Я буду показывать, сколько осталось, "
+            "и помогать добавлять еду без таблиц.",
+        ]
+    )
 
 
 def _parse_macros(text: str) -> tuple[float, float, float] | None:
