@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-05-21
+
+- Added a referral dashboard with invited friend counts, active-day progress,
+  reward status, and the user's invite link.
+- Added weekly missions for food, water, weight, and activity with a one-day AI
+  bonus after completing two missions in the week.
+- Added a generated weekly progress share-card image alongside the existing
+  Telegram progress sharing link.
+
 ## 2026-05-20
 
 - Changed referrals so the first active friend gives 7 AI days after 5 active

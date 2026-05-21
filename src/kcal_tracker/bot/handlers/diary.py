@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
 from kcal_tracker.bot.keyboards import (
     activity_logs_keyboard,
@@ -34,7 +34,7 @@ from kcal_tracker.services.ai_food import AIFoodService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.diary import DiaryService, estimate_from_entry
 from kcal_tracker.services.food_insights import food_label
-from kcal_tracker.services.growth import GrowthService, progress_share_url
+from kcal_tracker.services.growth import GrowthService, WeeklyMissions, progress_share_url
 from kcal_tracker.services.nutrition import (
     automatic_pattern_notes,
     daily_focus,
@@ -47,6 +47,7 @@ from kcal_tracker.services.nutrition import (
     weekly_coach_note,
     weekly_score,
 )
+from kcal_tracker.services.share_cards import weekly_progress_card
 from kcal_tracker.services.subscriptions import has_active_subscription
 from kcal_tracker.services.users import UserService
 from kcal_tracker.services.wellness import WellnessService
@@ -852,6 +853,50 @@ async def show_week_inline(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+@router.callback_query(F.data == "week:share-card")
+async def send_week_share_card(callback: CallbackQuery) -> None:
+    bot = await callback.bot.me()
+    if bot.username is None:
+        await callback.answer("Не смог собрать ссылку для этого бота.", show_alert=True)
+        return
+
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        growth = GrowthService(session)
+        analytics = await DiaryService(session).weekly_analytics(user)
+        missions = await growth.weekly_missions(user)
+        referral_link = await growth.referral_link(user, bot.username)
+
+    image_bytes = weekly_progress_card(analytics, missions, referral_link)
+    await callback.message.answer_photo(
+        BufferedInputFile(image_bytes, filename="kcal_week.png"),
+        caption="Готово, карточка недели. Её удобно отправить друзьям или в сторис.",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "missions:claim")
+async def claim_weekly_missions_bonus(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        until = await GrowthService(session).claim_weekly_mission_bonus(user)
+
+    if until is None:
+        await callback.answer(
+            "Бонус пока недоступен: нужно закрыть 2 миссии недели.",
+            show_alert=True,
+        )
+        return
+    await callback.message.answer(f"Готово, добавил +1 день AI. Доступ открыт до {until:%d.%m.%Y}.")
+    await callback.answer()
+
+
 @router.message(lambda message: message.text == "📅 Месяц")
 async def show_month(message: Message) -> None:
     await message.answer(await _month_view(message.from_user.id, message.from_user.username))
@@ -875,6 +920,7 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
         has_subscription = has_active_subscription(user)
         patterns = await diary.nutrition_patterns(user) if has_subscription else None
         habits = await WellnessService(session).habit_summary(user)
+        missions = await GrowthService(session).weekly_missions(user)
 
     lines = [
         "📈 Недельный отчёт",
@@ -886,6 +932,8 @@ async def _week_view(telegram_id: int, username: str | None) -> str:
         *_week_highlight_lines(analytics),
         "",
         *_habit_lines(habits),
+        "",
+        *_weekly_mission_lines(missions),
         "",
         f"🧠 {weekly_coach_note(analytics)}",
     ]
@@ -915,7 +963,9 @@ async def _progress_share_markup(
             telegram_id=telegram_id,
             username=username,
         )
-        referral_link = await GrowthService(session).referral_link(user, bot_username)
+        growth = GrowthService(session)
+        referral_link = await growth.referral_link(user, bot_username)
+        missions = await growth.weekly_missions(user)
 
     score_line = next(
         (line for line in week_text.splitlines() if line.startswith("Оценка:")),
@@ -935,7 +985,10 @@ async def _progress_share_markup(
         )
         if line
     )
-    return progress_share_keyboard(progress_share_url(share_text))
+    return progress_share_keyboard(
+        progress_share_url(share_text),
+        missions_bonus_available=missions.eligible_for_bonus,
+    )
 
 
 async def _month_view(telegram_id: int, username: str | None) -> str:
@@ -1031,6 +1084,21 @@ def _month_focus(delta: float, protein_average: float) -> str:
     if delta < -300:
         return "не проваливаться в слишком низкую калорийность"
     return "сохранить текущий ритм и стабильность записей"
+
+
+def _weekly_mission_lines(missions: WeeklyMissions) -> list[str]:
+    lines = ["Миссии недели:"]
+    for mission in missions.missions:
+        marker = "✓" if mission.completed else "·"
+        progress = f"{min(mission.current, mission.target)}/{mission.target}"
+        lines.append(f"{marker} {mission.title}: {progress}")
+    if missions.eligible_for_bonus:
+        lines.append("Бонус: можно забрать +1 день AI.")
+    elif missions.bonus_claimed:
+        lines.append("Бонус недели уже забран.")
+    else:
+        lines.append("Выполни 2 миссии, чтобы забрать +1 день AI.")
+    return lines
 
 
 def _habit_lines(habits) -> list[str]:

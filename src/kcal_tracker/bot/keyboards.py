@@ -437,12 +437,26 @@ def settings_keyboard() -> InlineKeyboardMarkup:
 
 
 def subscription_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
+    rows = []
+    if settings.yookassa_shop_id and settings.yookassa_secret_key:
+        rows.append(
+            [
+                InlineKeyboardButton(
+                    text=f"Картой за {settings.ai_subscription_rub} ₽",
+                    callback_data="subscription:yookassa:bank_card",
+                ),
+                InlineKeyboardButton(
+                    text=f"СБП за {settings.ai_subscription_rub} ₽",
+                    callback_data="subscription:yookassa:sbp",
+                ),
+            ]
+        )
+    rows.extend(
+        [
             [
                 InlineKeyboardButton(
                     text=f"Открыть AI за {settings.ai_subscription_stars} ⭐",
-                    callback_data="subscription:buy",
+                    callback_data="subscription:stars",
                 )
             ],
             [
@@ -459,17 +473,34 @@ def subscription_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
+                    text="📊 Реферальный кабинет",
+                    callback_data="subscription:referral-dashboard",
+                )
+            ],
+            [
+                InlineKeyboardButton(
                     text="↩️ Вернуть AI на день",
                     callback_data="subscription:winback",
                 )
             ],
         ]
     )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def progress_share_keyboard(share_url: str) -> InlineKeyboardMarkup:
+def progress_share_keyboard(
+    share_url: str,
+    *,
+    missions_bonus_available: bool = False,
+) -> InlineKeyboardMarkup:
+    rows = [
+        [InlineKeyboardButton(text="Поделиться прогрессом", url=share_url)],
+        [InlineKeyboardButton(text="Картинка недели", callback_data="week:share-card")],
+    ]
+    if missions_bonus_available:
+        rows.append(
+            [InlineKeyboardButton(text="Забрать бонус недели", callback_data="missions:claim")]
+        )
     return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="Поделиться прогрессом", url=share_url)],
-        ]
+        inline_keyboard=rows
     )

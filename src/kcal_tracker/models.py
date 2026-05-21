@@ -55,6 +55,7 @@ class User(Base):
     )
     premium_trial_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     winback_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    weekly_mission_bonus_week: Mapped[date | None] = mapped_column(Date)
     protein_target_g: Mapped[float | None] = mapped_column(Float)
     fat_target_g: Mapped[float | None] = mapped_column(Float)
     carbs_target_g: Mapped[float | None] = mapped_column(Float)
@@ -286,7 +287,10 @@ class AIUsage(Base):
 
 class Payment(Base):
     __tablename__ = "payments"
-    __table_args__ = (Index("ix_payments_user_created", "user_id", "created_at"),)
+    __table_args__ = (
+        Index("ix_payments_user_created", "user_id", "created_at"),
+        Index("ix_payments_status_expires", "status", "expires_at"),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(
@@ -294,14 +298,29 @@ class Payment(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    amount_stars: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount_stars: Mapped[int | None] = mapped_column(Integer)
+    amount_kopecks: Mapped[int | None] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(8), nullable=False, default="XTR")
+    method: Mapped[str] = mapped_column(String(32), nullable=False, default="stars")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="succeeded")
     payload: Mapped[str] = mapped_column(String(128), nullable=False)
-    telegram_payment_charge_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    telegram_payment_charge_id: Mapped[str | None] = mapped_column(String(255))
     provider_payment_charge_id: Mapped[str | None] = mapped_column(String(255))
+    yookassa_payment_id: Mapped[str | None] = mapped_column(String(255), unique=True)
+    confirmation_url: Mapped[str | None] = mapped_column(String(1024))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(512))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
     )
 
     user: Mapped[User] = relationship(back_populates="payments")

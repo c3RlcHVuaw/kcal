@@ -35,6 +35,11 @@ async def health() -> dict[str, bool]:
     return {"ok": True}
 
 
+@router.get("/payments/yookassa/return")
+async def yookassa_return() -> dict[str, str]:
+    return {"status": "ok", "message": "Вернитесь в Telegram: бот проверит оплату автоматически."}
+
+
 @router.post("/users/{telegram_id}", response_model=UserRead)
 async def upsert_user(
     telegram_id: int,

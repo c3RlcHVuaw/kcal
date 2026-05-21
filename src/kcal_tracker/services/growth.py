@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, time, timedelta
+from dataclasses import dataclass
+from datetime import UTC, date, datetime, time, timedelta
 from urllib.parse import quote
 from zoneinfo import ZoneInfo
 
@@ -13,6 +14,50 @@ from kcal_tracker.services.subscriptions import has_active_subscription
 from kcal_tracker.services.users import UserService
 
 
+@dataclass(frozen=True)
+class ReferralFriendProgress:
+    active_days: int
+    required_days: int
+    paid: bool
+    active_rewarded: bool
+    payment_rewarded: bool
+
+
+@dataclass(frozen=True)
+class ReferralDashboard:
+    link: str
+    invited_count: int
+    first_active_reward_used: bool
+    friends: list[ReferralFriendProgress]
+
+
+@dataclass(frozen=True)
+class WeeklyMission:
+    key: str
+    title: str
+    current: int
+    target: int
+
+    @property
+    def completed(self) -> bool:
+        return self.current >= self.target
+
+
+@dataclass(frozen=True)
+class WeeklyMissions:
+    week_start: date
+    missions: list[WeeklyMission]
+    bonus_claimed: bool
+
+    @property
+    def completed_count(self) -> int:
+        return sum(1 for mission in self.missions if mission.completed)
+
+    @property
+    def eligible_for_bonus(self) -> bool:
+        return self.completed_count >= 2 and not self.bonus_claimed
+
+
 class GrowthService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -21,6 +66,33 @@ class GrowthService:
     async def referral_link(self, user: User, bot_username: str) -> str:
         code = await self.users.ensure_referral_code(user)
         return f"https://t.me/{bot_username}?start=ref_{code}"
+
+    async def referral_dashboard(self, user: User, bot_username: str) -> ReferralDashboard:
+        link = await self.referral_link(user, bot_username)
+        result = await self.session.execute(
+            select(User)
+            .where(User.referred_by_user_id == user.id)
+            .order_by(User.created_at.asc())
+        )
+        invited = list(result.scalars())
+        friends = []
+        for friend in invited[:10]:
+            friends.append(
+                ReferralFriendProgress(
+                    active_days=await self.referral_active_days(friend),
+                    required_days=settings.referral_active_required_days,
+                    paid=friend.referral_rewarded_at is not None
+                    or friend.subscription_expires_at is not None,
+                    active_rewarded=friend.active_referral_rewarded_at is not None,
+                    payment_rewarded=friend.referral_rewarded_at is not None,
+                )
+            )
+        return ReferralDashboard(
+            link=link,
+            invited_count=len(invited),
+            first_active_reward_used=user.first_active_referral_rewarded_at is not None,
+            friends=friends,
+        )
 
     async def apply_referral_start(self, user: User, start_payload: str | None) -> bool:
         code = _referral_code_from_payload(start_payload)
@@ -136,6 +208,51 @@ class GrowthService:
         await self.session.commit()
         await self.session.refresh(user)
         return user.subscription_expires_at
+
+    async def weekly_missions(self, user: User) -> WeeklyMissions:
+        tz = ZoneInfo(user.timezone)
+        today = datetime.now(tz).date()
+        week_start = today - timedelta(days=today.weekday())
+        start_at = datetime.combine(week_start, time.min, tzinfo=tz)
+        end_at = datetime.combine(week_start + timedelta(days=6), time.max, tzinfo=tz)
+        food_dates = await self._activity_dates(FoodEntry, user, start_at, end_at, tz)
+        water_dates = await self._activity_dates(WaterLog, user, start_at, end_at, tz)
+        weight_dates = await self._activity_dates(WeightLog, user, start_at, end_at, tz)
+        activity_dates = await self._activity_dates(ActivityLog, user, start_at, end_at, tz)
+
+        missions = [
+            WeeklyMission("food", "Еда 5 дней", len(food_dates), 5),
+            WeeklyMission("water", "Вода 5 дней", len(water_dates), 5),
+            WeeklyMission("weight", "Вес 2 дня", len(weight_dates), 2),
+            WeeklyMission("activity", "Активность 2 дня", len(activity_dates), 2),
+        ]
+        return WeeklyMissions(
+            week_start=week_start,
+            missions=missions,
+            bonus_claimed=user.weekly_mission_bonus_week == week_start,
+        )
+
+    async def claim_weekly_mission_bonus(self, user: User) -> datetime | None:
+        missions = await self.weekly_missions(user)
+        if not missions.eligible_for_bonus:
+            return None
+
+        now = datetime.now(UTC)
+        user.weekly_mission_bonus_week = missions.week_start
+        _extend_subscription(user, settings.premium_trial_days, now=now)
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user.subscription_expires_at
+
+    async def _activity_dates(self, model, user: User, start_at: datetime, end_at: datetime, tz):
+        result = await self.session.execute(
+            select(model.created_at).where(
+                model.user_id == user.id,
+                model.created_at >= start_at,
+                model.created_at <= end_at,
+            )
+        )
+        return {_as_user_date(created_at, tz) for created_at in result.scalars()}
 
 
 def progress_share_url(text: str) -> str:

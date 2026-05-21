@@ -31,7 +31,13 @@ class Settings(BaseSettings):
     ai_daily_request_limit: int = Field(default=100, ge=0)
     ai_trial_request_limit: int = Field(default=3, ge=0)
     ai_subscription_stars: int = Field(default=199, ge=1)
+    ai_subscription_rub: int = Field(default=299, ge=1)
     ai_subscription_days: int = Field(default=30, ge=1)
+    yookassa_shop_id: str = ""
+    yookassa_secret_key: str = ""
+    yookassa_return_url: str = ""
+    yookassa_payment_timeout_minutes: int = Field(default=60, ge=1)
+    yookassa_poll_interval_seconds: int = Field(default=30, ge=5)
     referral_reward_days: int = Field(default=7, ge=0)
     referral_active_window_days: int = Field(default=7, ge=1)
     referral_active_required_days: int = Field(default=5, ge=1)

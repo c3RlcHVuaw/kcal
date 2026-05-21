@@ -60,6 +60,8 @@ API health should return:
 - Photo food estimates support quick portion scaling before saving.
 - Photo food estimates ask explicit follow-up questions about sauces/oil and drinks.
 - Weekly analytics include clearer highlights plus food, water, and weight streaks.
+- Weekly analytics include missions with a one-day AI streak bonus, Telegram
+  share text, and a generated weekly progress card image.
 - Monthly analytics summarize 30-day tracking coverage, calorie patterns,
   protein average, weight trend, and next-month focus.
 - Favorite foods work as quick meal templates for one-tap logging without AI.
@@ -67,6 +69,8 @@ API health should return:
 - Users without a subscription get 3 free AI requests before the paywall.
 - Referred users get one premium day, referrers earn 7 AI days for the first
   friend active 5 of 7 days, and later referrals reward after first payment.
+- The subscription section includes a referral dashboard with invited friend
+  progress and reward status.
 - Barcode videos are scanned across several frames, not just one still frame.
 
 ## AI reliability rules

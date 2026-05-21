@@ -12,6 +12,7 @@ from kcal_tracker.bot.handlers import diary, food, payments, profile, start
 from kcal_tracker.bot.navigation import MenuStateResetMiddleware
 from kcal_tracker.bot.navigation import router as navigation_router
 from kcal_tracker.config import settings
+from kcal_tracker.services.payment_monitor import yookassa_payment_loop
 from kcal_tracker.services.reminders import reminder_loop
 
 
@@ -31,12 +32,16 @@ async def main() -> None:
     dispatcher.include_router(diary.router)
     dispatcher.include_router(food.router)
     reminders = asyncio.create_task(reminder_loop(bot))
+    yookassa_payments = asyncio.create_task(yookassa_payment_loop(bot))
     try:
         await dispatcher.start_polling(bot)
     finally:
         reminders.cancel()
+        yookassa_payments.cancel()
         with suppress(asyncio.CancelledError):
             await reminders
+        with suppress(asyncio.CancelledError):
+            await yookassa_payments
 
 
 if __name__ == "__main__":
