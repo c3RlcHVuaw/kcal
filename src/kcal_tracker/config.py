@@ -33,6 +33,7 @@ class Settings(BaseSettings):
     ai_subscription_stars: int = Field(default=199, ge=1)
     ai_subscription_rub: int = Field(default=299, ge=1)
     ai_subscription_days: int = Field(default=30, ge=1)
+    yookassa_provider_token: str = ""
     yookassa_shop_id: str = ""
     yookassa_secret_key: str = ""
     yookassa_return_url: str = ""

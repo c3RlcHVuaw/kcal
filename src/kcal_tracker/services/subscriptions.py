@@ -17,6 +17,7 @@ YOOKASSA_PAYLOAD = "ai_subscription_30d_yookassa"
 YOOKASSA_PENDING_STATUSES = {"pending", "waiting_for_capture"}
 YOOKASSA_FINAL_STATUSES = {"succeeded", "canceled", "expired", "failed"}
 YOOKASSA_PAYMENT_METHODS = {"bank_card", "sbp"}
+YOOKASSA_TELEGRAM_PENDING_STATUS = "invoice_sent"
 
 
 class SubscriptionRequiredError(RuntimeError):
@@ -128,10 +129,38 @@ class SubscriptionService:
         await self.session.refresh(payment)
         return payment
 
+    async def create_yookassa_invoice_attempt(self, user: User, method: str) -> Payment:
+        if method not in YOOKASSA_PAYMENT_METHODS:
+            raise ValueError(f"Unsupported YooKassa payment method: {method}")
+        if not settings.yookassa_provider_token:
+            raise PaymentConfigurationError("YooKassa provider token is required")
+
+        payment = Payment(
+            user_id=user.id,
+            amount_kopecks=settings.ai_subscription_rub * 100,
+            currency="RUB",
+            method=method,
+            status=YOOKASSA_TELEGRAM_PENDING_STATUS,
+            payload=YOOKASSA_PAYLOAD,
+            expires_at=datetime.now(UTC)
+            + timedelta(minutes=settings.yookassa_payment_timeout_minutes),
+        )
+        self.session.add(payment)
+        await self.session.commit()
+        await self.session.refresh(payment)
+        return payment
+
     async def refresh_yookassa_payment(self, payment: Payment) -> tuple[Payment, datetime | None]:
         if payment.status in YOOKASSA_FINAL_STATUSES:
             return payment, None
         now = datetime.now(UTC)
+        if payment.status == YOOKASSA_TELEGRAM_PENDING_STATUS:
+            if payment.expires_at is not None and payment.expires_at <= now:
+                payment.status = "expired"
+                payment.last_error = "Платёж не был оплачен за отведённое время."
+                await self.session.commit()
+                await self.session.refresh(payment)
+            return payment, None
         if not payment.yookassa_payment_id:
             payment.status = "failed"
             payment.last_error = "У платежа нет номера ЮKassa."
@@ -171,11 +200,41 @@ class SubscriptionService:
         )
         return result.scalar_one_or_none()
 
+    async def activate_from_yookassa_invoice_payment(
+        self,
+        payment: Payment,
+        telegram_payment_charge_id: str,
+        provider_payment_charge_id: str | None,
+    ) -> datetime:
+        if payment.paid_at is not None:
+            result = await self.session.execute(select(User).where(User.id == payment.user_id))
+            user = result.scalar_one()
+            return user.subscription_expires_at
+
+        result = await self.session.execute(select(User).where(User.id == payment.user_id))
+        user = result.scalar_one()
+        now = datetime.now(UTC)
+        base = user.subscription_expires_at if has_active_subscription(user) else now
+        user.subscription_expires_at = base + timedelta(days=settings.ai_subscription_days)
+        payment.status = "succeeded"
+        payment.telegram_payment_charge_id = telegram_payment_charge_id
+        payment.provider_payment_charge_id = provider_payment_charge_id
+        payment.paid_at = now
+        payment.last_error = None
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user.subscription_expires_at
+
     async def pending_yookassa_payments(self, limit: int = 50) -> list[Payment]:
         result = await self.session.execute(
             select(Payment)
             .where(Payment.method.in_(YOOKASSA_PAYMENT_METHODS))
-            .where(Payment.status.in_(YOOKASSA_PENDING_STATUSES | {"creating"}))
+            .where(
+                Payment.status.in_(
+                    YOOKASSA_PENDING_STATUSES
+                    | {"creating", YOOKASSA_TELEGRAM_PENDING_STATUS}
+                )
+            )
             .order_by(Payment.created_at)
             .limit(limit)
         )

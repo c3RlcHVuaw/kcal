@@ -437,28 +437,47 @@ def settings_keyboard() -> InlineKeyboardMarkup:
 
 
 def subscription_keyboard() -> InlineKeyboardMarkup:
-    rows = []
-    if settings.yookassa_shop_id and settings.yookassa_secret_key:
-        rows.append(
+    rows = [
+        [InlineKeyboardButton(text="Оформить подписку", callback_data="subscription:subscribe")],
+        [
+            InlineKeyboardButton(
+                text=f"Звёзды за {settings.ai_subscription_stars} ⭐",
+                callback_data="subscription:stars",
+            )
+        ],
+        [
+            InlineKeyboardButton(text="🤝 Пригласить друга", callback_data="subscription:referral"),
+            InlineKeyboardButton(
+                text="📊 Реферальный кабинет",
+                callback_data="subscription:referral-dashboard",
+            ),
+        ],
+        [InlineKeyboardButton(text="🎁 Бонусы", callback_data="subscription:bonuses")],
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def subscription_payment_method_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"Картой за {settings.ai_subscription_rub} ₽",
+                    text=f"Карта {settings.ai_subscription_rub} ₽",
                     callback_data="subscription:yookassa:bank_card",
                 ),
                 InlineKeyboardButton(
-                    text=f"СБП за {settings.ai_subscription_rub} ₽",
+                    text=f"СБП {settings.ai_subscription_rub} ₽",
                     callback_data="subscription:yookassa:sbp",
                 ),
-            ]
-        )
-    rows.extend(
-        [
-            [
-                InlineKeyboardButton(
-                    text=f"Открыть AI за {settings.ai_subscription_stars} ⭐",
-                    callback_data="subscription:stars",
-                )
             ],
+            [InlineKeyboardButton(text="Назад", callback_data="subscription:open")],
+        ]
+    )
+
+
+def subscription_bonuses_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
             [
                 InlineKeyboardButton(
                     text="🎁 Пробный premium-день",
@@ -467,25 +486,13 @@ def subscription_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text="🤝 Пригласить друга",
-                    callback_data="subscription:referral",
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="📊 Реферальный кабинет",
-                    callback_data="subscription:referral-dashboard",
-                )
-            ],
-            [
-                InlineKeyboardButton(
                     text="↩️ Вернуть AI на день",
                     callback_data="subscription:winback",
                 )
             ],
+            [InlineKeyboardButton(text="Назад", callback_data="subscription:open")],
         ]
     )
-    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def progress_share_keyboard(

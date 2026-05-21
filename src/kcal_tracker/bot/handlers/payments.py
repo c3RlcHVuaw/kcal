@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from datetime import UTC, datetime
+
 from aiogram import F, Router
 from aiogram.types import (
     CallbackQuery,
@@ -10,7 +13,11 @@ from aiogram.types import (
     PreCheckoutQuery,
 )
 
-from kcal_tracker.bot.keyboards import subscription_keyboard
+from kcal_tracker.bot.keyboards import (
+    subscription_bonuses_keyboard,
+    subscription_keyboard,
+    subscription_payment_method_keyboard,
+)
 from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.services.growth import GrowthService
@@ -52,10 +59,9 @@ async def _subscription_text(telegram_id: int, username: str | None) -> str:
         [
             text,
             "",
-            "Можно попробовать AI бесплатно: 3 запроса до подписки.",
             "AI по фото, тексту и голосу на 30 дней.",
-            f"Карта/СБП: {settings.ai_subscription_rub} ₽ через ЮKassa.",
-            f"Звёзды: {settings.ai_subscription_stars} ⭐ внутри Telegram.",
+            f"Подписка: {settings.ai_subscription_rub} ₽ через ЮKassa или "
+            f"{settings.ai_subscription_stars} ⭐ внутри Telegram.",
             "За первого активного друга дадим 7 дней AI. "
             "За следующих — 7 дней после их первой оплаты.",
         ]
@@ -76,9 +82,45 @@ async def buy_subscription_with_stars(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+@router.callback_query(F.data == "subscription:subscribe")
+async def choose_subscription_payment(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(
+        "\n".join(
+            [
+                "Оформить подписку",
+                "",
+                f"AI по фото, тексту и голосу на {settings.ai_subscription_days} дней.",
+                f"Стоимость: {settings.ai_subscription_rub} ₽.",
+                "Выбери способ оплаты:",
+            ]
+        ),
+        reply_markup=subscription_payment_method_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "subscription:bonuses")
+async def show_subscription_bonuses(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(
+        "\n".join(
+            [
+                "Бонусы",
+                "",
+                "Здесь лежат разовые предложения: пробный premium-день и возврат AI на день.",
+            ]
+        ),
+        reply_markup=subscription_bonuses_keyboard(),
+    )
+    await callback.answer()
+
+
 @router.callback_query(F.data.in_({"subscription:yookassa:bank_card", "subscription:yookassa:sbp"}))
 async def buy_subscription_with_yookassa(callback: CallbackQuery) -> None:
     method = callback.data.rsplit(":", 1)[-1]
+    if settings.yookassa_provider_token:
+        await _send_yookassa_invoice(callback, method)
+        return
+
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
             callback.from_user.id,
@@ -88,7 +130,8 @@ async def buy_subscription_with_yookassa(callback: CallbackQuery) -> None:
             payment = await SubscriptionService(session).create_yookassa_payment(user, method)
         except PaymentConfigurationError:
             await callback.answer(
-                "ЮKassa ещё не настроена на сервере: нужны YOOKASSA_SHOP_ID и YOOKASSA_SECRET_KEY.",
+                "ЮKassa ещё не настроена на сервере: нужен YOOKASSA_PROVIDER_TOKEN "
+                "или YOOKASSA_SHOP_ID/YOOKASSA_SECRET_KEY.",
                 show_alert=True,
             )
             return
@@ -154,15 +197,41 @@ async def check_yookassa_payment(callback: CallbackQuery) -> None:
 
 @router.pre_checkout_query()
 async def pre_checkout(pre_checkout_query: PreCheckoutQuery) -> None:
-    if pre_checkout_query.invoice_payload not in {SUBSCRIPTION_PAYLOAD, YOOKASSA_PAYLOAD}:
+    payload = pre_checkout_query.invoice_payload
+    if payload == SUBSCRIPTION_PAYLOAD:
+        await pre_checkout_query.answer(ok=True)
+        return
+    if not payload.startswith(f"{YOOKASSA_PAYLOAD}:"):
         await pre_checkout_query.answer(ok=False, error_message="Не получилось проверить платёж.")
         return
+    payment_id = _payment_id_from_yookassa_payload(payload)
+    if payment_id is None:
+        await pre_checkout_query.answer(ok=False, error_message="Не получилось проверить платёж.")
+        return
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            pre_checkout_query.from_user.id,
+            pre_checkout_query.from_user.username,
+        )
+        payment = await SubscriptionService(session).get_payment_for_user(payment_id, user)
+        if payment is None:
+            await pre_checkout_query.answer(ok=False, error_message="Счёт не найден.")
+            return
+        if payment.expires_at is not None and payment.expires_at <= datetime.now(UTC):
+            payment.status = "expired"
+            payment.last_error = "Платёж не был оплачен за отведённое время."
+            await session.commit()
+            await pre_checkout_query.answer(ok=False, error_message="Счёт уже истёк.")
+            return
     await pre_checkout_query.answer(ok=True)
 
 
 @router.message(F.successful_payment)
 async def successful_payment(message: Message) -> None:
     payment = message.successful_payment
+    if payment.invoice_payload.startswith(f"{YOOKASSA_PAYLOAD}:"):
+        await _handle_successful_yookassa_invoice(message)
+        return
     if payment.invoice_payload != SUBSCRIPTION_PAYLOAD:
         await message.answer("Платёж получен, но назначение не распознано. Напиши в поддержку.")
         return
@@ -326,3 +395,92 @@ def _yookassa_payment_keyboard(
         [InlineKeyboardButton(text="Вернуться к подписке", callback_data="subscription:open")]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def _send_yookassa_invoice(callback: CallbackQuery, method: str) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        try:
+            payment = await SubscriptionService(session).create_yookassa_invoice_attempt(
+                user,
+                method,
+            )
+        except PaymentConfigurationError:
+            await callback.answer("ЮKassa ещё не настроена на сервере.", show_alert=True)
+            return
+
+    method_text = "Карта" if method == "bank_card" else "СБП"
+    provider_data = json.dumps(
+        {
+            "payment_method_data": {"type": method},
+            "metadata": {
+                "payment_id": str(payment.id),
+                "telegram_id": str(callback.from_user.id),
+            },
+        },
+        ensure_ascii=False,
+    )
+    await callback.bot.send_invoice(
+        chat_id=callback.message.chat.id,
+        title=f"AI в Kcal: {method_text}",
+        description="Распознавание еды по фото, тексту и голосу на 30 дней.",
+        payload=f"{YOOKASSA_PAYLOAD}:{method}:{payment.id}",
+        provider_token=settings.yookassa_provider_token,
+        currency="RUB",
+        prices=[
+            LabeledPrice(
+                label=f"AI на {settings.ai_subscription_days} дней",
+                amount=settings.ai_subscription_rub * 100,
+            )
+        ],
+        provider_data=provider_data,
+    )
+    await callback.answer()
+
+
+async def _handle_successful_yookassa_invoice(message: Message) -> None:
+    successful_payment = message.successful_payment
+    payment_id = _payment_id_from_yookassa_payload(successful_payment.invoice_payload)
+    if payment_id is None:
+        await message.answer("Платёж получен, но счёт не распознан. Напиши в поддержку.")
+        return
+
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            message.from_user.id,
+            message.from_user.username,
+        )
+        service = SubscriptionService(session)
+        payment = await service.get_payment_for_user(payment_id, user)
+        if payment is None:
+            await message.answer("Платёж получен, но счёт не найден. Напиши в поддержку.")
+            return
+        until = await service.activate_from_yookassa_invoice_payment(
+            payment=payment,
+            telegram_payment_charge_id=successful_payment.telegram_payment_charge_id,
+            provider_payment_charge_id=successful_payment.provider_payment_charge_id,
+        )
+        referrer = await GrowthService(session).reward_referrer_for_first_payment(user)
+
+    await message.answer(
+        f"Готово, AI открыт до {until:%d.%m.%Y}.",
+        reply_markup=subscription_keyboard(),
+    )
+    if referrer is not None:
+        await message.bot.send_message(
+            referrer.telegram_id,
+            "Друг оформил подписку по твоей ссылке. Добавил тебе 7 дней AI.",
+        )
+
+
+def _payment_id_from_yookassa_payload(payload: str) -> int | None:
+    parts = payload.split(":")
+    if len(parts) != 3 or parts[0] != YOOKASSA_PAYLOAD:
+        return None
+    try:
+        return int(parts[2])
+    except ValueError:
+        return None
