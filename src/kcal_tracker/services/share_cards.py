@@ -28,16 +28,16 @@ def weekly_progress_card(
     draw.text((310, 196), "оценка недели", fill="#70695e", font=body_font)
 
     stats = [
-        ("Среднее", f"{analytics.average_kcal:.0f} / {analytics.target_kcal} ккал"),
-        ("Дни у цели", f"{analytics.days_in_target} из {len(analytics.days)}"),
-        ("Миссии", f"{missions.completed_count} из {len(missions.missions)}"),
+        ("Среднее", f"{analytics.average_kcal:.0f} / {analytics.target_kcal} ккал", 350),
+        ("Дни у цели", f"{analytics.days_in_target} из {len(analytics.days)}", 280),
+        ("Миссии", f"{missions.completed_count} из {len(missions.missions)}", 280),
     ]
     x = 82
-    for label, value in stats:
-        draw.rounded_rectangle((x, 330, x + 310, 450), radius=22, fill="#f1eadf")
+    for label, value, card_width in stats:
+        draw.rounded_rectangle((x, 330, x + card_width, 450), radius=22, fill="#f1eadf")
         draw.text((x + 24, 352), label, fill="#70695e", font=small_font)
         draw.text((x + 24, 392), value, fill="#2f2b24", font=body_font)
-        x += 340
+        x += card_width + 32
 
     mission_text = ", ".join(
         f"{mission.title}: {min(mission.current, mission.target)}/{mission.target}"
