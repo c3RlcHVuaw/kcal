@@ -12,6 +12,8 @@
   configuration checks and the health endpoint.
 - Added a production guard that rejects missing, relative, or local
   `PUBLIC_API_URL` values before startup.
+- Added a readiness endpoint for PostgreSQL and Redis checks plus a post-deploy
+  smoke script for health checks.
 
 ## 2026-05-21
 

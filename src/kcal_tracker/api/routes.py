@@ -7,8 +7,12 @@ from dataclasses import dataclass
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
+from redis.asyncio import Redis
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from kcal_tracker.config import settings
 from kcal_tracker.database import get_session
 from kcal_tracker.schemas import (
     ActivityEstimate,
@@ -33,6 +37,19 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 @router.get("/health")
 async def health() -> dict[str, bool]:
     return {"ok": True}
+
+
+@router.get("/health/ready")
+async def readiness(session: SessionDep) -> JSONResponse:
+    checks = {
+        "database": await _check_database(session),
+        "redis": await _check_redis(),
+    }
+    ok = all(checks.values())
+    return JSONResponse(
+        status_code=200 if ok else 503,
+        content={"ok": ok, "checks": checks},
+    )
 
 
 @router.get("/payments/yookassa/return")
@@ -146,6 +163,26 @@ async def import_apple_health(
             detail["errors"] = errors
         raise HTTPException(status_code=400, detail=detail)
     return AppleHealthImportResult(ok=True, saved=saved)
+
+
+async def _check_database(session: AsyncSession) -> bool:
+    try:
+        await session.execute(text("select 1"))
+    except Exception:
+        logger.exception("Readiness database check failed")
+        return False
+    return True
+
+
+async def _check_redis() -> bool:
+    redis = Redis.from_url(settings.redis_url)
+    try:
+        return bool(await redis.ping())
+    except Exception:
+        logger.exception("Readiness Redis check failed")
+        return False
+    finally:
+        await redis.aclose()
 
 
 async def _read_apple_health_payload(request: Request) -> dict[str, Any]:

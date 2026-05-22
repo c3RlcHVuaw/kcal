@@ -31,10 +31,19 @@ REDIS_URL=
 
 3. Upload the repository to the server while excluding local secrets and caches.
 4. Rebuild and restart the server compose stack.
-5. Verify the health endpoint and container status.
+5. Verify health, readiness, and container status.
+
+Run:
+
+```bash
+./scripts/smoke.sh https://your-api.example.com
+docker compose ps
+```
 
 Expected health response:
 
 ```json
 {"ok": true}
 ```
+
+Readiness should return `ok: true` with `database` and `redis` checks.

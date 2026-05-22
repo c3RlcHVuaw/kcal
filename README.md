@@ -20,6 +20,7 @@ cp .env.example .env
 # fill TELEGRAM_BOT_TOKEN and OPENAI_API_KEY
 docker compose up -d --build
 curl http://127.0.0.1:3100/health
+curl http://127.0.0.1:3100/health/ready
 ```
 
 API health should return:
@@ -27,6 +28,8 @@ API health should return:
 ```json
 {"ok": true}
 ```
+
+Readiness returns dependency checks for PostgreSQL and Redis.
 
 ## MVP flow
 
@@ -99,6 +102,12 @@ code checks inside Docker:
 
 ```bash
 ./scripts/validate-docker.sh
+```
+
+After deploy, run smoke checks against the public API URL:
+
+```bash
+./scripts/smoke.sh https://your-api.example.com
 ```
 
 ## Validation before deploy
