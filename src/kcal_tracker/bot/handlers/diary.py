@@ -7,7 +7,13 @@ from zoneinfo import ZoneInfo
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import BufferedInputFile, CallbackQuery, Message
+from aiogram.types import (
+    BufferedInputFile,
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 
 from kcal_tracker.bot.keyboards import (
     activity_logs_keyboard,
@@ -159,6 +165,9 @@ async def _send_yesterday_card(
         water_ml = await wellness.water_ml_for_day_offset(user, days_ago=1)
         activities = await wellness.activities_for_day_offset(user, days_ago=1)
         date_label = _day_offset_date_label(user.timezone, days_ago=1)
+    if not summary.entries:
+        await message.answer("За вчера нет записей еды, карточку пока не собираю.")
+        return
 
     image_bytes = daily_progress_card(
         summary,
@@ -169,6 +178,16 @@ async def _send_yesterday_card(
     await message.answer_photo(
         BufferedInputFile(image_bytes, filename="kcal_yesterday.png"),
         caption=caption,
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="Открыть @trackerkcal_bot",
+                        url="https://t.me/trackerkcal_bot",
+                    )
+                ]
+            ]
+        ),
     )
 
 

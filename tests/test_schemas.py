@@ -56,6 +56,7 @@ from kcal_tracker.services.nutrition import (
     weekly_coach_note,
     weekly_score,
 )
+from kcal_tracker.services.share_cards import _wrap_card_lines
 from kcal_tracker.services.profile import age_from_birth_date
 from kcal_tracker.services.reminders import (
     _has_meal_entry,
@@ -378,6 +379,21 @@ def test_day_offset_title_formats_yesterday(monkeypatch) -> None:
     monkeypatch.setattr("kcal_tracker.bot.handlers.diary.datetime", FixedDateTime)
 
     assert _day_offset_title("Europe/Samara", days_ago=1) == "📊 Вчера, 21.05"
+
+
+def test_wrap_card_lines_keeps_food_lines_readable() -> None:
+    lines = _wrap_card_lines(
+        [
+            "бутерброд из гриля — 700 ккал",
+            "жареная картошка с мясом — 350 ккал",
+            "круассан с сыром и колбаской — 350 ккал",
+        ],
+        max_chars=48,
+    )
+
+    assert len(lines) == 3
+    assert all(len(line) <= 48 for line in lines)
+    assert "бутерброд из гриля" in lines[0]
 
 
 def test_full_today_view_groups_entries_by_meal() -> None:

@@ -27,6 +27,8 @@
   card food names, wrapped long food lists, and added `@trackerkcal_bot`.
 - Moved the daily card bot tag into a top-right badge and made the Telegram
   caption more share-friendly.
+- Added a Telegram button under daily cards, branded weekly cards, skipped empty
+  yesterday cards, and covered card text wrapping with a test.
 
 ## 2026-05-21
 

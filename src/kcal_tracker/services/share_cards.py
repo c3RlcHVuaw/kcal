@@ -24,6 +24,8 @@ def weekly_progress_card(
 
     draw.rounded_rectangle((44, 44, width - 44, height - 44), radius=34, fill="#fffdf8")
     draw.text((82, 76), "Kcal · недельный прогресс", fill="#2f2b24", font=title_font)
+    draw.rounded_rectangle((828, 78, 1118, 132), radius=22, fill="#f1eadf")
+    draw.text((858, 92), "@trackerkcal_bot", fill="#1e7665", font=small_font)
     draw.text((82, 168), f"{weekly_score(analytics)}/10", fill="#1e7665", font=big_font)
     draw.text((310, 196), "оценка недели", fill="#70695e", font=body_font)
 
