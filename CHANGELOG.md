@@ -8,6 +8,8 @@
   checks, and updated docs to use it before deploy.
 - Added Docker-based validation for machines without local Python 3.12 tooling
   and expanded Docker build ignores for local-only files and caches.
+- Added startup validation for required production settings and smoke tests for
+  configuration checks and the health endpoint.
 
 ## 2026-05-21
 

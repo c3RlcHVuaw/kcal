@@ -65,3 +65,25 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+
+PRODUCTION_REQUIRED_SETTINGS = {
+    "TELEGRAM_BOT_TOKEN": "telegram_bot_token",
+    "OPENAI_API_KEY": "openai_api_key",
+    "DATABASE_URL": "database_url",
+    "REDIS_URL": "redis_url",
+}
+
+
+def validate_production_settings(settings_obj: Settings = settings) -> None:
+    if not settings_obj.is_production:
+        return
+
+    missing = [
+        env_name
+        for env_name, field_name in PRODUCTION_REQUIRED_SETTINGS.items()
+        if not str(getattr(settings_obj, field_name, "")).strip()
+    ]
+    if missing:
+        joined = ", ".join(missing)
+        raise RuntimeError(f"Missing required production settings: {joined}")
