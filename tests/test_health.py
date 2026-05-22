@@ -15,7 +15,7 @@ def test_health_returns_ok() -> None:
 
 
 def test_readiness_returns_ok_when_dependencies_are_available(monkeypatch) -> None:
-    async def ok_database(_session) -> bool:
+    async def ok_database() -> bool:
         return True
 
     async def ok_redis() -> bool:
@@ -32,7 +32,7 @@ def test_readiness_returns_ok_when_dependencies_are_available(monkeypatch) -> No
 
 
 def test_readiness_returns_unavailable_when_dependency_fails(monkeypatch) -> None:
-    async def ok_database(_session) -> bool:
+    async def ok_database() -> bool:
         return True
 
     async def failed_redis() -> bool:

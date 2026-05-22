@@ -14,6 +14,8 @@
   `PUBLIC_API_URL` values before startup.
 - Added a readiness endpoint for PostgreSQL and Redis checks plus a post-deploy
   smoke script for health checks.
+- Simplified readiness checks so the database probe uses a direct engine
+  connection instead of a request-scoped API session.
 
 ## 2026-05-21
 

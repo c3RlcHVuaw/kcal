@@ -13,7 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kcal_tracker.config import settings
-from kcal_tracker.database import get_session
+from kcal_tracker.database import engine, get_session
 from kcal_tracker.schemas import (
     ActivityEstimate,
     AIUsageSummary,
@@ -40,9 +40,9 @@ async def health() -> dict[str, bool]:
 
 
 @router.get("/health/ready")
-async def readiness(session: SessionDep) -> JSONResponse:
+async def readiness() -> JSONResponse:
     checks = {
-        "database": await _check_database(session),
+        "database": await _check_database(),
         "redis": await _check_redis(),
     }
     ok = all(checks.values())
@@ -165,9 +165,10 @@ async def import_apple_health(
     return AppleHealthImportResult(ok=True, saved=saved)
 
 
-async def _check_database(session: AsyncSession) -> bool:
+async def _check_database() -> bool:
     try:
-        await session.execute(text("select 1"))
+        async with engine.connect() as connection:
+            await connection.execute(text("select 1"))
     except Exception:
         logger.exception("Readiness database check failed")
         return False
