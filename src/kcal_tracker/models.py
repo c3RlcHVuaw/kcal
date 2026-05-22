@@ -292,6 +292,8 @@ class Payment(Base):
     __table_args__ = (
         Index("ix_payments_user_created", "user_id", "created_at"),
         Index("ix_payments_status_expires", "status", "expires_at"),
+        Index("ux_payments_telegram_charge", "telegram_payment_charge_id", unique=True),
+        Index("ux_payments_provider_charge", "provider_payment_charge_id", unique=True),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)

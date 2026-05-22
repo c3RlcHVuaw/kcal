@@ -110,6 +110,12 @@ After deploy, run smoke checks against the public API URL:
 ./scripts/smoke.sh https://your-api.example.com
 ```
 
+On the server, the deploy helper rebuilds, restarts, smokes, and tails logs:
+
+```bash
+./scripts/post-deploy.sh https://your-api.example.com
+```
+
 ## Validation before deploy
 
 Before every deploy:

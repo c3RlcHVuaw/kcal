@@ -16,6 +16,9 @@
   smoke script for health checks.
 - Simplified readiness checks so the database probe uses a direct engine
   connection instead of a request-scoped API session.
+- Added GitHub Actions CI, structured logging, graceful bot shutdown, payment
+  charge idempotency indexes, database backup/restore helpers, and a post-deploy
+  smoke helper.
 
 ## 2026-05-21
 

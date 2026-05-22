@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from contextlib import suppress
 
 from aiogram import Bot, Dispatcher
@@ -12,12 +11,13 @@ from kcal_tracker.bot.handlers import diary, food, payments, profile, start
 from kcal_tracker.bot.navigation import MenuStateResetMiddleware
 from kcal_tracker.bot.navigation import router as navigation_router
 from kcal_tracker.config import settings
+from kcal_tracker.logging import configure_logging
 from kcal_tracker.services.payment_monitor import yookassa_payment_loop
 from kcal_tracker.services.reminders import reminder_loop
 
 
 async def main() -> None:
-    logging.basicConfig(level=settings.log_level)
+    configure_logging(settings.log_level)
     if not settings.telegram_bot_token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN is required")
 
@@ -42,6 +42,9 @@ async def main() -> None:
             await reminders
         with suppress(asyncio.CancelledError):
             await yookassa_payments
+        await dispatcher.storage.close()
+        await bot.session.close()
+        await redis.aclose()
 
 
 if __name__ == "__main__":

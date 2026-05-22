@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
@@ -54,6 +55,7 @@ from kcal_tracker.services.users import UserService
 from kcal_tracker.services.wellness import WellnessService
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 ADVANCED_PATTERNS_UPSELL = (
     "Продвинутые паттерны по завтракам, напиткам и вечерам доступны в подписке."
@@ -345,6 +347,7 @@ async def save_saved_entry_refinement(message: Message, state: FSMContext) -> No
     try:
         refined = await AIFoodService().refine_estimate(estimate, refinement)
     except Exception:
+        logger.exception("Saved food refinement failed")
         await message.answer("Не смог сейчас пересчитать запись. Попробуй ещё раз чуть проще.")
         return
     await _record_ai_request(message, "saved_food_refine")
@@ -1287,6 +1290,7 @@ def _entry_time_label(created_at: datetime, timezone_name: str) -> str:
     try:
         tz = ZoneInfo(timezone_name)
     except Exception:
+        logger.warning("Invalid user timezone %s, falling back to default", timezone_name)
         tz = ZoneInfo(settings.default_timezone)
     if created_at.tzinfo is None:
         created_at = created_at.replace(tzinfo=UTC)

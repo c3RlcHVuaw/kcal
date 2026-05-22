@@ -21,7 +21,13 @@ REDIS_URL=
 ## Update Checklist
 
 1. Write a short note in `CHANGELOG.md`.
-2. Run validation in the target Python/Docker environment:
+2. Create a database backup on the server:
+
+```bash
+./scripts/backup-db.sh
+```
+
+3. Run validation in the target Python/Docker environment:
 
 ```bash
 ./scripts/validate.sh
@@ -29,15 +35,14 @@ REDIS_URL=
 ./scripts/validate-docker.sh
 ```
 
-3. Upload the repository to the server while excluding local secrets and caches.
-4. Rebuild and restart the server compose stack.
-5. Verify health, readiness, and container status.
+4. Upload the repository to the server while excluding local secrets and caches.
+5. Rebuild and restart the server compose stack.
+6. Verify health, readiness, and container status.
 
 Run:
 
 ```bash
-./scripts/smoke.sh https://your-api.example.com
-docker compose ps
+./scripts/post-deploy.sh https://your-api.example.com
 ```
 
 Expected health response:
@@ -47,3 +52,11 @@ Expected health response:
 ```
 
 Readiness should return `ok: true` with `database` and `redis` checks.
+
+## Restore
+
+Restores are destructive. Run only with an explicit confirmation:
+
+```bash
+RESTORE_CONFIRM=yes ./scripts/restore-db.sh backups/kcal-YYYYMMDDTHHMMSSZ.sql.gz
+```

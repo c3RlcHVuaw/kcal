@@ -25,6 +25,7 @@ YOOKASSA_PAYMENT_METHODS = YOOKASSA_FORCED_PAYMENT_METHODS | {YOOKASSA_PAYMENT_M
 YOOKASSA_TELEGRAM_PENDING_STATUS = "invoice_sent"
 REFUND_WINDOW_HOURS = 24
 REFUNDED_PAYMENT_STATUS = "refunded"
+DUPLICATE_PAYMENT_MESSAGE = "Платёж уже был обработан, но подписка не найдена."
 
 
 class SubscriptionRequiredError(RuntimeError):
@@ -120,6 +121,16 @@ class SubscriptionService:
         telegram_payment_charge_id: str,
         provider_payment_charge_id: str | None,
     ) -> datetime:
+        existing = await self._payment_by_charge_id(
+            telegram_payment_charge_id,
+            provider_payment_charge_id,
+        )
+        if existing is not None:
+            existing_user = await self.session.get(User, existing.user_id)
+            if existing_user is None or existing_user.subscription_expires_at is None:
+                raise YooKassaPaymentError(DUPLICATE_PAYMENT_MESSAGE)
+            return existing_user.subscription_expires_at
+
         plan = subscription_plan(_plan_from_payload(payload))
         now = datetime.now(UTC)
         base = user.subscription_expires_at if has_active_subscription(user) else now
@@ -174,6 +185,7 @@ class SubscriptionService:
             method=method,
             description=f"AI в Kcal: {plan.title} на {settings.ai_subscription_days} дней",
             return_url=_yookassa_return_url(),
+            idempotence_key=f"kcal-payment-{payment.id}",
             metadata={
                 "payment_id": str(payment.id),
                 "telegram_id": str(user.telegram_id),
@@ -279,6 +291,15 @@ class SubscriptionService:
         telegram_payment_charge_id: str,
         provider_payment_charge_id: str | None,
     ) -> datetime:
+        existing = await self._payment_by_charge_id(
+            telegram_payment_charge_id,
+            provider_payment_charge_id,
+        )
+        if existing is not None and existing.id != payment.id:
+            existing_user = await self.session.get(User, existing.user_id)
+            if existing_user is None or existing_user.subscription_expires_at is None:
+                raise YooKassaPaymentError(DUPLICATE_PAYMENT_MESSAGE)
+            return existing_user.subscription_expires_at
         if payment.paid_at is not None:
             result = await self.session.execute(select(User).where(User.id == payment.user_id))
             user = result.scalar_one()
@@ -345,6 +366,7 @@ class SubscriptionService:
         response = await _create_yookassa_refund(
             payment_id=yookassa_payment_id,
             amount_kopecks=payment.amount_kopecks,
+            idempotence_key=f"kcal-refund-{payment.id}",
             metadata={"payment_id": str(payment.id), "telegram_user_id": str(payment.user_id)},
         )
         status = str(response.get("status") or "pending")
@@ -419,6 +441,24 @@ class SubscriptionService:
         await self.session.refresh(user)
         return user.subscription_expires_at
 
+    async def _payment_by_charge_id(
+        self,
+        telegram_payment_charge_id: str | None,
+        provider_payment_charge_id: str | None,
+    ) -> Payment | None:
+        charge_ids = [
+            (Payment.telegram_payment_charge_id, telegram_payment_charge_id),
+            (Payment.provider_payment_charge_id, provider_payment_charge_id),
+        ]
+        for column, value in charge_ids:
+            if not value:
+                continue
+            result = await self.session.execute(select(Payment).where(column == value).limit(1))
+            payment = result.scalar_one_or_none()
+            if payment is not None:
+                return payment
+        return None
+
 
 def _yookassa_return_url() -> str:
     if settings.yookassa_return_url:
@@ -449,6 +489,7 @@ async def _create_yookassa_payment(
     method: str,
     description: str,
     return_url: str,
+    idempotence_key: str,
     metadata: dict[str, str],
 ) -> dict[str, Any]:
     body = {
@@ -463,7 +504,12 @@ async def _create_yookassa_payment(
     }
     if method in YOOKASSA_FORCED_PAYMENT_METHODS:
         body["payment_method_data"] = {"type": method}
-    return await _yookassa_request("POST", "/payments", json=body)
+    return await _yookassa_request(
+        "POST",
+        "/payments",
+        idempotence_key=idempotence_key,
+        json=body,
+    )
 
 
 async def _get_yookassa_payment(payment_id: str) -> dict[str, Any]:
@@ -474,6 +520,7 @@ async def _create_yookassa_refund(
     *,
     payment_id: str,
     amount_kopecks: int,
+    idempotence_key: str,
     metadata: dict[str, str],
 ) -> dict[str, Any]:
     amount_rub = Decimal(amount_kopecks) / Decimal(100)
@@ -485,13 +532,18 @@ async def _create_yookassa_refund(
         "payment_id": payment_id,
         "metadata": metadata,
     }
-    return await _yookassa_request("POST", "/refunds", json=body)
+    return await _yookassa_request(
+        "POST",
+        "/refunds",
+        idempotence_key=idempotence_key,
+        json=body,
+    )
 
 
 async def _yookassa_request(method: str, path: str, **kwargs: Any) -> dict[str, Any]:
     headers = kwargs.pop("headers", {})
     if method == "POST":
-        headers["Idempotence-Key"] = str(uuid.uuid4())
+        headers["Idempotence-Key"] = kwargs.pop("idempotence_key", str(uuid.uuid4()))
     try:
         async with httpx.AsyncClient(
             base_url="https://api.yookassa.ru/v3",
