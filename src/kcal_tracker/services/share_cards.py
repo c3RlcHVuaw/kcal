@@ -69,6 +69,8 @@ def daily_progress_card(
 
     draw.rounded_rectangle((44, 44, width - 44, height - 44), radius=34, fill="#fffefa")
     draw.text((82, 76), f"Kcal · итог дня · {date_label}", fill="#2b2d2a", font=title_font)
+    draw.rounded_rectangle((828, 78, 1118, 132), radius=22, fill="#e9efe6")
+    draw.text((858, 92), "@trackerkcal_bot", fill="#1d6f5f", font=small_font)
     draw.text(
         (82, 165),
         f"{summary.kcal:.0f} / {summary.target_kcal} ккал",
@@ -110,7 +112,6 @@ def daily_progress_card(
             fill="#1d6f5f",
             font=small_font,
         )
-    draw.text((842, 588), "@trackerkcal_bot", fill="#1d6f5f", font=small_font)
 
     output = BytesIO()
     image.save(output, format="PNG")

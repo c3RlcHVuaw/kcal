@@ -25,6 +25,8 @@
   the API healthcheck, avoiding Alembic races during deploy.
 - Changed yesterday view to send the daily card immediately, removed emoji from
   card food names, wrapped long food lists, and added `@trackerkcal_bot`.
+- Moved the daily card bot tag into a top-right badge and made the Telegram
+  caption more share-friendly.
 
 ## 2026-05-21
 

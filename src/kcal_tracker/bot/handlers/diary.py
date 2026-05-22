@@ -60,6 +60,10 @@ logger = logging.getLogger(__name__)
 ADVANCED_PATTERNS_UPSELL = (
     "Продвинутые паттерны по завтракам, напиткам и вечерам доступны в подписке."
 )
+DAILY_CARD_CAPTION = (
+    "Мой итог дня в Kcal: еда, калории, БЖУ, вода и активность в одной карточке.\n\n"
+    "Хочешь так же без таблиц и ручных подсчётов? Попробуй @trackerkcal_bot"
+)
 
 
 class DiaryFlow(StatesGroup):
@@ -110,7 +114,7 @@ async def show_yesterday_inline(callback: CallbackQuery) -> None:
         callback.message,
         callback.from_user.id,
         callback.from_user.username,
-        caption="Карточка вчерашнего дня.",
+        caption=DAILY_CARD_CAPTION,
     )
     await callback.answer()
 
@@ -132,7 +136,7 @@ async def send_yesterday_share_card(callback: CallbackQuery) -> None:
         callback.message,
         callback.from_user.id,
         callback.from_user.username,
-        caption="Готово, карточка вчерашнего дня.",
+        caption=DAILY_CARD_CAPTION,
     )
     await callback.answer()
 
