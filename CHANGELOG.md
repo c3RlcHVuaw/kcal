@@ -23,6 +23,8 @@
   card for yesterday's food, macros, water, and activity.
 - Changed compose startup so only the API runs migrations and the bot waits for
   the API healthcheck, avoiding Alembic races during deploy.
+- Changed yesterday view to send the daily card immediately, removed emoji from
+  card food names, wrapped long food lists, and added `@trackerkcal_bot`.
 
 ## 2026-05-21
 

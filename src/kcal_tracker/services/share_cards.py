@@ -5,7 +5,6 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 
 from kcal_tracker.services.diary import WeeklyAnalytics
-from kcal_tracker.services.food_insights import food_label
 from kcal_tracker.services.growth import WeeklyMissions
 from kcal_tracker.services.nutrition import weekly_score
 
@@ -91,17 +90,27 @@ def daily_progress_card(
         draw.text((x + 22, 397), value, fill="#2b2d2a", font=body_font)
         x += 266
 
-    top_entries = sorted(summary.entries, key=lambda entry: entry.kcal, reverse=True)[:3]
+    top_entries = sorted(summary.entries, key=lambda entry: entry.kcal, reverse=True)[:4]
     if top_entries:
         draw.text((82, 502), "Что дало больше всего:", fill="#2b2d2a", font=body_font)
-        foods = ", ".join(f"{food_label(entry)} {entry.kcal:.0f}" for entry in top_entries)
-        draw.text((82, 552), foods[:92], fill="#6d675f", font=small_font)
+        foods = [
+            f"{_plain_food_name(entry)} — {entry.kcal:.0f} ккал"
+            for entry in top_entries
+        ]
+        for index, line in enumerate(_wrap_card_lines(foods, max_chars=48)[:3]):
+            draw.text((82, 552 + index * 34), line, fill="#6d675f", font=small_font)
     else:
         draw.text((82, 520), "Записей еды за день не было.", fill="#6d675f", font=body_font)
 
     activity_kcal = sum(activity.kcal for activity in activities)
     if activity_kcal:
-        draw.text((842, 520), f"Активность: {activity_kcal:.0f} ккал", fill="#1d6f5f", font=small_font)
+        draw.text(
+            (842, 508),
+            f"Активность: {activity_kcal:.0f} ккал",
+            fill="#1d6f5f",
+            font=small_font,
+        )
+    draw.text((842, 588), "@trackerkcal_bot", fill="#1d6f5f", font=small_font)
 
     output = BytesIO()
     image.save(output, format="PNG")
@@ -117,6 +126,26 @@ def _daily_status(summary) -> str:
     if delta < 0:
         return "ниже цели"
     return "выше цели"
+
+
+def _plain_food_name(entry) -> str:
+    return str(getattr(entry, "food_name", getattr(entry, "name", "еда"))).strip() or "еда"
+
+
+def _wrap_card_lines(items: list[str], *, max_chars: int) -> list[str]:
+    lines: list[str] = []
+    current = ""
+    for item in items:
+        addition = item if not current else f", {item}"
+        if len(current) + len(addition) <= max_chars:
+            current += addition
+            continue
+        if current:
+            lines.append(current)
+        current = item
+    if current:
+        lines.append(current)
+    return lines
 
 
 def _font(size: int):

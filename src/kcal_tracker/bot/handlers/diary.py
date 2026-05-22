@@ -106,6 +106,12 @@ async def show_yesterday_inline(callback: CallbackQuery) -> None:
         days_ago=1,
     )
     await callback.message.edit_text(text, reply_markup=reply_markup)
+    await _send_yesterday_card(
+        callback.message,
+        callback.from_user.id,
+        callback.from_user.username,
+        caption="Карточка вчерашнего дня.",
+    )
     await callback.answer()
 
 
@@ -122,10 +128,26 @@ async def show_today_full_inline(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "day:yesterday-card")
 async def send_yesterday_share_card(callback: CallbackQuery) -> None:
+    await _send_yesterday_card(
+        callback.message,
+        callback.from_user.id,
+        callback.from_user.username,
+        caption="Готово, карточка вчерашнего дня.",
+    )
+    await callback.answer()
+
+
+async def _send_yesterday_card(
+    message: Message,
+    telegram_id: int,
+    username: str | None,
+    *,
+    caption: str,
+) -> None:
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
-            callback.from_user.id,
-            callback.from_user.username,
+            telegram_id,
+            username,
         )
         diary = DiaryService(session)
         wellness = WellnessService(session)
@@ -140,11 +162,10 @@ async def send_yesterday_share_card(callback: CallbackQuery) -> None:
         water_ml=water_ml,
         activities=activities,
     )
-    await callback.message.answer_photo(
+    await message.answer_photo(
         BufferedInputFile(image_bytes, filename="kcal_yesterday.png"),
-        caption="Готово, карточка вчерашнего дня.",
+        caption=caption,
     )
-    await callback.answer()
 
 
 @router.callback_query(F.data == "entry:manage")
