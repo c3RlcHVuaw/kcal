@@ -10,6 +10,8 @@
   and expanded Docker build ignores for local-only files and caches.
 - Added startup validation for required production settings and smoke tests for
   configuration checks and the health endpoint.
+- Added a production guard that rejects missing, relative, or local
+  `PUBLIC_API_URL` values before startup.
 
 ## 2026-05-21
 

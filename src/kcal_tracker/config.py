@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from urllib.parse import urlparse
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -70,9 +71,12 @@ settings = get_settings()
 PRODUCTION_REQUIRED_SETTINGS = {
     "TELEGRAM_BOT_TOKEN": "telegram_bot_token",
     "OPENAI_API_KEY": "openai_api_key",
+    "PUBLIC_API_URL": "public_api_url",
     "DATABASE_URL": "database_url",
     "REDIS_URL": "redis_url",
 }
+
+LOCAL_PUBLIC_API_HOSTS = {"127.0.0.1", "0.0.0.0", "::1", "localhost"}
 
 
 def validate_production_settings(settings_obj: Settings = settings) -> None:
@@ -87,3 +91,9 @@ def validate_production_settings(settings_obj: Settings = settings) -> None:
     if missing:
         joined = ", ".join(missing)
         raise RuntimeError(f"Missing required production settings: {joined}")
+
+    parsed_public_url = urlparse(settings_obj.public_api_url)
+    if parsed_public_url.scheme not in {"http", "https"} or not parsed_public_url.netloc:
+        raise RuntimeError("PUBLIC_API_URL must be an absolute http(s) URL in production")
+    if parsed_public_url.hostname in LOCAL_PUBLIC_API_HOSTS:
+        raise RuntimeError("PUBLIC_API_URL must not point to a local address in production")
