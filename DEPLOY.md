@@ -24,10 +24,7 @@ REDIS_URL=
 2. Run validation in the target Python/Docker environment:
 
 ```bash
-python -m compileall src tests migrations
-ruff check src migrations tests
-pytest -q
-docker compose config
+./scripts/validate.sh
 ```
 
 3. Upload the repository to the server while excluding local secrets and caches.

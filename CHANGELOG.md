@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-05-22
+
+- Added a tracked `.env.example` with local defaults and placeholders for
+  required bot, AI, FatSecret, and YooKassa credentials.
+- Added a single validation script for compile, lint, test, and compose config
+  checks, and updated docs to use it before deploy.
+
 ## 2026-05-21
 
 - Added a referral dashboard with invited friend counts, active-day progress,

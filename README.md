@@ -86,14 +86,20 @@ API health should return:
 alembic upgrade head
 ```
 
+## Validation
+
+Run the full local validation suite before deploy:
+
+```bash
+./scripts/validate.sh
+```
+
 ## Validation before deploy
 
 Before every deploy:
 
 ```bash
-python -m compileall src tests migrations
-ruff check src migrations tests
-docker compose config
+./scripts/validate.sh
 ```
 
 Mandatory rule: if local validation passes, upload the full project to the server
