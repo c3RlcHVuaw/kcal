@@ -1,8 +1,40 @@
-# Telegram AI Calorie Tracker Bot
+# Kcal Tracker
 
-MVP backend for a Telegram calorie diary with AI photo recognition, natural language meal parsing, barcode lookup via Open Food Facts, PostgreSQL storage, and Redis FSM.
+[![CI](https://github.com/c3RlcHVuaw/kcal/actions/workflows/ci.yml/badge.svg)](https://github.com/c3RlcHVuaw/kcal/actions/workflows/ci.yml)
 
-## Stack
+Telegram-бот для дневника питания с AI-распознаванием еды, подсчетом калорий,
+водой, весом, активностью, подписками и прогресс-карточками.
+
+Language: [Русский](#русский) | [English](#english)
+
+---
+
+## Русский
+
+### Что умеет
+
+Kcal Tracker помогает вести дневник питания прямо в Telegram: пользователь
+присылает фото еды, голос, текст или штрихкод, а бот предлагает оценку калорий и
+БЖУ перед сохранением. AI-оценки никогда не сохраняются автоматически.
+
+Основные возможности:
+
+- Распознавание еды по фото через OpenAI vision.
+- Разбор еды из текста и голосовых сообщений.
+- Поиск продуктов по штрихкоду через Open Food Facts с локальным кешем.
+- Подтверждение AI-оценки перед сохранением.
+- Редактирование граммовки, удаление записей и AI-уточнение сохраненной еды.
+- Дневник за сегодня и просмотр вчерашнего дня.
+- Карточка итогов вчерашнего дня с калориями, БЖУ, водой и активностью.
+- Вода, вес, активность и цели по макронутриентам.
+- Избранные блюда и быстрые шаблоны без AI.
+- Недельная и месячная аналитика.
+- Недельные миссии, реферальные награды и share-карточки прогресса.
+- Apple Health webhook для iOS Shortcuts.
+- Подписки через Telegram Stars и YooKassa.
+- Health/readiness endpoints, smoke checks, backup/restore scripts и GitHub CI.
+
+### Стек
 
 - Python 3.12
 - FastAPI
@@ -10,10 +42,138 @@ MVP backend for a Telegram calorie diary with AI photo recognition, natural lang
 - PostgreSQL
 - SQLAlchemy async
 - Redis
-- OpenAI Chat Completions with vision input
-- Open Food Facts API
+- Alembic
+- OpenAI API
+- Open Food Facts
+- Docker Compose
 
-## Local start
+### Локальный запуск
+
+```bash
+cp .env.example .env
+# заполните TELEGRAM_BOT_TOKEN и OPENAI_API_KEY
+docker compose up -d --build
+curl http://127.0.0.1:3100/health
+curl http://127.0.0.1:3100/health/ready
+```
+
+Ожидаемый `/health`:
+
+```json
+{"ok": true}
+```
+
+`/health/ready` дополнительно проверяет PostgreSQL и Redis.
+
+### Миграции
+
+В Docker миграции запускает API-контейнер при старте. Вручную:
+
+```bash
+alembic upgrade head
+```
+
+### Проверки
+
+Полная локальная проверка:
+
+```bash
+./scripts/validate.sh
+```
+
+Если на хосте нет Python 3.12 и dev-инструментов, можно проверить внутри Docker:
+
+```bash
+./scripts/validate-docker.sh
+```
+
+После деплоя:
+
+```bash
+./scripts/smoke.sh https://your-api.example.com
+```
+
+На сервере helper пересобирает контейнеры, перезапускает стек, проверяет health
+и показывает хвост логов:
+
+```bash
+./scripts/post-deploy.sh https://your-api.example.com
+```
+
+### Бэкап и восстановление
+
+```bash
+./scripts/backup-db.sh
+```
+
+Восстановление намеренно требует явного подтверждения:
+
+```bash
+RESTORE_CONFIRM=yes ./scripts/restore-db.sh backups/kcal-YYYYMMDDTHHMMSSZ.sql.gz
+```
+
+### Правила надежности AI
+
+- AI-оценки приблизительные.
+- Бот всегда просит подтверждение перед сохранением AI-результата.
+- `confidence` не должен быть равен `1.0`.
+- Плохие или неуверенные фото возвращают короткий retry-сценарий.
+
+### Git и деплой
+
+Репозиторий настроен на автоматический push после локального коммита.
+
+```bash
+./scripts/git-autopush.sh "Describe the change"
+```
+
+Секреты не хранятся в git. Используйте `.env`, `DEPLOY.local.md` или password
+manager для production-данных.
+
+---
+
+## English
+
+### Overview
+
+Kcal Tracker is a Telegram calorie diary bot with AI food recognition, barcode
+lookup, macro tracking, water, weight, activity, subscriptions, referrals, and
+shareable progress cards.
+
+Users can send a food photo, text, voice message, or barcode. The bot estimates
+calories and macros, then asks for confirmation before saving anything.
+
+### Features
+
+- Food recognition from photos via OpenAI vision.
+- Natural-language and voice meal parsing.
+- Barcode lookup via Open Food Facts with a local database cache.
+- Confirmation flow before saving AI estimates.
+- Portion editing, entry deletion, and AI refinements for saved food entries.
+- Today diary plus yesterday view.
+- Generated daily summary card for yesterday.
+- Water, weight, activity, and macro targets.
+- Favorite foods and quick templates without AI.
+- Weekly and monthly analytics.
+- Weekly missions, referral rewards, and progress share cards.
+- Apple Health webhook for iOS Shortcuts.
+- Telegram Stars and YooKassa subscriptions.
+- Health/readiness endpoints, smoke checks, backup/restore scripts, and GitHub CI.
+
+### Tech Stack
+
+- Python 3.12
+- FastAPI
+- aiogram 3.x
+- PostgreSQL
+- SQLAlchemy async
+- Redis
+- Alembic
+- OpenAI API
+- Open Food Facts
+- Docker Compose
+
+### Local Setup
 
 ```bash
 cp .env.example .env
@@ -23,125 +183,75 @@ curl http://127.0.0.1:3100/health
 curl http://127.0.0.1:3100/health/ready
 ```
 
-API health should return:
+Expected `/health` response:
 
 ```json
 {"ok": true}
 ```
 
-Readiness returns dependency checks for PostgreSQL and Redis.
+`/health/ready` checks PostgreSQL and Redis.
 
-## MVP flow
+### Migrations
 
-- `/start` creates a user by Telegram ID.
-- Main menu exposes scan, manual add, day summary, calories, weekly analytics,
-  frequent foods, yesterday repeat, and settings.
-- Food photo is sent to OpenAI and shown for confirmation before saving.
-- Photo captions are used as AI hints for grams, sauces, hidden ingredients, or partial portions.
-- Barcode photo is decoded locally and resolved through Open Food Facts with DB cache.
-- Manual meal text is parsed by OpenAI and shown for confirmation before saving.
-- Diary shows calories, macros, today's entries, food emoji, and per-product advice.
-- Calorie-dense additions get an extra confirmation when the day is already near target.
-- Users can edit grams before saving an AI/barcode/manual estimate.
-- Users can add an extra AI clarification before saving an AI estimate,
-  such as sauces, jam, hidden ingredients, or partial portions.
-- Users can edit/delete saved entries from the day summary.
-- Saved AI food entries can be corrected after saving with an AI clarification.
-- Users can track water, weight, favorite foods, and macro targets.
-- Weight tracking includes a recent mini-chart, 7-day average, and trend label.
-- Settings can generate an Apple Health iOS Shortcuts webhook URL for importing
-  weight, active calories, and steps, including HealthKit-style nested values
-  and same-day delta sync for hourly automations.
-- Today includes activity management for deleting incorrect manual or Apple Health
-  activity entries.
-- Optional reminders can separately nudge meal logging and morning weigh-ins.
-- Meal reminders support morning, lunch, and evening smart hints.
-- Meal reminders skip redundant nudges when that meal is already logged.
-- If the diary is silent for 3+ days, reminders can send a soft return nudge
-  at most once per week.
-- Multi-product AI results can be saved one by one or all at once.
-- Photo food estimates support quick portion scaling before saving.
-- Photo food estimates ask explicit follow-up questions about sauces/oil and drinks.
-- Weekly analytics include clearer highlights plus food, water, and weight streaks.
-- Weekly analytics include missions with a one-day AI streak bonus, Telegram
-  share text, and a generated weekly progress card image.
-- Monthly analytics summarize 30-day tracking coverage, calorie patterns,
-  protein average, weight trend, and next-month focus.
-- Favorite foods work as quick meal templates for one-tap logging without AI.
-- Settings include CSV exports for diary, water, weight, and activity data.
-- Users without a subscription get 3 free AI requests before the paywall.
-- Referred users get one premium day, referrers earn 7 AI days for the first
-  friend active 5 of 7 days, and later referrals reward after first payment.
-- The subscription section includes a referral dashboard with invited friend
-  progress and reward status.
-- Barcode videos are scanned across several frames, not just one still frame.
-
-## AI reliability rules
-
-- AI results are always approximate.
-- The bot never saves AI results automatically.
-- `confidence` is capped below `1.0`.
-- Low confidence or unusable images return a short retry message.
-
-## Migrations
+The API container runs migrations on startup. To run them manually:
 
 ```bash
 alembic upgrade head
 ```
 
-## Validation
+### Validation
 
-Run the full local validation suite before deploy:
+Run the full validation suite:
 
 ```bash
 ./scripts/validate.sh
 ```
 
-If the host does not have Python 3.12 and the dev tools installed, run the same
-code checks inside Docker:
+If Python 3.12 and dev tools are not installed on the host, run validation in
+Docker:
 
 ```bash
 ./scripts/validate-docker.sh
 ```
 
-After deploy, run smoke checks against the public API URL:
+Post-deploy smoke check:
 
 ```bash
 ./scripts/smoke.sh https://your-api.example.com
 ```
 
-On the server, the deploy helper rebuilds, restarts, smokes, and tails logs:
+Server deploy helper:
 
 ```bash
 ./scripts/post-deploy.sh https://your-api.example.com
 ```
 
-## Validation before deploy
-
-Before every deploy:
+### Backup and Restore
 
 ```bash
-./scripts/validate.sh
+./scripts/backup-db.sh
 ```
 
-Mandatory rule: if local validation passes, upload the full project to the server
-immediately and restart the compose stack. Keep `CHANGELOG.md` updated before upload.
-
-## Git auto-push
-
-This repository is configured to push commits automatically after every local commit.
-
-First connect the GitHub repository once:
+Restore is destructive and requires an explicit confirmation:
 
 ```bash
-git remote add origin git@github.com:OWNER/kcal-tracker.git
-git config core.hooksPath .githooks
+RESTORE_CONFIRM=yes ./scripts/restore-db.sh backups/kcal-YYYYMMDDTHHMMSSZ.sql.gz
 ```
 
-Then commit and push every current change with one command:
+### AI Reliability Rules
+
+- AI estimates are approximate.
+- AI results are never saved automatically.
+- `confidence` must stay below `1.0`.
+- Low-confidence or unusable images return a short retry message.
+
+### Git and Secrets
+
+Commit and push current changes:
 
 ```bash
 ./scripts/git-autopush.sh "Describe the change"
 ```
 
-The tracked `post-commit` hook also pushes automatically after normal `git commit`.
+Do not commit secrets. Keep `.env`, production notes, credentials, local caches,
+logs, and backups out of git.
