@@ -1,10 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 
-alembic upgrade head
-
 case "${1:-api}" in
   api)
+    alembic upgrade head
     exec uvicorn kcal_tracker.main:app --host "${API_HOST:-0.0.0.0}" --port 3100
     ;;
   bot)
@@ -14,4 +13,3 @@ case "${1:-api}" in
     exec "$@"
     ;;
 esac
-

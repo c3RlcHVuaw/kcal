@@ -10,6 +10,17 @@ services:
         condition: service_healthy
     ports:
       - "${API_PORT:-3100}:3100"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3100/health', timeout=3).read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     restart: unless-stopped
 
   bot:
@@ -17,9 +28,7 @@ services:
     command: ["./scripts/entrypoint.sh", "bot"]
     env_file: .env
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      api:
         condition: service_healthy
     restart: unless-stopped
 
@@ -53,4 +62,3 @@ services:
 volumes:
   postgres-data:
   redis-data:
-
