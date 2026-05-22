@@ -439,6 +439,7 @@ def test_food_entries_keyboard_starts_compact() -> None:
     assert len(rows) == 1
     assert rows[0][0].callback_data == "entry:manage"
     assert rows[0][1].callback_data == "coach:meal"
+    assert rows[0][2].callback_data == "diary:yesterday"
 
 
 def test_food_entries_keyboard_expands_entry_actions() -> None:

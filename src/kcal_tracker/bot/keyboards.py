@@ -237,11 +237,12 @@ def food_entries_keyboard(
                 [
                     InlineKeyboardButton(text="✏️ Редактировать", callback_data="entry:manage"),
                     InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal"),
+                    InlineKeyboardButton(text="← Вчера", callback_data="diary:yesterday"),
                 ]
             )
         else:
             rows.append([InlineKeyboardButton(text="➕ Еду", callback_data="nav:add-food")])
-        if mode == "today":
+        if mode == "today" and not entry_ids:
             rows.append([InlineKeyboardButton(text="← Вчера", callback_data="diary:yesterday")])
         return InlineKeyboardMarkup(inline_keyboard=rows)
 
