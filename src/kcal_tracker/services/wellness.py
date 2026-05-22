@@ -54,11 +54,14 @@ class WellnessService:
         return log
 
     async def today_water_ml(self, user: User) -> int:
+        return await self.water_ml_for_day_offset(user, days_ago=0)
+
+    async def water_ml_for_day_offset(self, user: User, days_ago: int) -> int:
         result = await self.session.execute(
             select(WaterLog).where(
                 WaterLog.user_id == user.id,
-                WaterLog.created_at >= self._day_start(user),
-                WaterLog.created_at <= self._day_end(user),
+                WaterLog.created_at >= self._day_start(user, days_ago=days_ago),
+                WaterLog.created_at <= self._day_end(user, days_ago=days_ago),
             )
         )
         return sum(log.amount_ml for log in result.scalars())
@@ -164,12 +167,15 @@ class WellnessService:
         return sum(log.kcal for log in result.scalars())
 
     async def today_activities(self, user: User) -> list[ActivityLog]:
+        return await self.activities_for_day_offset(user, days_ago=0)
+
+    async def activities_for_day_offset(self, user: User, days_ago: int) -> list[ActivityLog]:
         result = await self.session.execute(
             select(ActivityLog)
             .where(
                 ActivityLog.user_id == user.id,
-                ActivityLog.created_at >= self._day_start(user),
-                ActivityLog.created_at <= self._day_end(user),
+                ActivityLog.created_at >= self._day_start(user, days_ago=days_ago),
+                ActivityLog.created_at <= self._day_end(user, days_ago=days_ago),
             )
             .order_by(ActivityLog.created_at.asc())
         )
@@ -338,13 +344,19 @@ class WellnessService:
             source="manual",
         )
 
-    def _day_start(self, user: User) -> datetime:
+    def _day_start(self, user: User, *, days_ago: int = 0) -> datetime:
         tz = ZoneInfo(user.timezone)
-        return datetime.combine(datetime.now(tz).date(), time.min, tzinfo=tz)
+        target_date = datetime.now(tz).date()
+        if days_ago:
+            target_date = target_date.fromordinal(target_date.toordinal() - days_ago)
+        return datetime.combine(target_date, time.min, tzinfo=tz)
 
-    def _day_end(self, user: User) -> datetime:
+    def _day_end(self, user: User, *, days_ago: int = 0) -> datetime:
         tz = ZoneInfo(user.timezone)
-        return datetime.combine(datetime.now(tz).date(), time.max, tzinfo=tz)
+        target_date = datetime.now(tz).date()
+        if days_ago:
+            target_date = target_date.fromordinal(target_date.toordinal() - days_ago)
+        return datetime.combine(target_date, time.max, tzinfo=tz)
 
     async def _log_dates(self, model, user: User, start: datetime, end: datetime, tz: ZoneInfo):
         result = await self.session.execute(

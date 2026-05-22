@@ -49,7 +49,7 @@ from kcal_tracker.services.nutrition import (
     weekly_coach_note,
     weekly_score,
 )
-from kcal_tracker.services.share_cards import weekly_progress_card
+from kcal_tracker.services.share_cards import daily_progress_card, weekly_progress_card
 from kcal_tracker.services.subscriptions import has_active_subscription
 from kcal_tracker.services.users import UserService
 from kcal_tracker.services.wellness import WellnessService
@@ -76,27 +76,10 @@ class DiaryFlow(StatesGroup):
     lambda message: message.text in {"📊 Сегодня", "📊 Мой день", "🔥 Остаток", "🔥 Калории"}
 )
 async def show_today(message: Message) -> None:
-    async with SessionLocal() as session:
-        user = await UserService(session).get_or_create(
-            telegram_id=message.from_user.id,
-            username=message.from_user.username,
-        )
-        diary = DiaryService(session)
-        summary = await diary.today_summary(user)
-        has_subscription = has_active_subscription(user)
-        patterns = await diary.nutrition_patterns(user) if has_subscription else None
-        wellness = WellnessService(session)
-        water_ml = await wellness.today_water_ml(user)
-        activities = await wellness.today_activities(user)
-
-    text, reply_markup = _today_view(
-        summary,
-        water_ml,
-        activities=activities,
-        patterns=patterns,
-        show_advanced_patterns=has_subscription,
-        timezone_name=user.timezone,
-        include_advice=True,
+    text, reply_markup = await _day_view_for_user(
+        message.from_user.id,
+        message.from_user.username,
+        days_ago=0,
     )
     await message.answer(
         text,
@@ -106,27 +89,21 @@ async def show_today(message: Message) -> None:
 
 @router.callback_query(F.data == "nav:today")
 async def show_today_inline(callback: CallbackQuery) -> None:
-    async with SessionLocal() as session:
-        user = await UserService(session).get_or_create(
-            telegram_id=callback.from_user.id,
-            username=callback.from_user.username,
-        )
-        diary = DiaryService(session)
-        summary = await diary.today_summary(user)
-        has_subscription = has_active_subscription(user)
-        patterns = await diary.nutrition_patterns(user) if has_subscription else None
-        wellness = WellnessService(session)
-        water_ml = await wellness.today_water_ml(user)
-        activities = await wellness.today_activities(user)
+    text, reply_markup = await _day_view_for_user(
+        callback.from_user.id,
+        callback.from_user.username,
+        days_ago=0,
+    )
+    await callback.message.edit_text(text, reply_markup=reply_markup)
+    await callback.answer()
 
-    text, reply_markup = _today_view(
-        summary,
-        water_ml,
-        activities=activities,
-        patterns=patterns,
-        show_advanced_patterns=has_subscription,
-        timezone_name=user.timezone,
-        include_advice=True,
+
+@router.callback_query(F.data == "diary:yesterday")
+async def show_yesterday_inline(callback: CallbackQuery) -> None:
+    text, reply_markup = await _day_view_for_user(
+        callback.from_user.id,
+        callback.from_user.username,
+        days_ago=1,
     )
     await callback.message.edit_text(text, reply_markup=reply_markup)
     await callback.answer()
@@ -134,29 +111,39 @@ async def show_today_inline(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data == "nav:today:full")
 async def show_today_full_inline(callback: CallbackQuery) -> None:
-    async with SessionLocal() as session:
-        user = await UserService(session).get_or_create(
-            telegram_id=callback.from_user.id,
-            username=callback.from_user.username,
-        )
-        diary = DiaryService(session)
-        summary = await diary.today_summary(user)
-        has_subscription = has_active_subscription(user)
-        patterns = await diary.nutrition_patterns(user) if has_subscription else None
-        wellness = WellnessService(session)
-        water_ml = await wellness.today_water_ml(user)
-        activities = await wellness.today_activities(user)
-
-    text, reply_markup = _today_view(
-        summary,
-        water_ml,
-        activities=activities,
-        patterns=patterns,
-        show_advanced_patterns=has_subscription,
-        timezone_name=user.timezone,
-        include_advice=True,
+    text, reply_markup = await _day_view_for_user(
+        callback.from_user.id,
+        callback.from_user.username,
+        days_ago=0,
     )
     await callback.message.edit_text(text, reply_markup=reply_markup)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "day:yesterday-card")
+async def send_yesterday_share_card(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        diary = DiaryService(session)
+        wellness = WellnessService(session)
+        summary = await diary.summary_for_day_offset(user, days_ago=1)
+        water_ml = await wellness.water_ml_for_day_offset(user, days_ago=1)
+        activities = await wellness.activities_for_day_offset(user, days_ago=1)
+        date_label = _day_offset_date_label(user.timezone, days_ago=1)
+
+    image_bytes = daily_progress_card(
+        summary,
+        date_label=date_label,
+        water_ml=water_ml,
+        activities=activities,
+    )
+    await callback.message.answer_photo(
+        BufferedInputFile(image_bytes, filename="kcal_yesterday.png"),
+        caption="Готово, карточка вчерашнего дня.",
+    )
     await callback.answer()
 
 
@@ -1133,6 +1120,43 @@ def _weight_chart(logs) -> str:
     return f"График, последние записи: {spark}\nДиапазон: {minimum:.1f}-{maximum:.1f} кг"
 
 
+async def _day_view_for_user(
+    telegram_id: int,
+    username: str | None,
+    *,
+    days_ago: int,
+):
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=telegram_id,
+            username=username,
+        )
+        diary = DiaryService(session)
+        summary = await diary.summary_for_day_offset(user, days_ago=days_ago)
+        has_subscription = has_active_subscription(user)
+        patterns = (
+            await diary.nutrition_patterns(user)
+            if has_subscription and days_ago == 0
+            else None
+        )
+        wellness = WellnessService(session)
+        water_ml = await wellness.water_ml_for_day_offset(user, days_ago=days_ago)
+        activities = await wellness.activities_for_day_offset(user, days_ago=days_ago)
+        timezone_name = user.timezone
+
+    return _today_view(
+        summary,
+        water_ml,
+        activities=activities,
+        patterns=patterns,
+        show_advanced_patterns=has_subscription and days_ago == 0,
+        timezone_name=timezone_name,
+        include_advice=days_ago == 0,
+        title=_day_offset_title(timezone_name, days_ago=days_ago),
+        mode="yesterday" if days_ago == 1 else "today",
+    )
+
+
 def _today_view(
     summary,
     water_ml: int,
@@ -1142,6 +1166,8 @@ def _today_view(
     show_advanced_patterns: bool = False,
     timezone_name: str = settings.default_timezone,
     include_advice: bool = False,
+    title: str = "📊 Сегодня",
+    mode: str = "today",
 ):
     activities = activities or []
     target_line = f"🔥 {summary.kcal:.0f} / {summary.target_kcal} ккал"
@@ -1151,7 +1177,7 @@ def _today_view(
         )
 
     lines = [
-        "📊 Сегодня",
+        title,
         "",
         target_line,
         _macro_line("Белки", summary.protein, summary.target_protein),
@@ -1203,7 +1229,29 @@ def _today_view(
             ]
         )
 
-    return "\n".join(lines), food_entries_keyboard(entry_ids)
+    return "\n".join(lines), food_entries_keyboard(entry_ids, mode=mode)
+
+
+def _day_offset_title(timezone_name: str, *, days_ago: int) -> str:
+    if days_ago == 1:
+        return f"📊 Вчера, {_day_offset_date_label(timezone_name, days_ago=days_ago)}"
+    return "📊 Сегодня"
+
+
+def _day_offset_date_label(timezone_name: str, *, days_ago: int) -> str:
+    tz = _safe_timezone(timezone_name)
+    target_date = datetime.now(tz).date()
+    if days_ago:
+        target_date = target_date.fromordinal(target_date.toordinal() - days_ago)
+    return target_date.strftime("%d.%m")
+
+
+def _safe_timezone(timezone_name: str) -> ZoneInfo:
+    try:
+        return ZoneInfo(timezone_name)
+    except Exception:
+        logger.warning("Invalid user timezone %s, falling back to default", timezone_name)
+        return ZoneInfo(settings.default_timezone)
 
 
 def _entry_line(index: int, entry, timezone_name: str) -> str:
@@ -1287,11 +1335,7 @@ def _meal_key(created_at: datetime, timezone_name: str) -> str:
 
 
 def _entry_time_label(created_at: datetime, timezone_name: str) -> str:
-    try:
-        tz = ZoneInfo(timezone_name)
-    except Exception:
-        logger.warning("Invalid user timezone %s, falling back to default", timezone_name)
-        tz = ZoneInfo(settings.default_timezone)
+    tz = _safe_timezone(timezone_name)
     if created_at.tzinfo is None:
         created_at = created_at.replace(tzinfo=UTC)
     return created_at.astimezone(tz).strftime("%H:%M")

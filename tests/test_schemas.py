@@ -9,6 +9,7 @@ from kcal_tracker.api.routes import (
 )
 from kcal_tracker.bot.handlers.diary import (
     ADVANCED_PATTERNS_UPSELL,
+    _day_offset_title,
     _entries_by_meal,
     _entry_line,
     _entry_time_label,
@@ -309,6 +310,74 @@ def test_today_view_shows_activity_and_manage_button() -> None:
     ]
     assert "activity:custom" in activity_callbacks
     assert "activity:manage" in activity_callbacks
+
+
+def test_today_view_links_to_yesterday() -> None:
+    summary = SimpleNamespace(
+        kcal=0,
+        target_kcal=2200,
+        activity_kcal=0,
+        protein=0,
+        target_protein=120,
+        fat=0,
+        target_fat=70,
+        carbs=0,
+        target_carbs=230,
+        entries=[],
+    )
+
+    _, keyboard = _today_view(summary, 0, include_advice=False)
+
+    callbacks = [
+        button.callback_data
+        for row in keyboard.inline_keyboard
+        for button in row
+    ]
+    assert "diary:yesterday" in callbacks
+
+
+def test_yesterday_view_links_to_today_and_card() -> None:
+    summary = SimpleNamespace(
+        kcal=700,
+        target_kcal=2200,
+        activity_kcal=0,
+        protein=45,
+        target_protein=120,
+        fat=30,
+        target_fat=70,
+        carbs=110,
+        target_carbs=230,
+        entries=[],
+    )
+
+    text, keyboard = _today_view(
+        summary,
+        800,
+        title="📊 Вчера, 21.05",
+        mode="yesterday",
+        include_advice=False,
+    )
+
+    callbacks = [
+        button.callback_data
+        for row in keyboard.inline_keyboard
+        for button in row
+    ]
+    assert "📊 Вчера, 21.05" in text
+    assert "nav:today" in callbacks
+    assert "day:yesterday-card" in callbacks
+    assert "diary:yesterday" not in callbacks
+
+
+def test_day_offset_title_formats_yesterday(monkeypatch) -> None:
+    class FixedDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls(2026, 5, 22, 12, 0, tzinfo=tz)
+
+    monkeypatch.setattr("kcal_tracker.bot.handlers.diary.datetime", FixedDateTime)
+
+    assert _day_offset_title("Europe/Samara", days_ago=1) == "📊 Вчера, 21.05"
 
 
 def test_full_today_view_groups_entries_by_meal() -> None:

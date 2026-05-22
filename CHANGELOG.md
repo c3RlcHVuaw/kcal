@@ -19,6 +19,8 @@
 - Added GitHub Actions CI, structured logging, graceful bot shutdown, payment
   charge idempotency indexes, database backup/restore helpers, and a post-deploy
   smoke helper.
+- Added yesterday diary navigation from Today plus a generated daily summary
+  card for yesterday's food, macros, water, and activity.
 
 ## 2026-05-21
 

@@ -221,10 +221,18 @@ def food_entries_keyboard(
     entry_ids: list[int],
     *,
     expanded: bool = False,
+    mode: str = "today",
 ) -> InlineKeyboardMarkup:
     if not expanded:
         rows = []
-        if entry_ids:
+        if mode == "yesterday":
+            rows.append(
+                [
+                    InlineKeyboardButton(text="Сегодня", callback_data="nav:today"),
+                    InlineKeyboardButton(text="Картинка дня", callback_data="day:yesterday-card"),
+                ]
+            )
+        elif entry_ids:
             rows.append(
                 [
                     InlineKeyboardButton(text="✏️ Редактировать", callback_data="entry:manage"),
@@ -233,6 +241,8 @@ def food_entries_keyboard(
             )
         else:
             rows.append([InlineKeyboardButton(text="➕ Еду", callback_data="nav:add-food")])
+        if mode == "today":
+            rows.append([InlineKeyboardButton(text="← Вчера", callback_data="diary:yesterday")])
         return InlineKeyboardMarkup(inline_keyboard=rows)
 
     rows: list[list[InlineKeyboardButton]] = []
