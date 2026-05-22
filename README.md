@@ -94,6 +94,13 @@ Run the full local validation suite before deploy:
 ./scripts/validate.sh
 ```
 
+If the host does not have Python 3.12 and the dev tools installed, run the same
+code checks inside Docker:
+
+```bash
+./scripts/validate-docker.sh
+```
+
 ## Validation before deploy
 
 Before every deploy:

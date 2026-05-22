@@ -6,6 +6,8 @@
   required bot, AI, FatSecret, and YooKassa credentials.
 - Added a single validation script for compile, lint, test, and compose config
   checks, and updated docs to use it before deploy.
+- Added Docker-based validation for machines without local Python 3.12 tooling
+  and expanded Docker build ignores for local-only files and caches.
 
 ## 2026-05-21
 

@@ -25,6 +25,8 @@ REDIS_URL=
 
 ```bash
 ./scripts/validate.sh
+# or, when Python 3.12 is only available through Docker:
+./scripts/validate-docker.sh
 ```
 
 3. Upload the repository to the server while excluding local secrets and caches.
