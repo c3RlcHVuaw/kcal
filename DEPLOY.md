@@ -15,6 +15,7 @@ APP_ENV=production
 TELEGRAM_BOT_TOKEN=
 ADMIN_BOT_TOKEN=
 ADMIN_TELEGRAM_IDS=
+OPENAI_ADMIN_API_KEY=
 OPENAI_API_KEY=
 DATABASE_URL=
 REDIS_URL=
@@ -23,6 +24,8 @@ REDIS_URL=
 `ADMIN_TELEGRAM_IDS` is a comma-separated allowlist of Telegram numeric user IDs.
 Without allowed IDs, the admin bot starts in locked mode and only reports the
 requester's Telegram ID.
+`OPENAI_ADMIN_API_KEY` is optional; when present, the admin bot uses it for the
+OpenAI organization Costs endpoint. Otherwise it falls back to `OPENAI_API_KEY`.
 
 ## Update Checklist
 

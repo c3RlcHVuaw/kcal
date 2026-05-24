@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.redis import RedisStorage
 from redis.asyncio import Redis
 
-from kcal_tracker.bot.handlers import diary, food, payments, profile, start
+from kcal_tracker.bot.handlers import diary, food, payments, profile, start, support
 from kcal_tracker.bot.navigation import MenuStateResetMiddleware
 from kcal_tracker.bot.navigation import router as navigation_router
 from kcal_tracker.config import settings
@@ -29,6 +29,7 @@ async def main() -> None:
     dispatcher.include_router(start.router)
     dispatcher.include_router(profile.router)
     dispatcher.include_router(payments.router)
+    dispatcher.include_router(support.router)
     dispatcher.include_router(diary.router)
     dispatcher.include_router(food.router)
     reminders = asyncio.create_task(reminder_loop(bot))

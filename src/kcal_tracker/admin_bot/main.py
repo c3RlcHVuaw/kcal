@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import shutil
+import time
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
 
+import httpx
 from aiogram import BaseMiddleware, Bot, Dispatcher, F, Router
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
@@ -31,6 +34,8 @@ class AdminFlow(StatesGroup):
     waiting_user_lookup = State()
     waiting_grant_target = State()
     waiting_grant_days = State()
+    waiting_broadcast_text = State()
+    waiting_support_reply = State()
 
 
 class AdminAccessMiddleware(BaseMiddleware):
@@ -96,6 +101,18 @@ async def id_command(message: Message) -> None:
 async def menu_callback(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await callback.message.edit_text(_main_menu_text(), reply_markup=_main_menu_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "admin:ops")
+async def ops_callback(callback: CallbackQuery) -> None:
+    await callback.message.edit_text("Операции и мониторинг:", reply_markup=_ops_keyboard())
+    await callback.answer()
+
+
+@router.callback_query(F.data == "admin:crm")
+async def crm_callback(callback: CallbackQuery) -> None:
+    await callback.message.edit_text("Пользователи, подписки и поддержка:", reply_markup=_crm_keyboard())
     await callback.answer()
 
 
@@ -209,6 +226,96 @@ async def ai_command(message: Message) -> None:
 async def ai_callback(callback: CallbackQuery) -> None:
     text = await _ai_text()
     await callback.message.edit_text(text, reply_markup=_ai_keyboard())
+    await callback.answer("Обновлено")
+
+
+@router.message(Command("server"))
+async def server_command(message: Message) -> None:
+    text = await _server_text()
+    await message.answer(text, reply_markup=_server_keyboard())
+
+
+@router.callback_query(F.data == "admin:server")
+async def server_callback(callback: CallbackQuery) -> None:
+    text = await _server_text()
+    await callback.message.edit_text(text, reply_markup=_server_keyboard())
+    await callback.answer("Обновлено")
+
+
+@router.message(Command("openai"))
+@router.message(Command("balance"))
+async def openai_command(message: Message) -> None:
+    text = await _openai_text()
+    await message.answer(text, reply_markup=_openai_keyboard())
+
+
+@router.callback_query(F.data == "admin:openai")
+async def openai_callback(callback: CallbackQuery) -> None:
+    text = await _openai_text()
+    await callback.message.edit_text(text, reply_markup=_openai_keyboard())
+    await callback.answer("Обновлено")
+
+
+@router.message(Command("alerts"))
+async def alerts_command(message: Message) -> None:
+    text = await _alerts_text()
+    await message.answer(text, reply_markup=_alerts_keyboard())
+
+
+@router.callback_query(F.data == "admin:alerts")
+async def alerts_callback(callback: CallbackQuery) -> None:
+    text = await _alerts_text()
+    await callback.message.edit_text(text, reply_markup=_alerts_keyboard())
+    await callback.answer("Обновлено")
+
+
+@router.message(Command("funnel"))
+async def funnel_command(message: Message) -> None:
+    text = await _funnel_text()
+    await message.answer(text, reply_markup=_funnel_keyboard())
+
+
+@router.callback_query(F.data == "admin:funnel")
+async def funnel_callback(callback: CallbackQuery) -> None:
+    text = await _funnel_text()
+    await callback.message.edit_text(text, reply_markup=_funnel_keyboard())
+    await callback.answer("Обновлено")
+
+
+@router.message(Command("payments"))
+async def payments_command(message: Message) -> None:
+    text = await _payments_text()
+    await message.answer(text, reply_markup=_payments_keyboard())
+
+
+@router.callback_query(F.data == "admin:payments")
+async def payments_callback(callback: CallbackQuery) -> None:
+    text = await _payments_text()
+    await callback.message.edit_text(text, reply_markup=_payments_keyboard())
+    await callback.answer("Обновлено")
+
+
+@router.message(Command("growth"))
+async def growth_command(message: Message) -> None:
+    text = await _growth_text()
+    await message.answer(text, reply_markup=_growth_keyboard())
+
+
+@router.callback_query(F.data == "admin:growth")
+async def growth_callback(callback: CallbackQuery) -> None:
+    text = await _growth_text()
+    await callback.message.edit_text(text, reply_markup=_growth_keyboard())
+    await callback.answer("Обновлено")
+
+
+@router.message(Command("config"))
+async def config_command(message: Message) -> None:
+    await message.answer(_config_text(), reply_markup=_config_keyboard())
+
+
+@router.callback_query(F.data == "admin:config")
+async def config_callback(callback: CallbackQuery) -> None:
+    await callback.message.edit_text(_config_text(), reply_markup=_config_keyboard())
     await callback.answer("Обновлено")
 
 
@@ -380,6 +487,112 @@ async def grant_days_from_state(message: Message, state: FSMContext) -> None:
     await message.answer(text, reply_markup=_user_keyboard(user_id) if user_id else _cancel_keyboard())
 
 
+@router.message(Command("broadcast"))
+async def broadcast_command(message: Message, state: FSMContext) -> None:
+    await state.set_state(AdminFlow.waiting_broadcast_text)
+    await state.update_data(broadcast_segment="active_7")
+    await message.answer(
+        "Рассылка активным за 7 дней. Отправь текст сообщения.",
+        reply_markup=_broadcast_segment_keyboard("active_7"),
+    )
+
+
+@router.callback_query(F.data == "admin:broadcast")
+async def broadcast_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(AdminFlow.waiting_broadcast_text)
+    await state.update_data(broadcast_segment="active_7")
+    await callback.message.edit_text(
+        "Выбери сегмент и отправь текст рассылки.",
+        reply_markup=_broadcast_segment_keyboard("active_7"),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:broadcast:segment:"))
+async def broadcast_segment_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    segment = callback.data.rsplit(":", 1)[1]
+    await state.set_state(AdminFlow.waiting_broadcast_text)
+    await state.update_data(broadcast_segment=segment)
+    await callback.message.edit_text(
+        f"Сегмент: {_broadcast_segment_title(segment)}.\nОтправь текст рассылки.",
+        reply_markup=_broadcast_segment_keyboard(segment),
+    )
+    await callback.answer()
+
+
+@router.message(AdminFlow.waiting_broadcast_text, F.text)
+async def broadcast_text_from_state(message: Message, state: FSMContext) -> None:
+    text = (message.text or "").strip()
+    if not text:
+        await message.answer("Текст пустой. Отправь сообщение для рассылки.", reply_markup=_cancel_keyboard())
+        return
+    data = await state.get_data()
+    segment = str(data.get("broadcast_segment") or "active_7")
+    async with SessionLocal() as session:
+        recipients = await _broadcast_recipients(session, segment)
+    await state.update_data(broadcast_text=text)
+    await message.answer(
+        "\n".join(
+            [
+                "Предпросмотр рассылки",
+                "",
+                f"Сегмент: {_broadcast_segment_title(segment)}",
+                f"Получателей: {len(recipients)}",
+                "",
+                text,
+            ]
+        ),
+        reply_markup=_broadcast_confirm_keyboard(),
+    )
+
+
+@router.callback_query(F.data == "admin:broadcast:send")
+async def broadcast_send_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    segment = str(data.get("broadcast_segment") or "active_7")
+    text = str(data.get("broadcast_text") or "").strip()
+    if not text:
+        await callback.answer("Нет текста рассылки.", show_alert=True)
+        return
+    async with SessionLocal() as session:
+        recipients = await _broadcast_recipients(session, segment)
+    sent = await _send_broadcast(recipients, text)
+    await state.clear()
+    await callback.message.edit_text(
+        f"Рассылка завершена: {sent}/{len(recipients)} отправлено.",
+        reply_markup=_main_menu_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:support:reply:"))
+async def support_reply_callback(callback: CallbackQuery, state: FSMContext) -> None:
+    user_id = callback.data.rsplit(":", 1)[1]
+    await state.set_state(AdminFlow.waiting_support_reply)
+    await state.update_data(support_user_id=user_id)
+    await callback.message.edit_text(
+        f"Ответ пользователю {user_id}. Отправь текст одним сообщением.",
+        reply_markup=_cancel_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.message(AdminFlow.waiting_support_reply, F.text)
+async def support_reply_from_state(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    user_id = int(data["support_user_id"])
+    text = (message.text or "").strip()
+    if not text:
+        await message.answer("Текст пустой. Напиши ответ или нажми «Отмена».", reply_markup=_cancel_keyboard())
+        return
+    sent = await _send_user_message(user_id, f"Ответ поддержки:\n\n{text}")
+    await state.clear()
+    await message.answer(
+        "Ответ отправлен." if sent else "Не удалось отправить ответ пользователю.",
+        reply_markup=_main_menu_keyboard(),
+    )
+
+
 @router.callback_query(F.data == "admin:cancel")
 async def cancel_callback(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
@@ -455,6 +668,232 @@ async def _grant_premium(target: str, days: int) -> tuple[str, int | None]:
         )
 
 
+async def _server_text() -> str:
+    uptime = _format_seconds(time.time() - _process_started_at())
+    disk = shutil.disk_usage("/")
+    mem = _memory_info()
+    api_status = await _api_ready_status()
+    return "\n".join(
+        [
+            "🖥 Сервер",
+            "",
+            f"API: {api_status}",
+            f"APP_ENV: {settings.app_env}",
+            f"Процесс admin-bot: {uptime}",
+            f"Диск: {_format_bytes(disk.used)} / {_format_bytes(disk.total)}",
+            f"Память: {mem}",
+            "",
+            "Контейнеры смотри через docker compose ps на сервере.",
+        ]
+    )
+
+
+async def _openai_text() -> str:
+    api_key = settings.openai_admin_api_key or settings.openai_api_key
+    local_ai = await _local_ai_cost_hint()
+    if not api_key:
+        return "💳 OpenAI\n\nOPENAI_API_KEY не настроен.\n\n" + local_ai
+
+    now = datetime.now(UTC)
+    month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(
+                "https://api.openai.com/v1/organization/costs",
+                headers={"Authorization": f"Bearer {api_key}"},
+                params={
+                    "start_time": int(month_start.timestamp()),
+                    "end_time": int(now.timestamp()),
+                    "bucket_width": "1d",
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+    except Exception as exc:
+        return "\n".join(
+            [
+                "💳 OpenAI",
+                "",
+                "Не удалось получить Costs API.",
+                f"Причина: {type(exc).__name__}",
+                "Нужен ключ с правами на organization costs.",
+                "",
+                local_ai,
+            ]
+        )
+
+    total_by_currency: dict[str, float] = {}
+    for bucket in payload.get("data", []):
+        for item in bucket.get("results", []):
+            amount = item.get("amount") or {}
+            currency = str(amount.get("currency") or "usd").upper()
+            total_by_currency[currency] = total_by_currency.get(currency, 0.0) + float(
+                amount.get("value") or 0
+            )
+    totals = ", ".join(f"{value:.2f} {currency}" for currency, value in total_by_currency.items())
+    return "\n".join(
+        [
+            "💳 OpenAI",
+            "",
+            f"Costs API за месяц: {totals or '0'}",
+            "",
+            local_ai,
+        ]
+    )
+
+
+async def _local_ai_cost_hint() -> str:
+    today = datetime.now(ZoneInfo(settings.default_timezone)).date()
+    month_start = today.replace(day=1)
+    async with SessionLocal() as session:
+        today_count = await _scalar(
+            session,
+            select(func.coalesce(func.sum(AIUsage.request_count), 0)).where(
+                AIUsage.usage_date == today
+            ),
+        )
+        month_count = await _scalar(
+            session,
+            select(func.coalesce(func.sum(AIUsage.request_count), 0)).where(
+                AIUsage.usage_date >= month_start
+            ),
+        )
+    return f"Локально в БД: сегодня {today_count} AI-запросов, месяц {month_count}."
+
+
+async def _alerts_text() -> str:
+    tz = ZoneInfo(settings.default_timezone)
+    start, end = _today_bounds(tz)
+    now = datetime.now(UTC)
+    async with SessionLocal() as session:
+        pending = await _scalar(
+            session,
+            select(func.count(Payment.id)).where(
+                Payment.status.in_(("pending", "waiting_for_capture")),
+                Payment.expires_at >= now,
+            ),
+        )
+        expired = await _scalar(
+            session,
+            select(func.count(Payment.id)).where(
+                Payment.status.in_(("pending", "waiting_for_capture")),
+                Payment.expires_at < now,
+            ),
+        )
+        not_onboarded = await _scalar(
+            session,
+            select(func.count(User.id)).where(
+                User.created_at >= start,
+                User.created_at <= end,
+                User.onboarding_completed.is_(False),
+            ),
+        )
+        high_ai = await session.execute(
+            select(User.telegram_id, User.username, func.sum(AIUsage.request_count).label("total"))
+            .join(AIUsage, AIUsage.user_id == User.id)
+            .where(AIUsage.usage_date == start.date())
+            .group_by(User.id, User.telegram_id, User.username)
+            .having(func.sum(AIUsage.request_count) >= 20)
+            .order_by(func.sum(AIUsage.request_count).desc())
+            .limit(5)
+        )
+    lines = ["🚨 Alerts", "", f"Ожидают оплаты: {pending}", f"Просроченные pending: {expired}", f"Новые без onboarding: {not_onboarded}", ""]
+    lines.append("Высокий AI сегодня:")
+    rows = list(high_ai)
+    if rows:
+        for telegram_id, username, total in rows:
+            label = f"@{username}" if username else str(telegram_id)
+            lines.append(f"· {label}: {int(total or 0)}")
+    else:
+        lines.append("нет")
+    return "\n".join(lines)
+
+
+async def _funnel_text() -> str:
+    tz = ZoneInfo(settings.default_timezone)
+    start, end = _today_bounds(tz)
+    async with SessionLocal() as session:
+        started = await _scalar(session, select(func.count(User.id)).where(User.created_at >= start, User.created_at <= end))
+        onboarded = await _scalar(session, select(func.count(User.id)).where(User.created_at >= start, User.created_at <= end, User.onboarding_completed.is_(True)))
+        first_food = await _scalar(
+            session,
+            select(func.count(func.distinct(FoodEntry.user_id))).join(User, User.id == FoodEntry.user_id).where(User.created_at >= start, User.created_at <= end)
+        )
+        ai_users = await _scalar(
+            session,
+            select(func.count(func.distinct(AIUsage.user_id))).join(User, User.id == AIUsage.user_id).where(User.created_at >= start, User.created_at <= end)
+        )
+        payers = await _scalar(
+            session,
+            select(func.count(func.distinct(Payment.user_id))).join(User, User.id == Payment.user_id).where(User.created_at >= start, User.created_at <= end, Payment.status == "succeeded")
+        )
+    return "\n".join(
+        [
+            "🧭 Воронка сегодня",
+            "",
+            f"/start: {started}",
+            f"Завершили onboarding: {onboarded}",
+            f"Добавили еду: {first_food}",
+            f"Попробовали AI: {ai_users}",
+            f"Оплатили: {payers}",
+        ]
+    )
+
+
+async def _payments_text() -> str:
+    async with SessionLocal() as session:
+        recent = await session.execute(select(Payment).order_by(Payment.created_at.desc()).limit(8))
+        by_status = await session.execute(
+            select(Payment.status, func.count(Payment.id)).group_by(Payment.status).order_by(func.count(Payment.id).desc())
+        )
+    lines = ["💰 Платежи", "", "По статусам:"]
+    for status, count in by_status:
+        lines.append(f"{status}: {count}")
+    lines.extend(["", "Последние:"])
+    payments = list(recent.scalars())
+    if payments:
+        for payment in payments:
+            amount = f"{(payment.amount_kopecks or 0) / 100:.0f} ₽" if payment.amount_kopecks else f"{payment.amount_stars or 0} ⭐"
+            lines.append(f"· {payment.status} {payment.method} {amount} user={payment.user_id}")
+    else:
+        lines.append("нет платежей")
+    return "\n".join(lines)
+
+
+async def _growth_text() -> str:
+    async with SessionLocal() as session:
+        invited = await _scalar(session, select(func.count(User.id)).where(User.referred_by_user_id.is_not(None)))
+        rewarded = await _scalar(session, select(func.count(User.id)).where(User.active_referral_rewarded_at.is_not(None)))
+        paid_rewarded = await _scalar(session, select(func.count(User.id)).where(User.referral_rewarded_at.is_not(None)))
+    return "\n".join(
+        [
+            "📈 Growth",
+            "",
+            f"Всего приглашённых: {invited}",
+            f"Активных реферальных бонусов: {rewarded}",
+            f"Бонусов после оплаты: {paid_rewarded}",
+            "",
+            "Топ рефералов добавлю отдельным запросом, чтобы не рисковать self-join в проде.",
+        ]
+    )
+
+
+def _config_text() -> str:
+    return "\n".join(
+        [
+            "⚙️ Конфиг",
+            "",
+            f"APP_ENV: {settings.app_env}",
+            f"PUBLIC_API_URL: {settings.public_api_url}",
+            f"AI trial: {settings.ai_trial_request_limit}",
+            f"AI basic/day: {settings.ai_basic_daily_request_limit}",
+            f"Premium trial days: {settings.premium_trial_days}",
+            f"Referral reward days: {settings.referral_reward_days}",
+            f"Admin IDs: {len(settings.admin_ids)}",
+        ]
+    )
+
+
 async def _find_user(session, target: str) -> User | None:
     user_service = UserService(session)
     value = target.strip()
@@ -489,10 +928,114 @@ async def _recent_payments(session, user: User, *, limit: int) -> list[Payment]:
     return list(result.scalars())
 
 
+async def _broadcast_recipients(session, segment: str) -> list[int]:
+    now = datetime.now(UTC)
+    since_7d = now - timedelta(days=7)
+    statement = select(User.telegram_id)
+    if segment == "premium":
+        statement = statement.where(User.subscription_expires_at > now)
+    elif segment == "inactive_7":
+        active_food = select(FoodEntry.user_id).where(FoodEntry.created_at >= since_7d)
+        statement = statement.where(User.id.not_in(active_food))
+    elif segment == "not_onboarded":
+        statement = statement.where(User.onboarding_completed.is_(False))
+    elif segment == "active_7":
+        active_food = select(FoodEntry.user_id).where(FoodEntry.created_at >= since_7d)
+        statement = statement.where(User.id.in_(active_food))
+    result = await session.execute(statement.order_by(User.created_at.desc()).limit(5000))
+    return [int(user_id) for user_id in result.scalars()]
+
+
+async def _send_broadcast(recipients: list[int], text: str) -> int:
+    if not settings.telegram_bot_token:
+        return 0
+    bot = Bot(settings.telegram_bot_token)
+    sent = 0
+    try:
+        for user_id in recipients:
+            try:
+                await bot.send_message(user_id, text)
+                sent += 1
+                await asyncio.sleep(0.04)
+            except Exception:
+                logger.info("Broadcast delivery failed user_id=%s", user_id, exc_info=True)
+    finally:
+        await bot.session.close()
+    return sent
+
+
+async def _send_user_message(user_id: int, text: str) -> bool:
+    if not settings.telegram_bot_token:
+        return False
+    bot = Bot(settings.telegram_bot_token)
+    try:
+        await bot.send_message(user_id, text)
+        return True
+    except Exception:
+        logger.info("Support reply delivery failed user_id=%s", user_id, exc_info=True)
+        return False
+    finally:
+        await bot.session.close()
+
+
 async def _scalar(session, statement) -> int:
     result = await session.execute(statement)
     value = result.scalar_one()
     return int(value or 0)
+
+
+async def _api_ready_status() -> str:
+    try:
+        async with httpx.AsyncClient(timeout=3) as client:
+            response = await client.get("http://api:3100/health/ready")
+            response.raise_for_status()
+            payload = response.json()
+            checks = payload.get("checks", {})
+            return f"ok database={checks.get('database')} redis={checks.get('redis')}"
+    except Exception as exc:
+        return f"ошибка: {type(exc).__name__}"
+
+
+def _memory_info() -> str:
+    try:
+        values: dict[str, int] = {}
+        with open("/proc/meminfo", encoding="utf-8") as file:
+            for line in file:
+                key, raw_value = line.split(":", 1)
+                values[key] = int(raw_value.strip().split()[0]) * 1024
+        total = values.get("MemTotal", 0)
+        available = values.get("MemAvailable", 0)
+        used = max(total - available, 0)
+        return f"{_format_bytes(used)} / {_format_bytes(total)}"
+    except Exception:
+        return "недоступно"
+
+
+def _process_started_at() -> float:
+    return ps_started_at
+
+
+ps_started_at = time.time()
+
+
+def _format_bytes(value: int) -> str:
+    amount = float(value)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if amount < 1024 or unit == "TB":
+            return f"{amount:.1f} {unit}"
+        amount /= 1024
+    return f"{amount:.1f} TB"
+
+
+def _format_seconds(value: float) -> str:
+    seconds = int(max(value, 0))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if hours:
+        return f"{hours}ч {minutes}м"
+    if minutes:
+        return f"{minutes}м {seconds}с"
+    return f"{seconds}с"
 
 
 def _today_bounds(tz: ZoneInfo) -> tuple[datetime, datetime]:
@@ -517,7 +1060,7 @@ def _main_menu_text() -> str:
             "Выбери раздел кнопками ниже.",
             "",
             "Команды тоже работают:",
-            "/today, /ai, /user, /grant, /id",
+            "/today, /server, /openai, /alerts, /funnel, /user, /grant",
         ]
     )
 
@@ -526,12 +1069,16 @@ def _main_menu_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="📊 Сегодня", callback_data="admin:today"),
-                InlineKeyboardButton(text="🧠 AI", callback_data="admin:ai"),
+                InlineKeyboardButton(text="📊 Дашборд", callback_data="admin:today"),
+                InlineKeyboardButton(text="🖥 Сервер", callback_data="admin:server"),
             ],
             [
-                InlineKeyboardButton(text="👤 Пользователь", callback_data="admin:user:ask"),
-                InlineKeyboardButton(text="💎 Выдать Premium", callback_data="admin:grant:ask"),
+                InlineKeyboardButton(text="🧠 OpenAI", callback_data="admin:openai"),
+                InlineKeyboardButton(text="🚨 Alerts", callback_data="admin:alerts"),
+            ],
+            [
+                InlineKeyboardButton(text="👥 CRM", callback_data="admin:crm"),
+                InlineKeyboardButton(text="⚙️ Ops", callback_data="admin:ops"),
             ],
         ]
     )
@@ -542,9 +1089,12 @@ def _today_keyboard() -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:today"),
-                InlineKeyboardButton(text="🧠 AI", callback_data="admin:ai"),
+                InlineKeyboardButton(text="🧠 OpenAI", callback_data="admin:openai"),
             ],
-            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+            [
+                InlineKeyboardButton(text="🧭 Funnel", callback_data="admin:funnel"),
+                InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu"),
+            ],
         ]
     )
 
@@ -555,6 +1105,130 @@ def _ai_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:ai"),
                 InlineKeyboardButton(text="📊 Сегодня", callback_data="admin:today"),
+            ],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _ops_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🖥 Сервер", callback_data="admin:server"),
+                InlineKeyboardButton(text="🧠 AI", callback_data="admin:ai"),
+            ],
+            [
+                InlineKeyboardButton(text="💳 OpenAI costs", callback_data="admin:openai"),
+                InlineKeyboardButton(text="🚨 Alerts", callback_data="admin:alerts"),
+            ],
+            [
+                InlineKeyboardButton(text="💰 Payments", callback_data="admin:payments"),
+                InlineKeyboardButton(text="⚙️ Config", callback_data="admin:config"),
+            ],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _crm_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="👤 Пользователь", callback_data="admin:user:ask"),
+                InlineKeyboardButton(text="💎 Premium", callback_data="admin:grant:ask"),
+            ],
+            [
+                InlineKeyboardButton(text="🧭 Funnel", callback_data="admin:funnel"),
+                InlineKeyboardButton(text="📈 Growth", callback_data="admin:growth"),
+            ],
+            [
+                InlineKeyboardButton(text="📣 Broadcast", callback_data="admin:broadcast"),
+                InlineKeyboardButton(text="💰 Payments", callback_data="admin:payments"),
+            ],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _server_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:server"),
+                InlineKeyboardButton(text="🚨 Alerts", callback_data="admin:alerts"),
+            ],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _openai_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:openai"),
+                InlineKeyboardButton(text="🧠 AI локально", callback_data="admin:ai"),
+            ],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _alerts_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:alerts"),
+                InlineKeyboardButton(text="🖥 Сервер", callback_data="admin:server"),
+            ],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _funnel_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:funnel"),
+                InlineKeyboardButton(text="📈 Growth", callback_data="admin:growth"),
+            ],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _payments_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:payments"),
+                InlineKeyboardButton(text="👤 Пользователь", callback_data="admin:user:ask"),
+            ],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _growth_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:growth"),
+                InlineKeyboardButton(text="🧭 Funnel", callback_data="admin:funnel"),
+            ],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _config_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:config"),
+                InlineKeyboardButton(text="🖥 Сервер", callback_data="admin:server"),
             ],
             [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
         ]
@@ -599,6 +1273,47 @@ def _grant_days_keyboard(telegram_id: int) -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="❌ Отмена", callback_data="admin:cancel")],
         ]
     )
+
+
+def _broadcast_segment_keyboard(selected: str) -> InlineKeyboardMarkup:
+    def label(segment: str, text: str) -> str:
+        return ("✓ " if segment == selected else "") + text
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=label("active_7", "Активные 7д"), callback_data="admin:broadcast:segment:active_7"),
+                InlineKeyboardButton(text=label("premium", "Premium"), callback_data="admin:broadcast:segment:premium"),
+            ],
+            [
+                InlineKeyboardButton(text=label("inactive_7", "Неактивные 7д"), callback_data="admin:broadcast:segment:inactive_7"),
+                InlineKeyboardButton(text=label("not_onboarded", "Без onboarding"), callback_data="admin:broadcast:segment:not_onboarded"),
+            ],
+            [
+                InlineKeyboardButton(text=label("all", "Все"), callback_data="admin:broadcast:segment:all"),
+            ],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="admin:cancel")],
+        ]
+    )
+
+
+def _broadcast_confirm_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="✅ Отправить", callback_data="admin:broadcast:send")],
+            [InlineKeyboardButton(text="❌ Отмена", callback_data="admin:cancel")],
+        ]
+    )
+
+
+def _broadcast_segment_title(segment: str) -> str:
+    return {
+        "active_7": "активные за 7 дней",
+        "premium": "Premium",
+        "inactive_7": "неактивные 7 дней",
+        "not_onboarded": "не завершили onboarding",
+        "all": "все пользователи",
+    }.get(segment, segment)
 
 
 def _cancel_keyboard() -> InlineKeyboardMarkup:

@@ -40,6 +40,7 @@ MAIN_MENU_TEXTS = {
     "⏰ Напоминания",
     "⚙️ Настройки",
     "💎 Подписка",
+    "🆘 Поддержка",
     "☰ Ещё",
     "🏠 Меню",
     "❌ Отмена",
@@ -125,6 +126,7 @@ def body_tools_keyboard() -> InlineKeyboardMarkup:
 def service_tools_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
+            [InlineKeyboardButton(text="🆘 Поддержка", callback_data="support:open")],
             [InlineKeyboardButton(text="⏰ Напоминания", callback_data="nav:reminders")],
             [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings:open")],
             [InlineKeyboardButton(text="💎 Подписка", callback_data="subscription:open")],

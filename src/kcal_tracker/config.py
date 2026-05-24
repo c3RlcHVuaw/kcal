@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     admin_bot_token: str = ""
     admin_telegram_ids: str = ""
+    openai_admin_api_key: str = ""
     openai_api_key: str = ""
     openai_vision_model: str = "gpt-4o-mini"
     openai_text_model: str = "gpt-4o-mini"
