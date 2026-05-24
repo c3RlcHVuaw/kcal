@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
 
     telegram_bot_token: str = ""
+    admin_bot_token: str = ""
+    admin_telegram_ids: str = ""
     openai_api_key: str = ""
     openai_vision_model: str = "gpt-4o-mini"
     openai_text_model: str = "gpt-4o-mini"
@@ -59,6 +61,10 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         return self.app_env.lower() == "production"
 
+    @property
+    def admin_ids(self) -> set[int]:
+        return parse_admin_ids(self.admin_telegram_ids)
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -66,6 +72,19 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
+
+
+def parse_admin_ids(value: str) -> set[int]:
+    ids: set[int] = set()
+    for raw_part in value.replace(";", ",").split(","):
+        part = raw_part.strip()
+        if not part:
+            continue
+        try:
+            ids.add(int(part))
+        except ValueError as exc:
+            raise RuntimeError("ADMIN_TELEGRAM_IDS must contain only numeric Telegram IDs") from exc
+    return ids
 
 
 PRODUCTION_REQUIRED_SETTINGS = {

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from kcal_tracker.config import Settings, validate_production_settings
+from kcal_tracker.config import Settings, parse_admin_ids, validate_production_settings
 
 
 def test_validate_production_settings_ignores_local_environment() -> None:
@@ -71,3 +71,12 @@ def test_validate_production_settings_accepts_required_values() -> None:
     )
 
     validate_production_settings(settings)
+
+
+def test_parse_admin_ids_accepts_commas_and_semicolons() -> None:
+    assert parse_admin_ids("123, 456;789") == {123, 456, 789}
+
+
+def test_parse_admin_ids_rejects_non_numeric_values() -> None:
+    with pytest.raises(RuntimeError, match="ADMIN_TELEGRAM_IDS"):
+        parse_admin_ids("123, nope")

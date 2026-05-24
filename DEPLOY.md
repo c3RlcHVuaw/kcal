@@ -13,10 +13,16 @@ Set these values on the server, not in git:
 ```env
 APP_ENV=production
 TELEGRAM_BOT_TOKEN=
+ADMIN_BOT_TOKEN=
+ADMIN_TELEGRAM_IDS=
 OPENAI_API_KEY=
 DATABASE_URL=
 REDIS_URL=
 ```
+
+`ADMIN_TELEGRAM_IDS` is a comma-separated allowlist of Telegram numeric user IDs.
+Without allowed IDs, the admin bot starts in locked mode and only reports the
+requester's Telegram ID.
 
 ## Update Checklist
 

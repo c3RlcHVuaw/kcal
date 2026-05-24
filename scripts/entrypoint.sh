@@ -9,6 +9,9 @@ case "${1:-api}" in
   bot)
     exec python -m kcal_tracker.bot.main
     ;;
+  admin-bot)
+    exec python -m kcal_tracker.admin_bot.main
+    ;;
   *)
     exec "$@"
     ;;

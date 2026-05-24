@@ -32,6 +32,15 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  admin-bot:
+    build: .
+    command: ["./scripts/entrypoint.sh", "admin-bot"]
+    env_file: .env
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     environment:
