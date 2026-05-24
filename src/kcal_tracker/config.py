@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     admin_bot_token: str = ""
     admin_telegram_ids: str = ""
     openai_admin_api_key: str = ""
+    openai_monthly_budget_usd: float = Field(default=0.0, ge=0)
+    openai_remaining_alert_usd: float = Field(default=2.0, ge=0)
     openai_api_key: str = ""
     openai_vision_model: str = "gpt-4o-mini"
     openai_text_model: str = "gpt-4o-mini"
@@ -57,6 +59,14 @@ class Settings(BaseSettings):
     referral_active_required_days: int = Field(default=5, ge=1)
     premium_trial_days: int = Field(default=1, ge=0)
     winback_offer_days: int = Field(default=1, ge=0)
+    admin_alert_interval_seconds: int = Field(default=300, ge=30)
+    admin_alert_cooldown_seconds: int = Field(default=3600, ge=60)
+    admin_server_load_per_cpu_threshold: float = Field(default=2.0, ge=0)
+    admin_server_memory_percent_threshold: float = Field(default=90.0, ge=1, le=100)
+    admin_server_disk_percent_threshold: float = Field(default=85.0, ge=1, le=100)
+    admin_pending_payments_alert_threshold: int = Field(default=3, ge=1)
+    admin_failed_payments_hour_threshold: int = Field(default=2, ge=1)
+    admin_no_onboarding_alert_threshold: int = Field(default=5, ge=1)
 
     @property
     def is_production(self) -> bool:

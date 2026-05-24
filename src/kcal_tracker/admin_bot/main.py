@@ -5,6 +5,7 @@ import logging
 import shutil
 import time
 from collections.abc import Awaitable, Callable
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -22,6 +23,7 @@ from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.logging import configure_logging
 from kcal_tracker.models import AIUsage, FoodEntry, Payment, User, WaterLog, WeightLog
+from kcal_tracker.services.admin_alerts import admin_alert_loop
 from kcal_tracker.services.diary import DiaryService
 from kcal_tracker.services.subscriptions import has_active_subscription
 from kcal_tracker.services.users import UserService
@@ -80,9 +82,13 @@ async def main() -> None:
     dispatcher.message.middleware(AdminAccessMiddleware(admin_ids))
     dispatcher.callback_query.middleware(AdminAccessMiddleware(admin_ids))
     dispatcher.include_router(router)
+    admin_alerts = asyncio.create_task(admin_alert_loop(bot, admin_ids))
     try:
         await dispatcher.start_polling(bot)
     finally:
+        admin_alerts.cancel()
+        with suppress(asyncio.CancelledError):
+            await admin_alerts
         await bot.session.close()
 
 
@@ -731,15 +737,18 @@ async def _openai_text() -> str:
                 amount.get("value") or 0
             )
     totals = ", ".join(f"{value:.2f} {currency}" for currency, value in total_by_currency.items())
-    return "\n".join(
-        [
-            "💳 OpenAI",
-            "",
-            f"Costs API за месяц: {totals or '0'}",
-            "",
-            local_ai,
-        ]
-    )
+    lines = ["💳 OpenAI", "", f"Costs API за месяц: {totals or '0'}"]
+    if settings.openai_monthly_budget_usd > 0:
+        spent_usd = total_by_currency.get("USD", 0.0)
+        remaining = settings.openai_monthly_budget_usd - spent_usd
+        lines.append(
+            f"Бюджет: ${settings.openai_monthly_budget_usd:.2f}, осталось примерно ${remaining:.2f}"
+        )
+        lines.append(f"Порог алерта: ${settings.openai_remaining_alert_usd:.2f}")
+    else:
+        lines.append("Месячный бюджет не задан: OPENAI_MONTHLY_BUDGET_USD=0")
+    lines.extend(["", local_ai])
+    return "\n".join(lines)
 
 
 async def _local_ai_cost_hint() -> str:
@@ -887,6 +896,10 @@ def _config_text() -> str:
             f"PUBLIC_API_URL: {settings.public_api_url}",
             f"AI trial: {settings.ai_trial_request_limit}",
             f"AI basic/day: {settings.ai_basic_daily_request_limit}",
+            f"OpenAI budget/month: ${settings.openai_monthly_budget_usd:.2f}",
+            f"OpenAI alert remaining: ${settings.openai_remaining_alert_usd:.2f}",
+            f"Alert interval: {settings.admin_alert_interval_seconds}s",
+            f"Alert cooldown: {settings.admin_alert_cooldown_seconds}s",
             f"Premium trial days: {settings.premium_trial_days}",
             f"Referral reward days: {settings.referral_reward_days}",
             f"Admin IDs: {len(settings.admin_ids)}",
