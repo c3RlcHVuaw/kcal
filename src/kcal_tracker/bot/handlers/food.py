@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 
 from aiogram import F, Router
+from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 
 from kcal_tracker.bot.keyboards import (
+    MAIN_MENU_TEXTS,
     after_save_keyboard,
     calorie_warning_keyboard,
     food_confirmation_keyboard,
@@ -25,7 +28,7 @@ from kcal_tracker.services.ai_audio import AIAudioService
 from kcal_tracker.services.ai_food import AIFoodService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
-from kcal_tracker.services.diary import DiaryService
+from kcal_tracker.services.diary import DiaryService, estimate_from_entry
 from kcal_tracker.services.fatsecret import FatSecretService
 from kcal_tracker.services.food_insights import enrich_food_payload, food_label
 from kcal_tracker.services.food_search import estimate_common_food
@@ -94,6 +97,9 @@ async def ask_barcode_from_inline(callback: CallbackQuery, state: FSMContext) ->
 @router.message(FoodFlow.waiting_manual, F.text)
 @router.message(FoodFlow.waiting_barcode_photo, F.text)
 async def parse_manual_food(message: Message, state: FSMContext) -> None:
+    if await _show_history_confirmation(message, state):
+        return
+
     free_estimates = await _free_food_estimates(message.text or "")
     if len(free_estimates) == 1:
         await _show_confirmation(message, state, free_estimates[0], "food_search")
@@ -117,6 +123,11 @@ async def parse_manual_food(message: Message, state: FSMContext) -> None:
         await message.answer("Не разобрал еду достаточно уверенно. Попробуй написать чуть проще.")
         return
     await _show_estimates_confirmation(message, state, estimates, "manual")
+
+
+@router.message(StateFilter(None), F.text, lambda message: _looks_like_quick_food_text(message.text or ""))
+async def quick_food_input(message: Message, state: FSMContext) -> None:
+    await parse_manual_food(message, state)
 
 
 @router.message(F.voice)
@@ -230,6 +241,42 @@ async def _free_food_estimate(text: str) -> FoodEstimate | None:
     return estimates[0] if estimates else None
 
 
+async def _show_history_confirmation(message: Message, state: FSMContext) -> bool:
+    estimate = await _history_food_estimate(
+        message.text or "",
+        message.from_user.id,
+        message.from_user.username,
+    )
+    if estimate is None:
+        return False
+    await _show_confirmation(
+        message,
+        state,
+        estimate,
+        "history",
+        intro="Обычно ты добавляешь это так:",
+    )
+    return True
+
+
+async def _history_food_estimate(
+    text: str,
+    telegram_id: int,
+    username: str | None,
+) -> FoodEstimate | None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(telegram_id, username)
+        entry = await DiaryService(session).recent_matching_entry(user, text)
+    if entry is None:
+        return None
+    estimate = estimate_from_entry(entry)
+    grams = _extract_requested_grams(text)
+    if grams is not None and estimate.weight_g:
+        estimate = _scale_estimate(estimate, grams / estimate.weight_g)
+    estimate.confidence = estimate.confidence or 0.92
+    return estimate
+
+
 async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimate]:
     barcode = normalize_barcode(text)
     async with SessionLocal() as session:
@@ -267,6 +314,45 @@ async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimat
     if estimate is not None:
         return [estimate]
     return []
+
+
+def _looks_like_quick_food_text(text: str) -> bool:
+    value = " ".join(text.split())
+    if not value or value in MAIN_MENU_TEXTS or value.startswith("/"):
+        return False
+    if len(value) < 3 or len(value) > 160:
+        return False
+    lowered = value.casefold()
+    if lowered.endswith("?") or lowered.startswith(("как ", "что ", "почему ", "зачем ")):
+        return False
+    if lowered.startswith(("вода", "воды", "выпил", "выпила", "вес ", "бег ", "тренировка")):
+        return False
+    if re.search(r"\d", value):
+        return bool(re.search(r"[a-zа-яё]", lowered)) or normalize_barcode(value) is not None
+    food_words = (
+        "завтрак",
+        "обед",
+        "ужин",
+        "перекус",
+        "кофе",
+        "латте",
+        "чай",
+        "йогурт",
+        "творог",
+        "курица",
+        "рыба",
+        "рис",
+        "гречка",
+        "суп",
+        "салат",
+        "омлет",
+        "яйца",
+        "банан",
+        "яблоко",
+        "хлеб",
+        "сыр",
+    )
+    return any(word in lowered for word in food_words)
 
 
 async def _show_search_results(
@@ -816,6 +902,8 @@ async def _show_confirmation(
     state: FSMContext,
     estimate: FoodEstimate,
     source: str,
+    *,
+    intro: str = "Я нашёл:",
 ) -> None:
     await state.set_state(FoodFlow.confirming)
     data = await state.get_data()
@@ -824,7 +912,11 @@ async def _show_confirmation(
         update["base_estimate"] = estimate.model_dump_json()
     await state.update_data(**update)
     await message.answer(
-        _format_estimate_confirmation(estimate, show_portion_hint=source == "ai_photo"),
+        _format_estimate_confirmation(
+            estimate,
+            show_portion_hint=source == "ai_photo",
+            intro=intro,
+        ),
         reply_markup=food_confirmation_keyboard(
             "food",
             allow_refine=source in {"ai_photo", "manual"},
@@ -977,7 +1069,7 @@ async def _multi_food_warning(
     for estimate in pending:
         warning = high_calorie_add_warning(summary, estimate)
         if warning:
-            return warning.replace("ещё одну калорийную позицию", "эти позиции")
+            return warning.replace("Точно добавить?", "Точно добавить эти позиции?")
 
     pending_kcal = sum(estimate.kcal for estimate in pending)
     if pending_kcal and summary.kcal + pending_kcal > summary.target_kcal:
@@ -1066,9 +1158,10 @@ def _format_estimate_confirmation(
     estimate: FoodEstimate,
     *,
     show_portion_hint: bool = False,
+    intro: str = "Я нашёл:",
 ) -> str:
     lines = [
-        "Я нашёл:",
+        intro,
         "",
         f"{food_label(estimate)} — {estimate.weight_g or 0:.0f}г",
         f"🔥 {estimate.kcal:.0f} ккал",
@@ -1138,6 +1231,19 @@ def _parse_positive_float(value: str) -> float | None:
     if parsed <= 0 or parsed > 10000:
         return None
     return parsed
+
+
+def _extract_requested_grams(value: str) -> float | None:
+    match = re.search(r"(\d+(?:[,.]\d+)?)\s*(?:г|гр|грамм|граммов)\b", value.casefold())
+    if not match:
+        return None
+    try:
+        grams = float(match.group(1).replace(",", "."))
+    except ValueError:
+        return None
+    if grams <= 0 or grams > 10000:
+        return None
+    return grams
 
 
 def _scale_estimate(estimate: FoodEstimate, ratio: float) -> FoodEstimate:

@@ -23,9 +23,9 @@ def diet_quality_note(summary: DiarySummary) -> str:
     if summary.protein < summary.target_protein:
         notes.append(f"Белка осталось примерно {summary.target_protein - summary.protein:.0f}г.")
     if summary.kcal > summary.target_kcal:
-        notes.append("Калории уже выше цели.")
+        notes.append("Калории выше цели, без резких компенсаций.")
     if summary.fat > summary.target_fat:
-        notes.append("Жиры уже выше цели.")
+        notes.append("Жиры выше плана, следующий приём можно сделать легче.")
     if not notes:
         notes.append("День выглядит ровно. Продолжаем спокойно.")
     return " ".join(notes)
@@ -37,7 +37,7 @@ def smart_problem_signals(summary: DiarySummary, water_ml: int = 0) -> list[str]
     protein_left = summary.target_protein - summary.protein
 
     if kcal_left < -150:
-        signals.append(f"⚠️ Калории выше цели на {abs(kcal_left):.0f} ккал")
+        signals.append(f"Калории выше цели на {abs(kcal_left):.0f} ккал, это поправимо")
     elif abs(kcal_left) <= 150:
         signals.append("✅ Калории рядом с целью")
     elif kcal_left > 600 and summary.entries:
@@ -87,7 +87,7 @@ def smart_evening_hint(summary: DiarySummary) -> str:
     if kcal_left > 250:
         return f"До цели осталось около {kcal_left:.0f} ккал."
     if kcal_left < -150:
-        return "Калории уже выше цели. Дальше лучше что-то лёгкое."
+        return "Калории выше цели. Ничего страшного: дальше лучше что-то лёгкое."
     return "Вечер выглядит спокойно: можно просто закрыть день без суеты."
 
 
@@ -114,7 +114,7 @@ def smart_day_coach(summary: DiarySummary, water_ml: int = 0) -> str:
 
     risks: list[str] = []
     if kcal_delta > 150:
-        risks.append("калории уже выше цели")
+        risks.append("калории выше цели, без резких компенсаций")
     if protein_left > 25:
         risks.append("белка заметно не хватает")
     if fat_over > 10:
@@ -309,9 +309,8 @@ def automatic_pattern_notes(patterns: Any | None) -> list[str]:
         ratio = no_breakfast_over_target_days / no_breakfast_days
         if ratio >= 0.5:
             notes.append(
-                "Паттерн: в дни без завтрака чаще получается "
-                "перебор к вечеру. Лучше занести хотя бы "
-                "лёгкий белковый завтрак."
+                "Паттерн: в дни без завтрака вечером чаще тянет добрать лишнее. "
+                "Лучше занести хотя бы лёгкий белковый завтрак."
             )
 
     sweet_drink_days = int(patterns.sweet_drink_days)
@@ -349,7 +348,7 @@ def smart_morning_hint(yesterday: DiarySummary) -> str:
     if kcal_delta > 200:
         return (
             "Вчера калории были выше цели. "
-            "Сегодня начни спокойно: белок, вода и без сладкого натощак."
+            "Сегодня начни спокойно: белок, вода и обычный ритм без наказаний."
         )
     if protein_left > 25:
         return "Вчера не добрали белок. На завтрак хорошо зайдут яйца, творог или йогурт."
@@ -408,5 +407,5 @@ def high_calorie_add_warning(summary: DiarySummary, item) -> str | None:
     detail = "; ".join(reasons)
     return (
         "Похоже, день уже довольно плотный по калориям: "
-        f"{detail}. Точно добавить ещё одну калорийную позицию?"
+        f"{detail}. Если это реальная еда, добавим спокойно. Точно добавить?"
     )

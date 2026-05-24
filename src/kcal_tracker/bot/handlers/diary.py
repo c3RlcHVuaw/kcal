@@ -1186,12 +1186,14 @@ async def _day_view_for_user(
         wellness = WellnessService(session)
         water_ml = await wellness.water_ml_for_day_offset(user, days_ago=days_ago)
         activities = await wellness.activities_for_day_offset(user, days_ago=days_ago)
+        missions = await GrowthService(session).weekly_missions(user) if days_ago == 0 else None
         timezone_name = user.timezone
 
     return _today_view(
         summary,
         water_ml,
         activities=activities,
+        missions=missions,
         patterns=patterns,
         show_advanced_patterns=has_subscription and days_ago == 0,
         timezone_name=timezone_name,
@@ -1206,6 +1208,7 @@ def _today_view(
     water_ml: int,
     *,
     activities=None,
+    missions: WeeklyMissions | None = None,
     patterns=None,
     show_advanced_patterns: bool = False,
     timezone_name: str = settings.default_timezone,
@@ -1252,6 +1255,9 @@ def _today_view(
         for index, activity in enumerate(activities, start=1):
             lines.append(_activity_line(index, activity, timezone_name))
 
+    if missions and mode == "today":
+        lines.extend(["", *_mini_goal_lines(missions)])
+
     if include_advice:
         forecast = end_of_day_forecast(summary, patterns)
         lines.extend(
@@ -1278,6 +1284,20 @@ def _today_view(
         )
 
     return "\n".join(lines), food_entries_keyboard(entry_ids, mode=mode)
+
+
+def _mini_goal_lines(missions: WeeklyMissions) -> list[str]:
+    active = [mission for mission in missions.missions if not mission.completed]
+    if not active:
+        if missions.eligible_for_bonus:
+            return ["🎯 Мини-цели", "Все цели недели закрыты. Можно забрать бонус в отчёте за 7 дней."]
+        return ["🎯 Мини-цели", "Цели недели закрыты. Дальше просто держим спокойный ритм."]
+    lines = ["🎯 Мини-цели"]
+    for mission in active[:2]:
+        current = min(mission.current, mission.target)
+        left = max(mission.target - current, 0)
+        lines.append(f"· {mission.title}: {current}/{mission.target}, осталось {left}")
+    return lines
 
 
 def _kcal_left_line(kcal_left: float) -> str:

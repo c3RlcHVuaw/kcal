@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, time
@@ -246,6 +247,29 @@ class DiaryService:
         frequent.sort(key=lambda item: (item.count, item.entry.created_at), reverse=True)
         return frequent[:limit]
 
+    async def recent_matching_entry(self, user: User, text: str) -> FoodEntry | None:
+        query = _normalize_food_query(text)
+        if len(query) < 3:
+            return None
+
+        result = await self.session.execute(
+            select(FoodEntry)
+            .where(FoodEntry.user_id == user.id)
+            .order_by(FoodEntry.created_at.desc())
+            .limit(200)
+        )
+        query_words = set(query.split())
+        for entry in result.scalars():
+            entry_query = _normalize_food_query(entry.food_name)
+            if not entry_query:
+                continue
+            entry_words = set(entry_query.split())
+            if query == entry_query or query in entry_query or entry_query in query:
+                return entry
+            if query_words and entry_words and query_words.issubset(entry_words):
+                return entry
+        return None
+
     async def weekly_analytics(self, user: User, days: int = 7) -> WeeklyAnalytics:
         tz = ZoneInfo(user.timezone)
         today = datetime.now(tz).date()
@@ -396,6 +420,14 @@ def estimate_from_entry(entry: FoodEntry) -> FoodEstimate:
         advice=entry.advice,
         confidence=entry.confidence,
     )
+
+
+def _normalize_food_query(text: str) -> str:
+    value = text.casefold()
+    value = re.sub(r"\d+(?:[,.]\d+)?", " ", value)
+    value = re.sub(r"\b(?:г|гр|грамм|граммов|кг|мл|л|ккал|кал)\b", " ", value)
+    value = re.sub(r"[^a-zа-яё0-9]+", " ", value)
+    return " ".join(value.split())
 
 
 def _as_user_time(value: datetime, tz: ZoneInfo) -> datetime:
