@@ -62,35 +62,73 @@ def more_menu_keyboard(
     has_frequent_foods: bool = True,
     has_yesterday_entries: bool = True,
 ) -> InlineKeyboardMarkup:
-    food_shortcuts = [InlineKeyboardButton(text="⚡ Шаблоны", callback_data="nav:templates")]
-    if has_frequent_foods:
-        food_shortcuts.insert(
-            0,
-            InlineKeyboardButton(text="⚡ Частое", callback_data="nav:frequent"),
-        )
-
-    history_shortcuts = [InlineKeyboardButton(text="📈 7 дней", callback_data="nav:week")]
-    if has_yesterday_entries:
-        history_shortcuts.insert(
-            0,
-            InlineKeyboardButton(text="↩️ Как вчера", callback_data="nav:yesterday"),
-        )
-
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal")],
-            food_shortcuts,
-            history_shortcuts,
-            [InlineKeyboardButton(text="📅 Месяц", callback_data="nav:month")],
+            [InlineKeyboardButton(text="🍽 Что съесть сейчас", callback_data="coach:meal")],
+            [
+                InlineKeyboardButton(text="🍽 Еда", callback_data="nav:food-tools"),
+                InlineKeyboardButton(text="📈 Прогресс", callback_data="nav:progress-tools"),
+            ],
+            [
+                InlineKeyboardButton(text="💧 Тело", callback_data="nav:body-tools"),
+                InlineKeyboardButton(text="⚙️ Сервис", callback_data="nav:service-tools"),
+            ],
+            [
+                InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings:open"),
+                InlineKeyboardButton(text="💎 Подписка", callback_data="subscription:open"),
+            ],
+        ]
+    )
+
+
+def food_tools_keyboard(
+    *,
+    has_frequent_foods: bool = True,
+    has_yesterday_entries: bool = True,
+) -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton(text="⚡ Шаблоны", callback_data="nav:templates")]]
+    if has_frequent_foods:
+        rows.insert(0, [InlineKeyboardButton(text="⚡ Частое", callback_data="nav:frequent")])
+    if has_yesterday_entries:
+        rows.append([InlineKeyboardButton(text="↩️ Как вчера", callback_data="nav:yesterday")])
+    rows.append([InlineKeyboardButton(text="➕ Добавить еду", callback_data="nav:add-food")])
+    rows.append([InlineKeyboardButton(text="☰ Ещё", callback_data="nav:more")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def progress_tools_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="📈 7 дней", callback_data="nav:week"),
+                InlineKeyboardButton(text="📅 Месяц", callback_data="nav:month"),
+            ],
+            [InlineKeyboardButton(text="📊 Сегодня", callback_data="nav:today")],
+            [InlineKeyboardButton(text="☰ Ещё", callback_data="nav:more")],
+        ]
+    )
+
+
+def body_tools_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="💧 Вода", callback_data="nav:water")],
             [
                 InlineKeyboardButton(text="🏃 Активность", callback_data="nav:activity"),
                 InlineKeyboardButton(text="⚖️ Вес", callback_data="nav:weight"),
             ],
-            [
-                InlineKeyboardButton(text="⏰ Напомнить", callback_data="nav:reminders"),
-                InlineKeyboardButton(text="💎 Подписка", callback_data="subscription:open"),
-            ],
+            [InlineKeyboardButton(text="☰ Ещё", callback_data="nav:more")],
+        ]
+    )
+
+
+def service_tools_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="⏰ Напоминания", callback_data="nav:reminders")],
             [InlineKeyboardButton(text="⚙️ Настройки", callback_data="settings:open")],
+            [InlineKeyboardButton(text="💎 Подписка", callback_data="subscription:open")],
+            [InlineKeyboardButton(text="☰ Ещё", callback_data="nav:more")],
         ]
     )
 
@@ -156,6 +194,31 @@ def after_save_keyboard() -> InlineKeyboardMarkup:
             ],
         ]
     )
+
+
+def smart_after_food_save_keyboard(
+    *,
+    entry_id: int | None = None,
+    kcal_left: float | None = None,
+    protein_left: float | None = None,
+    water_ml: int | None = None,
+) -> InlineKeyboardMarkup:
+    rows = [
+        [
+            InlineKeyboardButton(text="📊 Сегодня", callback_data="nav:today"),
+            InlineKeyboardButton(text="➕ Ещё еду", callback_data="nav:add-food"),
+        ]
+    ]
+    smart_row: list[InlineKeyboardButton] = []
+    if water_ml is not None and water_ml < 1000:
+        smart_row.append(InlineKeyboardButton(text="💧 Вода", callback_data="water:add:250"))
+    if kcal_left is not None and (kcal_left <= 350 or (protein_left or 0) >= 25):
+        smart_row.append(InlineKeyboardButton(text="🍽 Что съесть?", callback_data="coach:meal"))
+    if smart_row:
+        rows.append(smart_row[:2])
+    if entry_id is not None:
+        rows.append([InlineKeyboardButton(text="⭐ В шаблон", callback_data=f"entry:fav:{entry_id}")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def after_water_save_keyboard() -> InlineKeyboardMarkup:
@@ -549,7 +612,7 @@ def subscription_plan_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     text=(
-                        f"Старт {settings.ai_subscription_rub} ₽ "
+                        f"Старт: умный дневник {settings.ai_subscription_rub} ₽ "
                         f"({settings.ai_basic_daily_request_limit}/день)"
                     ),
                     callback_data="subscription:plan:basic",
@@ -557,7 +620,7 @@ def subscription_plan_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text=f"Безлимит {settings.ai_unlimited_subscription_rub} ₽",
+                    text=f"Безлимит: максимум AI {settings.ai_unlimited_subscription_rub} ₽",
                     callback_data="subscription:plan:unlimited",
                 )
             ],
@@ -646,7 +709,7 @@ def subscription_bonuses_keyboard(
 def subscription_cta_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="Оформить подписку", callback_data="subscription:subscribe")]
+            [InlineKeyboardButton(text="Посмотреть возможности Premium", callback_data="subscription:open")]
         ]
     )
 

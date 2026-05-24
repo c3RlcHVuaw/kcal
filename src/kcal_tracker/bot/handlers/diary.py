@@ -64,7 +64,7 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 ADVANCED_PATTERNS_UPSELL = (
-    "Продвинутые паттерны по завтракам, напиткам и вечерам доступны в подписке."
+    "Premium покажет паттерны по завтракам, напиткам и вечерам, когда накопится история."
 )
 DAILY_CARD_CAPTION = (
     "Мой итог дня в Kcal: еда, калории, БЖУ, вода и активность в одной карточке.\n\n"
@@ -1214,6 +1214,7 @@ def _today_view(
     mode: str = "today",
 ):
     activities = activities or []
+    kcal_left = summary.target_kcal - summary.kcal
     target_line = f"🔥 {summary.kcal:.0f} / {summary.target_kcal} ккал"
     if summary.activity_kcal:
         target_line += (
@@ -1224,9 +1225,12 @@ def _today_view(
         title,
         "",
         target_line,
-        _macro_line("Белки", summary.protein, summary.target_protein),
-        _macro_line("Жиры", summary.fat, summary.target_fat),
-        _macro_line("Углеводы", summary.carbs, summary.target_carbs),
+        _kcal_left_line(kcal_left),
+        "",
+        _progress_line("Калории", summary.kcal, summary.target_kcal, unit="ккал"),
+        _progress_line("Белки", summary.protein, summary.target_protein, unit="г"),
+        _progress_line("Жиры", summary.fat, summary.target_fat, unit="г"),
+        _progress_line("Углеводы", summary.carbs, summary.target_carbs, unit="г"),
         f"💧 Вода: {water_ml} мл",
     ]
     entry_ids: list[int] = []
@@ -1274,6 +1278,27 @@ def _today_view(
         )
 
     return "\n".join(lines), food_entries_keyboard(entry_ids, mode=mode)
+
+
+def _kcal_left_line(kcal_left: float) -> str:
+    if kcal_left >= 0:
+        return f"Осталось: {kcal_left:.0f} ккал"
+    return f"Выше цели на {abs(kcal_left):.0f} ккал"
+
+
+def _progress_line(label: str, value: float, target: float, *, unit: str) -> str:
+    return f"{label}: {value:.0f}/{target:.0f} {unit} {_progress_bar(value, target)}"
+
+
+def _progress_bar(value: float, target: float, *, width: int = 8) -> str:
+    if target <= 0:
+        return "░" * width
+    ratio = max(0, min(value / target, 1))
+    filled = round(ratio * width)
+    bar = "█" * filled + "░" * (width - filled)
+    if value > target:
+        return bar + "+"
+    return bar
 
 
 def _day_offset_title(timezone_name: str, *, days_ago: int) -> str:
@@ -1470,7 +1495,8 @@ async def _ensure_ai_available(message: Message, request_count: int = 1) -> bool
                 await usage_service.ensure_trial_allowed(user, request_count=request_count)
             except AILimitReachedError:
                 await message.answer(
-                    "Бесплатные AI-запросы закончились. "
+                    "Пробные AI-разборы закончились. Premium распознаёт активность, "
+                    "еду по фото и помогает с подсказками дня. "
                     "Можно написать расход вручную: «я потратил 100 ккал».",
                     reply_markup=subscription_cta_keyboard(),
                 )

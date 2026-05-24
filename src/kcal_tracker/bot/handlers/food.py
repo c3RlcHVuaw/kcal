@@ -16,6 +16,7 @@ from kcal_tracker.bot.keyboards import (
     frequent_foods_keyboard,
     multi_food_keyboard,
     repeat_yesterday_keyboard,
+    smart_after_food_save_keyboard,
     subscription_cta_keyboard,
 )
 from kcal_tracker.database import SessionLocal
@@ -38,6 +39,7 @@ from kcal_tracker.services.nutrition import high_calorie_add_warning
 from kcal_tracker.services.open_food_facts import OpenFoodFactsService, ProductNotFoundError
 from kcal_tracker.services.subscriptions import has_active_subscription
 from kcal_tracker.services.users import UserService
+from kcal_tracker.services.wellness import WellnessService
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -104,7 +106,7 @@ async def parse_manual_food(message: Message, state: FSMContext) -> None:
         await message.answer(
             "В базе продуктов не нашёл. Попробуй написать короче, например "
             "«ореховый латте», отправить цифры штрихкода или фото штрихкода. "
-            "AI-поиск доступен по подписке.",
+            "Premium умеет разбирать такие описания через AI и сразу готовить запись.",
             reply_markup=subscription_cta_keyboard(),
         )
         return
@@ -207,7 +209,7 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
             await message.answer(
                 "Штрихкод не считался. Попробуй снять ближе и ровнее, "
                 "чтобы полоски занимали большую часть кадра. "
-                "AI-распознавание фото доступно по подписке.",
+                "Premium в такой ситуации может распознать саму еду по фото.",
                 reply_markup=subscription_cta_keyboard(),
             )
             return
@@ -660,15 +662,23 @@ async def _add_confirmed_food(
             telegram_id=callback.from_user.id,
             username=callback.from_user.username,
         )
-        await DiaryService(session).add_entry(
+        diary = DiaryService(session)
+        entry = await diary.add_entry(
             user,
             FoodEntryCreate(**estimate.model_dump(), source=source),
         )
+        summary = await diary.today_summary(user)
+        water_ml = await WellnessService(session).today_water_ml(user)
 
     await state.clear()
     await callback.message.edit_text(
         _format_saved_food(estimate),
-        reply_markup=after_save_keyboard(),
+        reply_markup=smart_after_food_save_keyboard(
+            entry_id=entry.id,
+            kcal_left=summary.target_kcal - summary.kcal,
+            protein_left=summary.target_protein - summary.protein,
+            water_ml=water_ml,
+        ),
     )
     await callback.answer()
 
@@ -887,13 +897,13 @@ async def _ensure_ai_available(message: Message, request_count: int = 1) -> bool
             except AILimitReachedError:
                 if await usage_service.remaining_trial(user) <= 0:
                     await message.answer(
-                        "Бесплатные 3 AI-запроса закончились. "
-                        "Подписку можно открыть ниже.",
+                        "Пробные AI-распознавания закончились. "
+                        "Premium откроет фото, голос, уточнения еды и умные подсказки дня.",
                         reply_markup=subscription_cta_keyboard(),
                     )
                 else:
                     await message.answer(
-                        "Лимит AI на сегодня закончился. Штрихкоды всё ещё работают."
+                        "AI на сегодня закончился. Штрихкоды и ручной ввод всё ещё работают."
                     )
                 return False
             return True
@@ -901,7 +911,7 @@ async def _ensure_ai_available(message: Message, request_count: int = 1) -> bool
         try:
             await usage_service.ensure_allowed(user, request_count=request_count)
         except AILimitReachedError:
-            await message.answer("Лимит AI на сегодня закончился. Штрихкоды всё ещё работают.")
+            await message.answer("AI на сегодня закончился. Штрихкоды и ручной ввод всё ещё работают.")
             return False
     return True
 

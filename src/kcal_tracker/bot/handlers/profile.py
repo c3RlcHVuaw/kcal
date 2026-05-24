@@ -66,7 +66,7 @@ async def onboarding_language(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "onboarding:start")
 async def onboarding_start(callback: CallbackQuery) -> None:
     await callback.message.edit_text(
-        "Какая цель сейчас главная?",
+        "Шаг 1 из 5. Какая цель сейчас главная?",
         reply_markup=goal_keyboard(),
     )
     await callback.answer()
@@ -83,7 +83,7 @@ async def onboarding_goal(callback: CallbackQuery) -> None:
         user.goal = goal
         await session.commit()
     await callback.message.edit_text(
-        "Укажи пол, чтобы я точнее посчитал дневную норму.",
+        "Шаг 2 из 5. Укажи пол, чтобы я точнее посчитал дневную норму.",
         reply_markup=gender_keyboard(),
     )
     await callback.answer()
@@ -125,7 +125,7 @@ async def onboarding_birth_date(message: Message, state: FSMContext) -> None:
         await session.commit()
     await state.set_state(OnboardingFlow.height)
     await message.answer(
-        "Теперь рост в сантиметрах. "
+        "Шаг 4 из 5. Теперь рост в сантиметрах. "
         "Это помогает точнее посчитать норму.",
         reply_markup=onboarding_skip_keyboard("onboarding:height:skip"),
     )
@@ -136,7 +136,7 @@ async def onboarding_birth_date_skip(callback: CallbackQuery, state: FSMContext)
     await state.set_state(OnboardingFlow.height)
     await callback.message.edit_text(
         "Ок, можно заполнить позже. "
-        "Теперь рост в сантиметрах.",
+        "Шаг 4 из 5. Теперь рост в сантиметрах.",
         reply_markup=onboarding_skip_keyboard("onboarding:height:skip"),
     )
     await callback.answer()
@@ -156,14 +156,14 @@ async def onboarding_height(message: Message, state: FSMContext) -> None:
         user.height = height
         await session.commit()
     await state.set_state(OnboardingFlow.weight)
-    await message.answer("И текущий вес в кг.")
+    await message.answer("Шаг 5 из 5. И текущий вес в кг.")
 
 
 @router.callback_query(F.data == "onboarding:height:skip")
 async def onboarding_height_skip(callback: CallbackQuery, state: FSMContext) -> None:
     await state.set_state(OnboardingFlow.weight)
     await callback.message.edit_text(
-        "Ок, рост можно добавить позже. Напиши текущий вес в кг."
+        "Ок, рост можно добавить позже. Шаг 5 из 5: напиши текущий вес в кг."
     )
     await callback.answer()
 
@@ -200,10 +200,13 @@ async def onboarding_activity(callback: CallbackQuery, state: FSMContext) -> Non
         apply_default_macro_targets(user)
         user.onboarding_completed = True
         target = user.daily_kcal_target
+        protein = user.protein_target_g
+        fat = user.fat_target_g
+        carbs = user.carbs_target_g
         await session.commit()
     await state.clear()
     await callback.message.edit_text(
-        _onboarding_finish_text(target),
+        _onboarding_finish_text(target, protein=protein, fat=fat, carbs=carbs),
         reply_markup=onboarding_finish_keyboard(),
     )
     await callback.message.answer("Главное меню ниже.", reply_markup=main_menu())
@@ -475,13 +478,12 @@ def _parse_settings_value(
 def _onboarding_intro_text() -> str:
     return "\n".join(
         [
-            "Соберу твой дневной план калорий и БЖУ.",
+            "Соберу твой личный дневной план калорий и БЖУ.",
             "",
-            "После этого можно сразу добавлять еду текстом, "
-            "фото или штрихкодом, "
-            "а бот будет показывать остаток на день.",
+            "В конце покажу цель на день, белки, жиры и углеводы. "
+            "Потом можно сразу записать первую еду текстом, фото или штрихкодом.",
             "",
-            "Займёт меньше минуты.",
+            "5 коротких шагов, меньше минуты.",
         ]
     )
 
@@ -489,7 +491,7 @@ def _onboarding_intro_text() -> str:
 def _birth_date_prompt() -> str:
     return "\n".join(
         [
-            "Дата рождения?",
+            "Шаг 3 из 5. Дата рождения?",
             "",
             "Она нужна только для расчёта возраста "
             "и более точной нормы калорий.",
@@ -498,14 +500,28 @@ def _birth_date_prompt() -> str:
     )
 
 
-def _onboarding_finish_text(target: int) -> str:
+def _onboarding_finish_text(
+    target: int,
+    *,
+    protein: float | None = None,
+    fat: float | None = None,
+    carbs: float | None = None,
+) -> str:
+    macro_line = ""
+    if protein is not None and fat is not None and carbs is not None:
+        macro_line = f"БЖУ: {protein:.0f}/{fat:.0f}/{carbs:.0f} г."
     return "\n".join(
-        [
+        line
+        for line in [
             f"Готово. Твоя цель на день: {target} ккал.",
+            macro_line,
             "",
-            "Я буду показывать, сколько осталось, "
-            "и помогать добавлять еду без таблиц.",
+            "Теперь главный экран будет показывать остаток, прогресс по БЖУ "
+            "и следующий полезный шаг.",
+            "",
+            "Лучше всего начать с первой реальной записи: так дневник сразу станет полезным.",
         ]
+        if line
     )
 
 

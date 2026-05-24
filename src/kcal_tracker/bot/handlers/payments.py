@@ -90,12 +90,17 @@ async def _subscription_view(
             [
                 text,
                 "",
-                "AI по фото, тексту и голосу на 30 дней.",
+                "Premium делает дневник быстрее и умнее:",
+                "• фото, текст и голос превращаются в готовую запись;",
+                "• можно уточнять уже сохранённую еду без ручного пересчёта;",
+                "• открываются паттерны питания и более полезные советы дня;",
+                "• недельный разбор помогает понять, что реально мешает цели.",
+                "",
                 (
-                    f"Старт: {settings.ai_subscription_rub} ₽, "
-                    f"{settings.ai_basic_daily_request_limit} AI-запросов в день."
+                    f"Старт: {settings.ai_subscription_rub} ₽ — "
+                    f"{settings.ai_basic_daily_request_limit} умных распознаваний в день."
                 ),
-                f"Безлимит: {settings.ai_unlimited_subscription_rub} ₽.",
+                f"Безлимит: {settings.ai_unlimited_subscription_rub} ₽ — без дневного потолка.",
                 f"Звёзды Telegram дороже: от {settings.ai_subscription_stars} ⭐.",
                 "За первого активного друга дадим 7 дней AI. "
                 "За следующих — 7 дней после их первой оплаты.",
@@ -164,11 +169,15 @@ async def choose_subscription_plan(callback: CallbackQuery) -> None:
     await callback.message.edit_text(
         "\n".join(
             [
-                "Выбери тариф",
+                "Выбери Premium",
                 "",
-                f"Старт: {settings.ai_subscription_rub} ₽, "
-                f"{settings.ai_basic_daily_request_limit} AI-запросов в день.",
-                f"Безлимит: {settings.ai_unlimited_subscription_rub} ₽.",
+                "Оба тарифа открывают распознавание еды, AI-уточнения, "
+                "паттерны питания и умные советы.",
+                "",
+                f"Старт: {settings.ai_subscription_rub} ₽ — "
+                f"{settings.ai_basic_daily_request_limit} распознаваний в день.",
+                f"Безлимит: {settings.ai_unlimited_subscription_rub} ₽ — для частых фото, "
+                "голоса и уточнений.",
             ]
         ),
         reply_markup=subscription_plan_keyboard(),
