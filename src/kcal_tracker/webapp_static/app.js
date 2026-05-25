@@ -54,7 +54,7 @@ const nodes = {
 tg?.ready();
 tg?.expand();
 tg?.setHeaderColor?.("secondary_bg_color");
-tg?.setBackgroundColor?.("#eef3f7");
+tg?.setBackgroundColor?.(window.matchMedia("(prefers-color-scheme: dark)").matches ? "#0d1117" : "#f3f6f8");
 
 if (tg?.initDataUnsafe?.user?.first_name) {
   nodes.hello.textContent = `Привет, ${tg.initDataUnsafe.user.first_name}`;
@@ -71,8 +71,10 @@ document.querySelectorAll("[data-food-tab]").forEach((button) => {
 
 nodes.refresh.addEventListener("click", loadAll);
 document.querySelector("#refresh-hero")?.addEventListener("click", loadAll);
-document.querySelectorAll("[data-view-shortcut]").forEach((button) => {
-  button.addEventListener("click", () => switchView(button.dataset.viewShortcut));
+document.addEventListener("click", (event) => {
+  const shortcut = event.target.closest("[data-view-shortcut]");
+  if (!shortcut) return;
+  switchView(shortcut.dataset.viewShortcut);
 });
 nodes.repeatYesterday.addEventListener("click", repeatYesterday);
 nodes.openBot.addEventListener("click", () => tg?.close());
@@ -249,11 +251,42 @@ function renderToday(data) {
   nodes.goalWeight.value = data.weight_goal.target_weight_kg ? formatNumber(data.weight_goal.target_weight_kg) : "";
   nodes.goalPace.value = data.weight_goal.weekly_weight_change_kg ? formatNumber(data.weight_goal.weekly_weight_change_kg) : "";
 
-  if (!diary.entries.length) {
-    nodes.entries.innerHTML = '<p class="empty-state">Сегодня пока пусто. Добавь первый приём еды.</p>';
-    return;
-  }
-  nodes.entries.innerHTML = diary.entries.map((entry) => `
+  nodes.entries.innerHTML = renderMealDiary(diary.entries);
+}
+
+function renderMealDiary(entries) {
+  const meals = [
+    { id: "breakfast", title: "Завтрак", hint: "до 11:00", items: [] },
+    { id: "lunch", title: "Обед", hint: "11:00-16:00", items: [] },
+    { id: "dinner", title: "Ужин", hint: "16:00-21:00", items: [] },
+    { id: "snack", title: "Перекус", hint: "после 21:00", items: [] },
+  ];
+  const byId = Object.fromEntries(meals.map((meal) => [meal.id, meal]));
+
+  entries.forEach((entry) => byId[mealIdForEntry(entry)].items.push(entry));
+
+  return meals.map((meal) => {
+    const kcal = meal.items.reduce((total, entry) => total + Number(entry.kcal || 0), 0);
+    const content = meal.items.length
+      ? meal.items.map(renderFoodEntry).join("")
+      : `<button class="meal-empty" type="button" data-view-shortcut="food">Добавить еду</button>`;
+    return `
+      <section class="meal-section">
+        <div class="meal-header">
+          <div>
+            <strong>${meal.title}</strong>
+            <span>${meal.hint}</span>
+          </div>
+          <b>${Math.round(kcal)} ккал</b>
+        </div>
+        <div class="meal-items">${content}</div>
+      </section>
+    `;
+  }).join("");
+}
+
+function renderFoodEntry(entry) {
+  return `
     <article class="entry food-card">
       <div class="food-thumb">${escapeHtml(entry.emoji || foodInitial(entry.name))}</div>
       <div class="food-content">
@@ -269,7 +302,15 @@ function renderToday(data) {
         </div>
       </div>
     </article>
-  `).join("");
+  `;
+}
+
+function mealIdForEntry(entry) {
+  const hour = entry.created_at ? new Date(entry.created_at).getHours() : 12;
+  if (hour < 11) return "breakfast";
+  if (hour < 16) return "lunch";
+  if (hour < 21) return "dinner";
+  return "snack";
 }
 
 function renderWeek(data) {
@@ -279,7 +320,7 @@ function renderWeek(data) {
   const max = Math.max(data.target_kcal, ...data.days.map((day) => day.kcal), 1);
   nodes.weekChart.innerHTML = data.days.map((day) => {
     const height = Math.max(5, Math.round((day.kcal / max) * 116));
-    const color = day.kcal > data.target_kcal + 150 ? "var(--red)" : day.entries_count ? "var(--accent)" : "rgba(120,120,128,.28)";
+    const color = day.kcal > data.target_kcal + 150 ? "var(--danger)" : day.entries_count ? "var(--accent)" : "rgba(120,120,128,.28)";
     return `
       <div class="week-bar">
         <i style="height:${height}px;background:${color}"></i>
@@ -359,18 +400,6 @@ async function repeatYesterday() {
   await Promise.all([loadToday(), loadWeek()]);
   switchView("today");
   toast(entries.length ? "Вчерашний день добавлен" : "Вчера нечего повторять");
-}
-
-async function deleteEntry(entryId) {
-  await api(`/webapp/me/entries/${entryId}`, { method: "DELETE" });
-  await Promise.all([loadToday(), loadWeek(), loadFrequent()]);
-  toast("Запись удалена");
-}
-
-async function favoriteEntry(entryId) {
-  await api(`/webapp/me/entries/${entryId}/favorite`, { method: "POST" });
-  await loadFavorites();
-  toast("Сохранено в шаблоны");
 }
 
 async function exportFood() {

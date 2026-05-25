@@ -72,15 +72,12 @@
           </article>
         </section>
 
-        <section class="day-switcher" aria-label="Дата">
-          <button type="button" aria-label="Предыдущий день">‹</button>
-          <strong>Сегодня</strong>
-          <button type="button" aria-label="Следующий день">›</button>
-        </section>
-
         <section class="list-section component-section">
           <div class="section-title">
-            <h2>Дневник</h2>
+            <div>
+              <h2>Дневник</h2>
+              <p class="section-subtitle">Приёмы пищи за сегодня</p>
+            </div>
             <button class="text-button" type="button" data-view-shortcut="food">Добавить</button>
           </div>
           <div id="entries" class="grouped-list"></div>
@@ -88,6 +85,14 @@
       </section>
 
       <section id="view-food" class="view" data-title="Еда">
+        <section class="plain-section">
+          <div class="section-title">
+            <div>
+              <h2>Добавить еду</h2>
+              <p class="section-subtitle">Ввод, частое и шаблоны отдельно от дневника</p>
+            </div>
+          </div>
+        </section>
         <div class="segmented glass-control" role="tablist" aria-label="Добавление еды">
           <button class="active" type="button" data-food-tab="manual">Вручную</button>
           <button type="button" data-food-tab="frequent">Частое</button>
@@ -128,7 +133,10 @@
       <section id="view-progress" class="view" data-title="Прогресс">
         <section class="plain-section">
           <div class="section-title">
-            <h2>Сводка</h2>
+            <div>
+              <h2>Сводка</h2>
+              <p class="section-subtitle">Тренд питания и цель веса</p>
+            </div>
           </div>
         </section>
         <section class="summary-panel compact component-card accent-card">
@@ -164,7 +172,10 @@
       <section id="view-body" class="view" data-title="Тело">
         <section class="plain-section">
           <div class="section-title">
-            <h2>Быстрые действия</h2>
+            <div>
+              <h2>Быстрые действия</h2>
+              <p class="section-subtitle">Вода, вес и активность</p>
+            </div>
           </div>
         </section>
         <section class="metric-grid body-actions component-grid">
