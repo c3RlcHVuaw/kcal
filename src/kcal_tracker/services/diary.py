@@ -579,6 +579,7 @@ def estimate_from_entry(entry: FoodEntry) -> FoodEstimate:
 
 def _normalize_food_query(text: str) -> str:
     value = text.casefold()
+    value = re.sub(r"\b(?:мой|моя|моё|мое|мои|обычный|обычная|обычное|любимый|любимая)\b", " ", value)
     value = re.sub(r"\d+(?:[,.]\d+)?", " ", value)
     value = re.sub(r"\b(?:г|гр|грамм|граммов|кг|мл|л|ккал|кал)\b", " ", value)
     value = re.sub(r"[^a-zа-яё0-9]+", " ", value)
@@ -586,6 +587,8 @@ def _normalize_food_query(text: str) -> str:
 
 
 def _matches_food_history_query(query: str, entry_query: str) -> bool:
+    query = _normalize_food_query(query)
+    entry_query = _normalize_food_query(entry_query)
     if query == entry_query or query in entry_query:
         return True
     query_words = set(query.split())

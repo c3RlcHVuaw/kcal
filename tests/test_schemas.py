@@ -25,6 +25,7 @@ from kcal_tracker.bot.handlers.diary import (
 from kcal_tracker.bot.handlers.food import (
     _format_estimate_confirmation,
     _format_saved_food,
+    _looks_like_complex_food,
     _scale_estimate,
     _should_use_ai_first,
 )
@@ -68,6 +69,7 @@ from kcal_tracker.services.nutrition import (
     remaining_advice,
     smart_day_coach,
     smart_problem_signals,
+    suspicious_food_warning,
     weekly_coach_note,
     weekly_score,
 )
@@ -631,7 +633,12 @@ def test_photo_confirmation_keyboard_includes_question_buttons() -> None:
 
 
 def test_history_confirmation_keyboard_can_recover_wrong_match() -> None:
-    keyboard = food_confirmation_keyboard("food", allow_ai_retry=True, allow_database_retry=True)
+    keyboard = food_confirmation_keyboard(
+        "food",
+        allow_ai_retry=True,
+        allow_database_retry=True,
+        allow_split=True,
+    )
     callbacks = [
         button.callback_data
         for row in keyboard.inline_keyboard
@@ -640,6 +647,7 @@ def test_history_confirmation_keyboard_can_recover_wrong_match() -> None:
 
     assert "food:ai" in callbacks
     assert "food:search" in callbacks
+    assert "food:split" in callbacks
     assert "food:wrong" in callbacks
 
 
@@ -673,7 +681,21 @@ def test_compound_text_prefers_ai_first() -> None:
 def test_history_match_does_not_match_short_entry_inside_long_query() -> None:
     assert _matches_food_history_query("барни", "барни") is True
     assert _matches_food_history_query("барни", "барни банановый") is True
+    assert _matches_food_history_query("мой барни", "барни банановый") is True
     assert _matches_food_history_query("барни пироженное", "барни") is False
+
+
+def test_complex_food_detection_is_selective() -> None:
+    assert _looks_like_complex_food("паста с курицей") is True
+    assert _looks_like_complex_food("салат цезарь") is True
+    assert _looks_like_complex_food("барни") is False
+
+
+def test_suspicious_food_warning_flags_unrealistic_values() -> None:
+    warning = suspicious_food_warning(FoodEstimate(name="батончик", weight_g=30, kcal=900))
+    assert warning is not None
+    assert "странно" in warning
+    assert suspicious_food_warning(FoodEstimate(name="салат", weight_g=250, kcal=180)) is None
 
 
 def test_scale_estimate_uses_original_portion_ratio() -> None:

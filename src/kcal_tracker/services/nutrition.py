@@ -6,6 +6,7 @@ from kcal_tracker.schemas import DiarySummary
 
 HIGH_CALORIE_KCAL = 450
 HIGH_CALORIE_DENSITY_PER_100G = 250
+SUSPICIOUS_DENSITY_PER_100G = 650
 
 
 def remaining_advice(summary: DiarySummary) -> str:
@@ -414,3 +415,40 @@ def high_calorie_add_warning(summary: DiarySummary, item) -> str | None:
         "Похоже, день уже довольно плотный по калориям: "
         f"{detail}. Если это реальная еда, добавим спокойно. Точно добавить?"
     )
+
+
+def suspicious_food_warning(item) -> str | None:
+    name = str(getattr(item, "name", None) or getattr(item, "food_name", "") or "").casefold()
+    kcal = float(getattr(item, "kcal", 0) or 0)
+    weight_g = getattr(item, "weight_g", None)
+    density = kcal / weight_g * 100 if weight_g and weight_g > 0 else None
+
+    if density is not None and weight_g <= 60 and kcal >= 500:
+        return (
+            f"Похоже странно: {weight_g:.0f}г и {kcal:.0f} ккал. "
+            "Так бывает у масла/орехов, но для обычного продукта лучше перепроверить."
+        )
+    if density is not None and density >= SUSPICIOUS_DENSITY_PER_100G:
+        return (
+            f"Плотность очень высокая: около {density:.0f} ккал на 100г. "
+            "Проверь, не завысилась ли граммовка или калории."
+        )
+    if density is not None and weight_g >= 250 and kcal <= 60 and not _looks_like_low_kcal_food(name):
+        return (
+            f"Похоже занижено: {weight_g:.0f}г и всего {kcal:.0f} ккал. "
+            "Если это не овощи/напиток, лучше уточнить."
+        )
+    if _looks_like_light_food(name) and kcal >= 800:
+        return (
+            "Для такого блюда калорийность выглядит слишком высокой. "
+            "Проверь соусы, масло и размер порции перед сохранением."
+        )
+    return None
+
+
+def _looks_like_light_food(name: str) -> bool:
+    return any(word in name for word in ("салат", "суп", "овощ", "йогурт", "творог"))
+
+
+def _looks_like_low_kcal_food(name: str) -> bool:
+    return any(word in name for word in ("огур", "салат", "овощ", "арбуз", "чай", "кофе", "вода"))

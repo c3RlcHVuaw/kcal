@@ -148,6 +148,7 @@ def food_confirmation_keyboard(
     allow_photo_questions: bool = False,
     allow_ai_retry: bool = False,
     allow_database_retry: bool = False,
+    allow_split: bool = False,
     allow_not_it: bool = True,
 ) -> InlineKeyboardMarkup:
     edit_row = [InlineKeyboardButton(text="✏️ Граммовка", callback_data=f"{prefix}:edit")]
@@ -182,6 +183,8 @@ def food_confirmation_keyboard(
         retry_row.append(InlineKeyboardButton(text="🔎 Искать в базе", callback_data=f"{prefix}:search"))
     if retry_row:
         rows.append(retry_row)
+    if allow_split:
+        rows.append([InlineKeyboardButton(text="🧩 Разбить блюдо", callback_data=f"{prefix}:split")])
     if allow_not_it:
         rows.append([InlineKeyboardButton(text="🙅 Не то", callback_data=f"{prefix}:wrong")])
     rows.append(edit_row)

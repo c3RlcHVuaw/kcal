@@ -40,7 +40,7 @@ from kcal_tracker.services.media import (
     extract_frame_from_video,
     extract_frames_from_video,
 )
-from kcal_tracker.services.nutrition import high_calorie_add_warning
+from kcal_tracker.services.nutrition import high_calorie_add_warning, suspicious_food_warning
 from kcal_tracker.services.open_food_facts import OpenFoodFactsService, ProductNotFoundError
 from kcal_tracker.services.quality import record_quality_event
 from kcal_tracker.services.subscriptions import has_active_subscription
@@ -1042,6 +1042,22 @@ async def confirm_food(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer()
         return
 
+    suspicious = suspicious_food_warning(estimate)
+    if suspicious:
+        await _record_callback_quality_event(
+            callback,
+            "food_suspicious_value",
+            source=source,
+            query=str(data.get("search_query") or estimate.name),
+            details={"estimate": estimate.name, "kcal": estimate.kcal, "weight_g": estimate.weight_g},
+        )
+        await callback.message.edit_text(
+            f"{suspicious}\n\nТочно добавить?",
+            reply_markup=calorie_warning_keyboard("food:confirm-anyway"),
+        )
+        await callback.answer()
+        return
+
     await state.update_data(save_started=True)
     await _add_confirmed_food(callback, state, estimate, source)
 
@@ -1254,6 +1270,41 @@ async def refine_food(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
 
+@router.callback_query(F.data == "food:split")
+async def split_complex_food(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    if not await _require_food_state(callback, data, "estimate", "source"):
+        return
+    estimate = FoodEstimate.model_validate_json(data["estimate"])
+    if not _looks_like_complex_food(estimate.name):
+        await callback.answer("Это похоже на одиночный продукт, разбивать не нужно.", show_alert=True)
+        return
+    if not await _ensure_ai_available_for_callback(callback):
+        return
+
+    await callback.message.edit_text("Разбиваю блюдо на части: белок, гарнир, соусы и добавки.")
+    try:
+        split = await AIFoodService().split_estimate(estimate)
+    except Exception:
+        logger.exception("AI food split failed")
+        await callback.message.answer("Не смог сейчас разбить блюдо. Можно уточнить состав текстом.")
+        await callback.answer()
+        return
+    await _record_ai_request_for_callback(callback, "food_split")
+    if len(split.foods) <= 1:
+        await callback.message.answer("Не вижу, что тут можно надежно разбить на части.")
+        await callback.answer()
+        return
+    await _show_estimates_confirmation(
+        callback.message,
+        state,
+        split,
+        str(data["source"]),
+        query=str(data.get("search_query") or estimate.name),
+    )
+    await callback.answer()
+
+
 @router.message(FoodFlow.refining, F.text)
 async def update_food_refinement(message: Message, state: FSMContext) -> None:
     refinement = " ".join((message.text or "").split())
@@ -1316,6 +1367,7 @@ async def _show_confirmation(
             allow_photo_questions=source == "ai_photo",
             allow_ai_retry=source in {"history", "food_search"},
             allow_database_retry=source == "history",
+            allow_split=_looks_like_complex_food(estimate.name),
         ),
     )
 
@@ -1640,6 +1692,33 @@ def _format_estimate_confirmation(
         )
     lines.extend(["", "Добавить в дневник?"])
     return "\n".join(lines)
+
+
+def _looks_like_complex_food(name: str) -> bool:
+    normalized = name.casefold()
+    complex_words = (
+        "шаурм",
+        "паста",
+        "салат",
+        "суп",
+        "пицц",
+        "бургер",
+        "ролл",
+        "плов",
+        "каша",
+        "греч",
+        "рис",
+        "куриц",
+        "мясо",
+        "гарнир",
+        "соус",
+        "боул",
+        "сэндвич",
+        "омлет",
+    )
+    if any(word in normalized for word in complex_words):
+        return True
+    return " с " in f" {normalized} " or " и " in f" {normalized} "
 
 
 def _format_search_results(estimates: list[FoodEstimate], *, query: str) -> str:
