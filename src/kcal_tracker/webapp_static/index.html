@@ -22,39 +22,36 @@
       </section>
 
       <section id="view-today" class="view active" data-title="Сегодня">
-        <section class="wellness-hero">
-          <div class="brand-row">
+        <section class="today-hero">
+          <div class="today-top">
             <div>
-              <strong>Kcal Flow</strong>
-              <span>персональный дневник</span>
+              <p id="today-hello" class="caption">Kcal Flow</p>
+              <h1>Сегодня</h1>
             </div>
-            <div class="hero-actions">
-              <button id="refresh-hero" class="hero-icon" type="button" aria-label="Обновить">↻</button>
-            </div>
+            <button id="refresh-hero" class="icon-button" type="button" aria-label="Обновить">↻</button>
           </div>
 
-          <div class="energy-board">
-            <div class="energy-side">
-              <b id="kcal-eaten">0</b>
-              <span>съедено</span>
+          <div class="calorie-card component-card">
+            <div class="calorie-main">
+              <span>Осталось</span>
+              <strong id="kcal-left">...</strong>
             </div>
-            <div class="energy-ring" id="kcal-ring">
+            <div class="calorie-side">
               <div>
-                <strong id="kcal-left">...</strong>
-                <span>осталось</span>
+                <span>Съедено</span>
+                <b id="kcal-eaten">0</b>
+              </div>
+              <div>
+                <span>Активность</span>
+                <b id="kcal-burned">0</b>
               </div>
             </div>
-            <div class="energy-side">
-              <b id="kcal-burned">0</b>
-              <span>сожжено</span>
-            </div>
+            <div class="progress-track"><span id="kcal-progress"></span></div>
+            <button class="stats-link" type="button" data-view-shortcut="progress">
+              <span id="kcal-target">0 / 0 ккал</span>
+              <b id="kcal-percent">0%</b>
+            </button>
           </div>
-
-          <button class="stats-link" type="button" data-view-shortcut="progress">
-            <span id="kcal-target">0 / 0 ккал</span>
-            <b id="kcal-percent">0%</b>
-          </button>
-          <div class="progress-track"><span id="kcal-progress"></span></div>
         </section>
 
         <section class="macro-card component-card" aria-label="БЖУ">
@@ -84,6 +81,7 @@
         <section class="list-section component-section">
           <div class="section-title">
             <h2>Дневник</h2>
+            <button class="text-button" type="button" data-view-shortcut="food">Добавить</button>
           </div>
           <div id="entries" class="grouped-list"></div>
         </section>
@@ -128,6 +126,11 @@
       </section>
 
       <section id="view-progress" class="view" data-title="Прогресс">
+        <section class="plain-section">
+          <div class="section-title">
+            <h2>Сводка</h2>
+          </div>
+        </section>
         <section class="summary-panel compact component-card accent-card">
           <span class="caption">Среднее за неделю</span>
           <strong id="week-average">0 ккал</strong>
@@ -140,9 +143,9 @@
           </div>
           <div id="week-chart" class="week-chart"></div>
         </section>
-        <form id="goal-form" class="form-panel component-card">
+        <form id="goal-form" class="form-panel component-card edit-card">
           <div class="section-title">
-            <h2>Цель веса</h2>
+            <h2>Настроить цель</h2>
             <span id="weight-goal" class="muted">Загрузка...</span>
           </div>
           <select id="goal-kind" name="goal">
@@ -159,6 +162,11 @@
       </section>
 
       <section id="view-body" class="view" data-title="Тело">
+        <section class="plain-section">
+          <div class="section-title">
+            <h2>Быстрые действия</h2>
+          </div>
+        </section>
         <section class="metric-grid body-actions component-grid">
           <button type="button" data-water="250">
             <span>Вода</span>
@@ -180,9 +188,9 @@
           <p id="activity-total" class="muted">0 ккал активности</p>
         </section>
 
-        <form id="activity-form" class="form-panel component-card">
+        <form id="activity-form" class="form-panel component-card edit-card">
           <div class="section-title">
-            <h2>Активность</h2>
+            <h2>Добавить активность</h2>
           </div>
           <input id="activity-name" name="name" autocomplete="off" placeholder="Например: ходьба" required />
           <input id="activity-kcal" name="kcal" inputmode="decimal" placeholder="потрачено ккал" required />

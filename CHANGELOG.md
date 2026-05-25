@@ -2,6 +2,9 @@
 
 ## 2026-05-25
 
+- Simplified the Mini App UX after design review: removed the Lifesum-like
+  calorie ring, reduced tab bar weight, flattened nested section cards, and
+  separated read-only diary data from editable actions.
 - Updated the Mini App glass visual system with a cooler cyan/blue palette,
   SF Pro typography stack, stronger Liquid Glass surfaces, a readable calorie
   ring, and removed the Today undo button.

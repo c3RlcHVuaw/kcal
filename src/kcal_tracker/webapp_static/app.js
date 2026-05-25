@@ -12,10 +12,10 @@ const nodes = {
   authWarning: document.querySelector("#auth-warning"),
   refresh: document.querySelector("#refresh"),
   hello: document.querySelector("#hello"),
+  todayHello: document.querySelector("#today-hello"),
   screenTitle: document.querySelector("#screen-title"),
   kcalEaten: document.querySelector("#kcal-eaten"),
   kcalBurned: document.querySelector("#kcal-burned"),
-  kcalRing: document.querySelector("#kcal-ring"),
   kcalLeft: document.querySelector("#kcal-left"),
   kcalTarget: document.querySelector("#kcal-target"),
   kcalPercent: document.querySelector("#kcal-percent"),
@@ -54,10 +54,11 @@ const nodes = {
 tg?.ready();
 tg?.expand();
 tg?.setHeaderColor?.("secondary_bg_color");
-tg?.setBackgroundColor?.("#f2f2f7");
+tg?.setBackgroundColor?.("#eef3f7");
 
 if (tg?.initDataUnsafe?.user?.first_name) {
   nodes.hello.textContent = `Привет, ${tg.initDataUnsafe.user.first_name}`;
+  nodes.todayHello.textContent = `Привет, ${tg.initDataUnsafe.user.first_name}`;
 }
 
 document.querySelectorAll("[data-view]").forEach((button) => {
@@ -228,7 +229,6 @@ function renderToday(data) {
   const diary = data.diary;
   const progress = diary.target_kcal > 0 ? Math.min(diary.kcal / diary.target_kcal, 1) : 0;
   nodes.kcalProgress.style.width = `${Math.round(progress * 100)}%`;
-  nodes.kcalRing.style.setProperty("--ring-progress", `${Math.round(progress * 100)}%`);
   nodes.kcalPercent.textContent = `${Math.round(progress * 100)}%`;
   const left = Math.round(diary.target_kcal - diary.kcal);
   nodes.kcalEaten.textContent = Math.round(diary.kcal);
@@ -257,30 +257,19 @@ function renderToday(data) {
     <article class="entry food-card">
       <div class="food-thumb">${escapeHtml(entry.emoji || foodInitial(entry.name))}</div>
       <div class="food-content">
-      <div class="entry-main">
-        <strong>${escapeHtml(entry.name)}</strong>
-        <b>${Math.round(entry.kcal)} ккал</b>
-      </div>
-      <div class="entry-meta">
-        <span>${entry.weight_g ? `${formatNumber(entry.weight_g)} г` : "без граммовки"}</span>
-        <span>${Math.round(entry.protein)}Б</span>
-        <span>${Math.round(entry.fat)}Ж</span>
-        <span>${Math.round(entry.carbs)}У</span>
-      </div>
-      <div class="entry-actions">
-        <button type="button" data-delete-entry="${entry.id}">Удалить</button>
-        <button type="button" data-favorite-entry="${entry.id}">В шаблон</button>
-      </div>
+        <div class="entry-main">
+          <strong>${escapeHtml(entry.name)}</strong>
+          <b>${Math.round(entry.kcal)} ккал</b>
+        </div>
+        <div class="entry-meta">
+          <span>${entry.weight_g ? `${formatNumber(entry.weight_g)} г` : "без граммовки"}</span>
+          <span>${Math.round(entry.protein)}Б</span>
+          <span>${Math.round(entry.fat)}Ж</span>
+          <span>${Math.round(entry.carbs)}У</span>
+        </div>
       </div>
     </article>
   `).join("");
-
-  nodes.entries.querySelectorAll("[data-delete-entry]").forEach((button) => {
-    button.addEventListener("click", () => deleteEntry(button.dataset.deleteEntry));
-  });
-  nodes.entries.querySelectorAll("[data-favorite-entry]").forEach((button) => {
-    button.addEventListener("click", () => favoriteEntry(button.dataset.favoriteEntry));
-  });
 }
 
 function renderWeek(data) {
