@@ -1,7 +1,9 @@
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
+from kcal_tracker.admin_bot.main import _funnel_period_text, _percent
 from kcal_tracker.api.routes import (
+    _apple_health_payload_summary,
     _extract_numeric_total,
     _extract_numeric_value,
     _normalize_apple_health_payload,
@@ -73,7 +75,7 @@ from kcal_tracker.services.nutrition import (
     weekly_coach_note,
     weekly_score,
 )
-from kcal_tracker.services.profile import age_from_birth_date
+from kcal_tracker.services.profile import age_from_birth_date, weight_goal_summary
 from kcal_tracker.services.reminders import (
     _has_meal_entry,
     _inactivity_reminder_due,
@@ -85,6 +87,73 @@ from kcal_tracker.services.share_cards import _wrap_card_lines
 def test_confidence_must_be_less_than_one() -> None:
     estimate = FoodEstimate(name="Латте", kcal=120, confidence=0.99)
     assert estimate.confidence == 0.99
+
+
+def test_apple_health_log_summary_does_not_include_raw_values() -> None:
+    summary = _apple_health_payload_summary(
+        {
+            "weight_kg": 82.4,
+            "steps": [{"value": 1200}, {"value": 800}],
+            "active_kcal": "345 kcal",
+            "note": "Morning sync",
+            "device": "iPhone",
+        }
+    )
+
+    assert summary == {
+        "fields": ["weight_kg", "steps", "active_kcal", "note"],
+        "extra_field_count": 1,
+    }
+    assert "82.4" not in str(summary)
+    assert "Morning sync" not in str(summary)
+
+
+def test_weight_goal_forecast_for_loss() -> None:
+    user = SimpleNamespace(
+        goal="loss",
+        weight=82.0,
+        target_weight_kg=76.0,
+        weekly_weight_change_kg=0.5,
+        daily_kcal_target=1900,
+    )
+
+    summary = weight_goal_summary(user)
+
+    assert summary.forecast_weeks == 12
+    assert "дефиците" in summary.forecast_text
+
+
+def test_weight_goal_forecast_rejects_wrong_direction() -> None:
+    user = SimpleNamespace(
+        goal="loss",
+        weight=82.0,
+        target_weight_kg=85.0,
+        weekly_weight_change_kg=0.5,
+        daily_kcal_target=1900,
+    )
+
+    summary = weight_goal_summary(user)
+
+    assert summary.forecast_weeks is None
+    assert "Проверь цель" in summary.forecast_text
+
+
+def test_admin_funnel_formats_conversion_rates() -> None:
+    text = _funnel_period_text(
+        "7 дней",
+        {
+            "started": 10,
+            "onboarded": 7,
+            "first_food": 6,
+            "active_3_days": 3,
+            "ai_users": 4,
+            "payers": 1,
+        },
+    )
+
+    assert _percent(3, 10) == "30%"
+    assert "3 активных дня: 3 (30%)" in text
+    assert "Оплата: 1 (10%)" in text
 
 
 def test_food_insights_add_emoji_and_advice() -> None:

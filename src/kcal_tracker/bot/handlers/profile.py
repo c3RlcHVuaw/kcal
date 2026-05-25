@@ -42,6 +42,8 @@ class SettingsFlow(StatesGroup):
     birth_date = State()
     height = State()
     weight = State()
+    target_weight = State()
+    weight_pace = State()
     kcal = State()
     macros = State()
 
@@ -335,6 +337,8 @@ async def settings_goal_save(callback: CallbackQuery) -> None:
             "settings:birth-date",
             "settings:height",
             "settings:weight",
+            "settings:target-weight",
+            "settings:weight-pace",
             "settings:kcal",
             "settings:macros",
         }
@@ -350,6 +354,8 @@ async def settings_ask_number(callback: CallbackQuery, state: FSMContext) -> Non
         "birth_date": _birth_date_prompt(),
         "height": "Рост?",
         "weight": "Вес?",
+        "target_weight": "Желаемый вес в кг?",
+        "weight_pace": "Темп изменения веса в кг за неделю? Например: 0.5",
         "kcal": "Сколько ккал в день поставить целью?",
         "macros": "Цель по БЖУ через слэш: 130/70/220",
     }
@@ -360,6 +366,8 @@ async def settings_ask_number(callback: CallbackQuery, state: FSMContext) -> Non
 @router.message(SettingsFlow.birth_date, F.text)
 @router.message(SettingsFlow.height, F.text)
 @router.message(SettingsFlow.weight, F.text)
+@router.message(SettingsFlow.target_weight, F.text)
+@router.message(SettingsFlow.weight_pace, F.text)
 @router.message(SettingsFlow.kcal, F.text)
 @router.message(SettingsFlow.macros, F.text)
 async def settings_save_number(message: Message, state: FSMContext) -> None:
@@ -390,6 +398,10 @@ async def settings_save_number(message: Message, state: FSMContext) -> None:
             user.age = age_from_birth_date(value)
             user.daily_kcal_target = calculate_daily_kcal_target(user)
             apply_default_macro_targets(user)
+        elif field == "target_weight":
+            user.target_weight_kg = float(value)
+        elif field == "weight_pace":
+            user.weekly_weight_change_kg = float(value)
         else:
             setattr(user, field, value)
             user.daily_kcal_target = calculate_daily_kcal_target(user)
@@ -468,6 +480,10 @@ def _parse_settings_value(
         return _parse_float(text, 100, 240)
     if field == "weight":
         return _parse_float(text, 30, 250)
+    if field == "target_weight":
+        return _parse_float(text, 30, 250)
+    if field == "weight_pace":
+        return _parse_float(text, 0.1, 1.5)
     if field == "kcal":
         return _parse_int(text, 1000, 6000)
     if field == "macros":

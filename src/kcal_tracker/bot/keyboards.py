@@ -627,6 +627,8 @@ def settings_keyboard() -> InlineKeyboardMarkup:
             [InlineKeyboardButton(text="Вес", callback_data="settings:weight")],
             [InlineKeyboardButton(text="Активность", callback_data="settings:activity")],
             [InlineKeyboardButton(text="Цель", callback_data="settings:goal")],
+            [InlineKeyboardButton(text="Желаемый вес", callback_data="settings:target-weight")],
+            [InlineKeyboardButton(text="Темп веса", callback_data="settings:weight-pace")],
             [InlineKeyboardButton(text="Цель по калориям", callback_data="settings:kcal")],
             [InlineKeyboardButton(text="Цель по БЖУ", callback_data="settings:macros")],
             [InlineKeyboardButton(text="Apple Health", callback_data="settings:apple-health")],

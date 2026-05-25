@@ -69,6 +69,10 @@ class UserRead(BaseModel):
     telegram_id: int
     username: str | None
     timezone: str
+    goal: str | None = None
+    weight: float | None = None
+    target_weight_kg: float | None = None
+    weekly_weight_change_kg: float | None = None
     daily_kcal_target: int
     created_at: datetime
 
@@ -79,3 +83,35 @@ class AIUsageSummary(BaseModel):
     used_today: int
     remaining_today: int
     daily_limit: int
+
+
+class WeightGoalUpdate(BaseModel):
+    goal: str = Field(pattern="^(loss|maintain|gain)$")
+    target_weight_kg: float | None = Field(default=None, ge=30, le=250)
+    weekly_weight_change_kg: float | None = Field(default=None, ge=0.1, le=1.5)
+
+
+class WeightGoalRead(BaseModel):
+    goal: str | None
+    current_weight_kg: float | None
+    target_weight_kg: float | None
+    weekly_weight_change_kg: float | None
+    daily_kcal_target: int
+    forecast_weeks: int | None
+    forecast_text: str
+
+
+class AnalyticsDay(BaseModel):
+    date: str
+    kcal: float
+    protein: float
+    fat: float
+    carbs: float
+    entries_count: int
+
+
+class WeeklyAnalyticsRead(BaseModel):
+    days: list[AnalyticsDay]
+    average_kcal: float
+    target_kcal: int
+    days_in_target: int

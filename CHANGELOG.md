@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-05-25
+
+- Removed raw Apple Health payload logging and replaced it with a privacy-safe
+  field summary.
+- Added weight goals with target weight, weekly pace, and forecast text in
+  profile settings and API responses.
+- Added external-client API routes for profile, weekly analytics, weight goals,
+  and CSV exports.
+- Expanded the admin funnel to show today, 7-day, and 30-day cohorts through
+  onboarding, first food, 3 active days, AI use, and payment.
+- Added regression coverage for Apple Health log summaries, weight goal
+  forecasts, admin funnel conversion text, and OpenAPI route exposure.
+
 ## 2026-05-22
 
 - Added a tracked `.env.example` with local defaults and placeholders for

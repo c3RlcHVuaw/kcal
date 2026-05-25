@@ -40,6 +40,8 @@ class User(Base):
     weight: Mapped[float | None] = mapped_column(Float)
     activity: Mapped[str | None] = mapped_column(String(64))
     goal: Mapped[str | None] = mapped_column(String(64))
+    target_weight_kg: Mapped[float | None] = mapped_column(Float)
+    weekly_weight_change_kg: Mapped[float | None] = mapped_column(Float)
     daily_kcal_target: Mapped[int] = mapped_column(Integer, nullable=False, default=2200)
     subscription_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     subscription_plan: Mapped[str] = mapped_column(String(32), nullable=False, default="basic")

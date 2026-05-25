@@ -989,33 +989,92 @@ def _quality_mode_title(mode: str) -> str:
 
 async def _funnel_text() -> str:
     tz = ZoneInfo(settings.default_timezone)
-    start, end = _today_bounds(tz)
+    today_start, today_end = _today_bounds(tz)
+    week_start = today_start - timedelta(days=6)
+    month_start = today_start - timedelta(days=29)
     async with SessionLocal() as session:
-        started = await _scalar(session, select(func.count(User.id)).where(User.created_at >= start, User.created_at <= end))
-        onboarded = await _scalar(session, select(func.count(User.id)).where(User.created_at >= start, User.created_at <= end, User.onboarding_completed.is_(True)))
-        first_food = await _scalar(
-            session,
-            select(func.count(func.distinct(FoodEntry.user_id))).join(User, User.id == FoodEntry.user_id).where(User.created_at >= start, User.created_at <= end)
-        )
-        ai_users = await _scalar(
-            session,
-            select(func.count(func.distinct(AIUsage.user_id))).join(User, User.id == AIUsage.user_id).where(User.created_at >= start, User.created_at <= end)
-        )
-        payers = await _scalar(
-            session,
-            select(func.count(func.distinct(Payment.user_id))).join(User, User.id == Payment.user_id).where(User.created_at >= start, User.created_at <= end, Payment.status == "succeeded")
-        )
+        today = await _funnel_metrics(session, today_start, today_end)
+        week = await _funnel_metrics(session, week_start, today_end)
+        month = await _funnel_metrics(session, month_start, today_end)
     return "\n".join(
         [
-            "🧭 Воронка сегодня",
+            "🧭 Продуктовая воронка",
             "",
-            f"/start: {started}",
-            f"Завершили onboarding: {onboarded}",
-            f"Добавили еду: {first_food}",
-            f"Попробовали AI: {ai_users}",
-            f"Оплатили: {payers}",
+            _funnel_period_text("Сегодня", today),
+            "",
+            _funnel_period_text("7 дней", week),
+            "",
+            _funnel_period_text("30 дней", month),
         ]
     )
+
+
+async def _funnel_metrics(session, start: datetime, end: datetime) -> dict[str, int]:
+    cohort_filter = (User.created_at >= start, User.created_at <= end)
+    started = await _scalar(session, select(func.count(User.id)).where(*cohort_filter))
+    onboarded = await _scalar(
+        session,
+        select(func.count(User.id)).where(*cohort_filter, User.onboarding_completed.is_(True)),
+    )
+    first_food = await _scalar(
+        session,
+        select(func.count(func.distinct(FoodEntry.user_id)))
+        .join(User, User.id == FoodEntry.user_id)
+        .where(*cohort_filter),
+    )
+    active_3_days = await _scalar(
+        session,
+        select(func.count())
+        .select_from(
+            select(FoodEntry.user_id)
+            .join(User, User.id == FoodEntry.user_id)
+            .where(*cohort_filter)
+            .group_by(FoodEntry.user_id)
+            .having(func.count(func.distinct(func.date(FoodEntry.created_at))) >= 3)
+            .subquery()
+        ),
+    )
+    ai_users = await _scalar(
+        session,
+        select(func.count(func.distinct(AIUsage.user_id)))
+        .join(User, User.id == AIUsage.user_id)
+        .where(*cohort_filter),
+    )
+    payers = await _scalar(
+        session,
+        select(func.count(func.distinct(Payment.user_id)))
+        .join(User, User.id == Payment.user_id)
+        .where(*cohort_filter, Payment.status == "succeeded"),
+    )
+    return {
+        "started": started,
+        "onboarded": onboarded,
+        "first_food": first_food,
+        "active_3_days": active_3_days,
+        "ai_users": ai_users,
+        "payers": payers,
+    }
+
+
+def _funnel_period_text(title: str, metrics: dict[str, int]) -> str:
+    started = metrics["started"]
+    return "\n".join(
+        [
+            title,
+            f"/start: {started}",
+            f"Onboarding: {metrics['onboarded']} ({_percent(metrics['onboarded'], started)})",
+            f"Первая еда: {metrics['first_food']} ({_percent(metrics['first_food'], started)})",
+            f"3 активных дня: {metrics['active_3_days']} ({_percent(metrics['active_3_days'], started)})",
+            f"AI: {metrics['ai_users']} ({_percent(metrics['ai_users'], started)})",
+            f"Оплата: {metrics['payers']} ({_percent(metrics['payers'], started)})",
+        ]
+    )
+
+
+def _percent(value: int, total: int) -> str:
+    if total <= 0:
+        return "0%"
+    return f"{value / total:.0%}"
 
 
 async def _payments_text() -> str:

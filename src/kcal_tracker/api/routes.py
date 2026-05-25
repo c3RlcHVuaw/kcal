@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,14 +17,24 @@ from kcal_tracker.database import engine, get_session
 from kcal_tracker.schemas import (
     ActivityEstimate,
     AIUsageSummary,
+    AnalyticsDay,
     AppleHealthImportResult,
     DiarySummary,
     FoodEntryCreate,
     FoodEntryRead,
     UserRead,
+    WeeklyAnalyticsRead,
+    WeightGoalRead,
+    WeightGoalUpdate,
 )
 from kcal_tracker.services.ai_usage import AIUsageService
 from kcal_tracker.services.diary import DiaryService
+from kcal_tracker.services.export import ExportService
+from kcal_tracker.services.profile import (
+    apply_default_macro_targets,
+    calculate_daily_kcal_target,
+    weight_goal_summary,
+)
 from kcal_tracker.services.subscriptions import user_ai_daily_limit
 from kcal_tracker.services.users import UserService
 from kcal_tracker.services.wellness import WellnessService
@@ -66,6 +76,17 @@ async def upsert_user(
     return await UserService(session).get_or_create(telegram_id=telegram_id, username=username)
 
 
+@router.get("/users/{telegram_id}", response_model=UserRead)
+async def get_user(
+    telegram_id: int,
+    session: SessionDep,
+) -> UserRead:
+    user = await UserService(session).get_by_telegram_id(telegram_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
 @router.get("/users/{telegram_id}/diary/today", response_model=DiarySummary)
 async def today_diary(
     telegram_id: int,
@@ -75,6 +96,63 @@ async def today_diary(
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
     return await DiaryService(session).today_summary(user)
+
+
+@router.get("/users/{telegram_id}/analytics/week", response_model=WeeklyAnalyticsRead)
+async def week_analytics(
+    telegram_id: int,
+    session: SessionDep,
+) -> WeeklyAnalyticsRead:
+    user = await UserService(session).get_by_telegram_id(telegram_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    analytics = await DiaryService(session).weekly_analytics(user)
+    return WeeklyAnalyticsRead(
+        days=[
+            AnalyticsDay(
+                date=day.date_label,
+                kcal=day.kcal,
+                protein=day.protein,
+                fat=day.fat,
+                carbs=day.carbs,
+                entries_count=day.entries_count,
+            )
+            for day in analytics.days
+        ],
+        average_kcal=analytics.average_kcal,
+        target_kcal=analytics.target_kcal,
+        days_in_target=analytics.days_in_target,
+    )
+
+
+@router.get("/users/{telegram_id}/goals/weight", response_model=WeightGoalRead)
+async def get_weight_goal(
+    telegram_id: int,
+    session: SessionDep,
+) -> WeightGoalRead:
+    user = await UserService(session).get_by_telegram_id(telegram_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return weight_goal_summary(user)
+
+
+@router.put("/users/{telegram_id}/goals/weight", response_model=WeightGoalRead)
+async def update_weight_goal(
+    telegram_id: int,
+    payload: WeightGoalUpdate,
+    session: SessionDep,
+) -> WeightGoalRead:
+    user = await UserService(session).get_by_telegram_id(telegram_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.goal = payload.goal
+    user.target_weight_kg = payload.target_weight_kg
+    user.weekly_weight_change_kg = payload.weekly_weight_change_kg
+    user.daily_kcal_target = calculate_daily_kcal_target(user)
+    apply_default_macro_targets(user)
+    await session.commit()
+    await session.refresh(user)
+    return weight_goal_summary(user)
 
 
 @router.get("/users/{telegram_id}/ai-usage/today", response_model=AIUsageSummary)
@@ -108,6 +186,38 @@ async def create_entry(
     return await DiaryService(session).add_entry(user, payload)
 
 
+@router.get("/users/{telegram_id}/exports/food.csv")
+async def export_food_csv(
+    telegram_id: int,
+    session: SessionDep,
+) -> PlainTextResponse:
+    user = await UserService(session).get_by_telegram_id(telegram_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    csv = await ExportService(session).food_csv(user)
+    return PlainTextResponse(
+        csv,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="kcal_food.csv"'},
+    )
+
+
+@router.get("/users/{telegram_id}/exports/wellness.csv")
+async def export_wellness_csv(
+    telegram_id: int,
+    session: SessionDep,
+) -> PlainTextResponse:
+    user = await UserService(session).get_by_telegram_id(telegram_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    csv = await ExportService(session).wellness_csv(user)
+    return PlainTextResponse(
+        csv,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="kcal_wellness.csv"'},
+    )
+
+
 @router.post("/integrations/apple-health/{token}", response_model=AppleHealthImportResult)
 async def import_apple_health(
     token: str,
@@ -119,7 +229,11 @@ async def import_apple_health(
         raise HTTPException(status_code=404, detail="Integration not found")
 
     raw_payload = await _read_apple_health_payload(request)
-    logger.warning("Apple Health raw payload for user_id=%s: %s", user.id, raw_payload)
+    logger.info(
+        "Apple Health payload received user_id=%s summary=%s",
+        user.id,
+        _apple_health_payload_summary(raw_payload),
+    )
     payload, errors = _normalize_apple_health_payload(raw_payload)
 
     saved: list[str] = []
@@ -226,6 +340,15 @@ def _normalize_apple_health_payload(
         note = note[:255]
     steps = int(round(steps_float)) if steps_float is not None else None
     return AppleHealthPayload(weight_kg, steps, active_kcal, note), errors
+
+
+def _apple_health_payload_summary(payload: dict[str, Any]) -> dict[str, Any]:
+    known_fields = ("weight_kg", "steps", "active_kcal", "note")
+    present_fields = [field for field in known_fields if field in payload]
+    return {
+        "fields": present_fields,
+        "extra_field_count": max(len(payload) - len(present_fields), 0),
+    }
 
 
 def _extract_float_field(

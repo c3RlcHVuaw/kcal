@@ -14,6 +14,17 @@ def test_health_returns_ok() -> None:
     assert response.json() == {"ok": True}
 
 
+def test_openapi_exposes_external_client_routes() -> None:
+    with TestClient(app) as client:
+        response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    paths = response.json()["paths"]
+    assert "/users/{telegram_id}/goals/weight" in paths
+    assert "/users/{telegram_id}/analytics/week" in paths
+    assert "/users/{telegram_id}/exports/food.csv" in paths
+
+
 def test_readiness_returns_ok_when_dependencies_are_available(monkeypatch) -> None:
     async def ok_database() -> bool:
         return True
