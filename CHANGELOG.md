@@ -2,6 +2,9 @@
 
 ## 2026-05-25
 
+- Reworked the Telegram Mini App toward an iOS-style tab interface and added
+  webapp endpoints for week progress, body summary, frequent foods, templates,
+  repeat-yesterday, entry deletion, activity, weight goals, and food export.
 - Refined the Mini App UI into a more native diary layout with compact calorie
   progress, macro tiles, quick actions, and a bottom sheet for manual food entry.
 - Added the first Telegram Mini App MVP at `/app` with signed Telegram WebApp

@@ -20,6 +20,7 @@ def test_webapp_shell_is_served() -> None:
 
     assert response.status_code == 200
     assert "Kcal Tracker" in response.text
+    assert "tab-bar" in response.text
 
 
 def test_openapi_exposes_external_client_routes() -> None:
@@ -32,6 +33,11 @@ def test_openapi_exposes_external_client_routes() -> None:
     assert "/users/{telegram_id}/analytics/week" in paths
     assert "/users/{telegram_id}/exports/food.csv" in paths
     assert "/webapp/me/today" in paths
+    assert "/webapp/me/week" in paths
+    assert "/webapp/me/body" in paths
+    assert "/webapp/me/frequent" in paths
+    assert "/webapp/me/activity" in paths
+    assert "/webapp/me/exports/food.csv" in paths
 
 
 def test_readiness_returns_ok_when_dependencies_are_available(monkeypatch) -> None:

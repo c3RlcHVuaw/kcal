@@ -16,6 +16,7 @@ from kcal_tracker.config import settings
 from kcal_tracker.database import engine, get_session
 from kcal_tracker.schemas import (
     ActivityEstimate,
+    ActivityLogRead,
     AIUsageSummary,
     AnalyticsDay,
     AppleHealthImportResult,
@@ -23,9 +24,14 @@ from kcal_tracker.schemas import (
     FoodEntryCreate,
     FoodEntryRead,
     UserRead,
+    WebAppBodySummary,
+    WebAppFavoriteFood,
+    WebAppFrequentFood,
+    WebAppHabitSummary,
     WebAppToday,
     WebAppWaterCreate,
     WebAppWeightCreate,
+    WebAppWeightPoint,
     WeeklyAnalyticsRead,
     WeightGoalRead,
     WeightGoalUpdate,
@@ -298,6 +304,231 @@ async def webapp_add_weight(
     return {"weight_kg": log.weight_kg}
 
 
+@router.get("/webapp/me/week", response_model=WeeklyAnalyticsRead)
+async def webapp_week(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WeeklyAnalyticsRead:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    analytics = await DiaryService(session).weekly_analytics(user)
+    return WeeklyAnalyticsRead(
+        days=[
+            AnalyticsDay(
+                date=day.date_label,
+                kcal=day.kcal,
+                protein=day.protein,
+                fat=day.fat,
+                carbs=day.carbs,
+                entries_count=day.entries_count,
+            )
+            for day in analytics.days
+        ],
+        average_kcal=analytics.average_kcal,
+        target_kcal=analytics.target_kcal,
+        days_in_target=analytics.days_in_target,
+    )
+
+
+@router.get("/webapp/me/body", response_model=WebAppBodySummary)
+async def webapp_body(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WebAppBodySummary:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    wellness = WellnessService(session)
+    trend = await wellness.weight_trend(user)
+    habits = await wellness.habit_summary(user)
+    return WebAppBodySummary(
+        latest_weight_kg=trend.latest_kg,
+        average_7d_kg=trend.average_7d_kg,
+        delta_7d_kg=trend.delta_7d_kg,
+        trend_label=trend.trend_label,
+        weight_logs=[
+            WebAppWeightPoint(
+                date=log.created_at.strftime("%d.%m"),
+                weight_kg=log.weight_kg,
+            )
+            for log in trend.logs[-14:]
+        ],
+        habit_summary=WebAppHabitSummary(
+            food_streak_days=habits.food_streak_days,
+            water_streak_days=habits.water_streak_days,
+            weight_streak_days=habits.weight_streak_days,
+            tracked_food_days_30=habits.tracked_food_days_30,
+            tracked_water_days_30=habits.tracked_water_days_30,
+            tracked_weight_days_30=habits.tracked_weight_days_30,
+            best_habit=habits.best_habit,
+        ),
+    )
+
+
+@router.put("/webapp/me/goals/weight", response_model=WeightGoalRead)
+async def webapp_update_weight_goal(
+    payload: WeightGoalUpdate,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WeightGoalRead:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    user.goal = payload.goal
+    user.target_weight_kg = payload.target_weight_kg
+    user.weekly_weight_change_kg = payload.weekly_weight_change_kg
+    user.daily_kcal_target = calculate_daily_kcal_target(user)
+    apply_default_macro_targets(user)
+    await session.commit()
+    await session.refresh(user)
+    return weight_goal_summary(user)
+
+
+@router.get("/webapp/me/frequent", response_model=list[WebAppFrequentFood])
+async def webapp_frequent_foods(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> list[WebAppFrequentFood]:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    frequent = await DiaryService(session).frequent_foods(user)
+    return [
+        WebAppFrequentFood(
+            entry=FoodEntryRead.model_validate(item.entry),
+            count=item.count,
+        )
+        for item in frequent
+    ]
+
+
+@router.post("/webapp/me/repeat-entry/{entry_id}", response_model=FoodEntryRead)
+async def webapp_repeat_entry(
+    entry_id: int,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> FoodEntryRead:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    entry = await DiaryService(session).repeat_entry(user, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return FoodEntryRead.model_validate(entry)
+
+
+@router.post("/webapp/me/repeat-yesterday", response_model=list[FoodEntryRead])
+async def webapp_repeat_yesterday(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> list[FoodEntryRead]:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    entries = await DiaryService(session).repeat_yesterday(user)
+    return [FoodEntryRead.model_validate(entry) for entry in entries]
+
+
+@router.delete("/webapp/me/entries/latest")
+async def webapp_delete_latest_entry(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> dict[str, bool]:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    deleted = await DiaryService(session).delete_latest_entry(user)
+    return {"deleted": deleted is not None}
+
+
+@router.delete("/webapp/me/entries/{entry_id}")
+async def webapp_delete_entry(
+    entry_id: int,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> dict[str, bool]:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    deleted = await DiaryService(session).delete_entry(user, entry_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return {"deleted": True}
+
+
+@router.post("/webapp/me/entries/{entry_id}/favorite", response_model=WebAppFavoriteFood)
+async def webapp_favorite_entry(
+    entry_id: int,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WebAppFavoriteFood:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    diary = DiaryService(session)
+    entry = await diary.get_entry(user, entry_id)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    favorite = await WellnessService(session).add_favorite_from_entry(user, entry)
+    return _favorite_read(favorite)
+
+
+@router.get("/webapp/me/favorites", response_model=list[WebAppFavoriteFood])
+async def webapp_favorites(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> list[WebAppFavoriteFood]:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    favorites = await WellnessService(session).favorites(user)
+    return [_favorite_read(favorite) for favorite in favorites]
+
+
+@router.post("/webapp/me/favorites/{favorite_id}", response_model=FoodEntryRead)
+async def webapp_add_favorite_to_diary(
+    favorite_id: int,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> FoodEntryRead:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    wellness = WellnessService(session)
+    favorite = await wellness.favorite(user, favorite_id)
+    if favorite is None:
+        raise HTTPException(status_code=404, detail="Favorite not found")
+    entry = await DiaryService(session).add_entry(user, wellness.favorite_payload(favorite))
+    return FoodEntryRead.model_validate(entry)
+
+
+@router.post("/webapp/me/activity", response_model=ActivityLogRead)
+async def webapp_add_activity(
+    payload: ActivityEstimate,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> ActivityLogRead:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    activity = await WellnessService(session).add_activity(user, payload, "manual")
+    return _activity_read(activity)
+
+
+@router.get("/webapp/me/activity/today", response_model=list[ActivityLogRead])
+async def webapp_today_activities(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> list[ActivityLogRead]:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    activities = await WellnessService(session).today_activities(user)
+    return [_activity_read(activity) for activity in activities]
+
+
+@router.delete("/webapp/me/activity/{activity_id}")
+async def webapp_delete_activity(
+    activity_id: int,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> dict[str, bool]:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    deleted = await WellnessService(session).delete_activity(user, activity_id)
+    if deleted is None:
+        raise HTTPException(status_code=404, detail="Activity not found")
+    return {"deleted": True}
+
+
+@router.get("/webapp/me/exports/food.csv")
+async def webapp_export_food_csv(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> PlainTextResponse:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    csv = await ExportService(session).food_csv(user)
+    return PlainTextResponse(
+        csv,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="kcal_food.csv"'},
+    )
+
+
 @router.post("/integrations/apple-health/{token}", response_model=AppleHealthImportResult)
 async def import_apple_health(
     token: str,
@@ -357,6 +588,32 @@ async def import_apple_health(
             detail["errors"] = errors
         raise HTTPException(status_code=400, detail=detail)
     return AppleHealthImportResult(ok=True, saved=saved)
+
+
+def _activity_read(activity) -> ActivityLogRead:
+    return ActivityLogRead(
+        id=activity.id,
+        name=activity.activity_name,
+        kcal=activity.kcal,
+        confidence=activity.confidence,
+        source=activity.source,
+        created_at=activity.created_at,
+    )
+
+
+def _favorite_read(favorite) -> WebAppFavoriteFood:
+    return WebAppFavoriteFood(
+        id=favorite.id,
+        name=favorite.food_name,
+        kcal=favorite.kcal,
+        protein=favorite.protein,
+        fat=favorite.fat,
+        carbs=favorite.carbs,
+        weight_g=favorite.weight_g,
+        emoji=favorite.emoji,
+        advice=favorite.advice,
+        created_at=favorite.created_at,
+    )
 
 
 async def _check_database() -> bool:

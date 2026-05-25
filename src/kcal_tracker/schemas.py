@@ -38,6 +38,12 @@ class ActivityEstimate(BaseModel):
     confidence: float | None = Field(default=None, ge=0, lt=1)
 
 
+class ActivityLogRead(ActivityEstimate):
+    id: int
+    source: str
+    created_at: datetime
+
+
 class AppleHealthImport(BaseModel):
     weight_kg: float | None = Field(default=None, ge=30, le=250)
     steps: int | None = Field(default=None, ge=0, le=100000)
@@ -138,3 +144,45 @@ class WebAppWaterCreate(BaseModel):
 
 class WebAppWeightCreate(BaseModel):
     weight_kg: float = Field(ge=30, le=250)
+
+
+class WebAppFrequentFood(BaseModel):
+    entry: FoodEntryRead
+    count: int
+
+
+class WebAppFavoriteFood(BaseModel):
+    id: int
+    name: str
+    kcal: float
+    protein: float
+    fat: float
+    carbs: float
+    weight_g: float | None = None
+    emoji: str | None = None
+    advice: str | None = None
+    created_at: datetime
+
+
+class WebAppWeightPoint(BaseModel):
+    date: str
+    weight_kg: float
+
+
+class WebAppHabitSummary(BaseModel):
+    food_streak_days: int
+    water_streak_days: int
+    weight_streak_days: int
+    tracked_food_days_30: int
+    tracked_water_days_30: int
+    tracked_weight_days_30: int
+    best_habit: str
+
+
+class WebAppBodySummary(BaseModel):
+    latest_weight_kg: float | None
+    average_7d_kg: float | None
+    delta_7d_kg: float | None
+    trend_label: str
+    weight_logs: list[WebAppWeightPoint]
+    habit_summary: WebAppHabitSummary

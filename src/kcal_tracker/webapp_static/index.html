@@ -9,100 +9,197 @@
   </head>
   <body>
     <main class="app-shell">
-      <header class="hero">
-        <div class="hero-top">
-          <div>
-            <p id="hello" class="subtle">Kcal Tracker</p>
-            <h1>Сегодня</h1>
-          </div>
-          <button id="refresh" class="ghost-button" type="button" aria-label="Обновить">↻</button>
+      <header class="app-header">
+        <div>
+          <p id="hello" class="caption">Kcal Tracker</p>
+          <h1 id="screen-title">Сегодня</h1>
         </div>
-
-        <div class="kcal-row">
-          <div>
-            <strong id="kcal-left">Загрузка...</strong>
-            <span id="kcal-target">0 / 0 ккал</span>
-          </div>
-          <b id="kcal-percent">0%</b>
-        </div>
-        <div class="progress-track">
-          <span id="kcal-progress"></span>
-        </div>
+        <button id="refresh" class="icon-button" type="button" aria-label="Обновить">↻</button>
       </header>
 
       <section id="auth-warning" class="notice hidden">
         Открой приложение из Telegram, чтобы дневник подключился к твоему профилю.
       </section>
 
-      <section class="macro-strip" aria-label="БЖУ">
-        <article>
-          <span>Белки</span>
-          <b id="protein">0/0</b>
-        </article>
-        <article>
-          <span>Жиры</span>
-          <b id="fat">0/0</b>
-        </article>
-        <article>
-          <span>Углеводы</span>
-          <b id="carbs">0/0</b>
-        </article>
+      <section id="view-today" class="view active" data-title="Сегодня">
+        <section class="summary-panel">
+          <div class="summary-head">
+            <div>
+              <span class="caption">Осталось</span>
+              <strong id="kcal-left">Загрузка...</strong>
+            </div>
+            <b id="kcal-percent">0%</b>
+          </div>
+          <div class="progress-track"><span id="kcal-progress"></span></div>
+          <p id="kcal-target" class="muted">0 / 0 ккал</p>
+        </section>
+
+        <section class="metric-grid" aria-label="БЖУ">
+          <article>
+            <span>Белки</span>
+            <b id="protein">0/0</b>
+          </article>
+          <article>
+            <span>Жиры</span>
+            <b id="fat">0/0</b>
+          </article>
+          <article>
+            <span>Углеводы</span>
+            <b id="carbs">0/0</b>
+          </article>
+        </section>
+
+        <section class="list-section">
+          <div class="section-title">
+            <h2>Дневник</h2>
+            <button id="delete-latest" class="text-button" type="button">Отменить</button>
+          </div>
+          <div id="entries" class="grouped-list"></div>
+        </section>
       </section>
 
-      <section class="quick-actions">
-        <button type="button" data-water="250">
-          <span>Вода</span>
-          <b>+250 мл</b>
-        </button>
-        <button type="button" data-water="500">
-          <span>Вода</span>
-          <b>+500 мл</b>
-        </button>
-        <button id="weight-button" type="button">
-          <span>Вес</span>
-          <b id="weight-value">Записать</b>
-        </button>
-      </section>
-
-      <section class="feed-section">
-        <div class="section-title">
-          <h2>Дневник</h2>
-          <span id="water">0 мл воды</span>
+      <section id="view-food" class="view" data-title="Еда">
+        <div class="segmented" role="tablist" aria-label="Добавление еды">
+          <button class="active" type="button" data-food-tab="manual">Вручную</button>
+          <button type="button" data-food-tab="frequent">Частое</button>
+          <button type="button" data-food-tab="templates">Шаблоны</button>
         </div>
-        <div id="entries" class="entries"></div>
+
+        <section id="food-tab-manual" class="food-tab active">
+          <form id="food-form" class="form-panel">
+            <input id="food-name" name="name" autocomplete="off" placeholder="Название" required />
+            <div class="field-row">
+              <input id="food-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
+              <input id="food-weight" name="weight" inputmode="decimal" placeholder="граммы" />
+            </div>
+            <div class="field-row three">
+              <input id="food-protein" name="protein" inputmode="decimal" placeholder="белки" />
+              <input id="food-fat" name="fat" inputmode="decimal" placeholder="жиры" />
+              <input id="food-carbs" name="carbs" inputmode="decimal" placeholder="углеводы" />
+            </div>
+            <button class="primary-button" type="submit">Добавить</button>
+          </form>
+          <div class="action-list">
+            <button id="repeat-yesterday" type="button">
+              <span>Как вчера</span>
+              <b>Повторить весь вчерашний дневник</b>
+            </button>
+          </div>
+        </section>
+
+        <section id="food-tab-frequent" class="food-tab">
+          <div id="frequent-list" class="grouped-list"></div>
+        </section>
+
+        <section id="food-tab-templates" class="food-tab">
+          <div id="favorites-list" class="grouped-list"></div>
+        </section>
       </section>
 
-      <section class="goal-card">
-        <span>Цель веса</span>
-        <p id="weight-goal">Загрузка...</p>
+      <section id="view-progress" class="view" data-title="Прогресс">
+        <section class="summary-panel compact">
+          <span class="caption">Среднее за неделю</span>
+          <strong id="week-average">0 ккал</strong>
+          <p id="week-target" class="muted">Цель: 0 ккал</p>
+        </section>
+        <section class="list-section">
+          <div class="section-title">
+            <h2>7 дней</h2>
+            <span id="week-in-target" class="muted">0 дней в цели</span>
+          </div>
+          <div id="week-chart" class="week-chart"></div>
+        </section>
+        <form id="goal-form" class="form-panel">
+          <div class="section-title">
+            <h2>Цель веса</h2>
+            <span id="weight-goal" class="muted">Загрузка...</span>
+          </div>
+          <select id="goal-kind" name="goal">
+            <option value="loss">Снизить вес</option>
+            <option value="maintain">Поддерживать</option>
+            <option value="gain">Набрать массу</option>
+          </select>
+          <div class="field-row">
+            <input id="goal-weight" name="target_weight_kg" inputmode="decimal" placeholder="желаемый вес" />
+            <input id="goal-pace" name="weekly_weight_change_kg" inputmode="decimal" placeholder="кг в неделю" />
+          </div>
+          <button class="secondary-button" type="submit">Сохранить цель</button>
+        </form>
+      </section>
+
+      <section id="view-body" class="view" data-title="Тело">
+        <section class="metric-grid body-actions">
+          <button type="button" data-water="250">
+            <span>Вода</span>
+            <b>+250 мл</b>
+          </button>
+          <button type="button" data-water="500">
+            <span>Вода</span>
+            <b>+500 мл</b>
+          </button>
+          <button id="weight-button" type="button">
+            <span>Вес</span>
+            <b id="weight-value">Записать</b>
+          </button>
+        </section>
+
+        <section class="summary-panel compact">
+          <span class="caption">Сегодня</span>
+          <strong id="water">0 мл воды</strong>
+          <p id="activity-total" class="muted">0 ккал активности</p>
+        </section>
+
+        <form id="activity-form" class="form-panel">
+          <div class="section-title">
+            <h2>Активность</h2>
+          </div>
+          <input id="activity-name" name="name" autocomplete="off" placeholder="Например: ходьба" required />
+          <input id="activity-kcal" name="kcal" inputmode="decimal" placeholder="потрачено ккал" required />
+          <button class="secondary-button" type="submit">Добавить активность</button>
+        </form>
+
+        <section class="list-section">
+          <div class="section-title">
+            <h2>Вес</h2>
+            <span id="weight-trend" class="muted">нет данных</span>
+          </div>
+          <div id="weight-chart" class="weight-chart"></div>
+        </section>
+
+        <section class="list-section">
+          <div class="section-title">
+            <h2>Привычки</h2>
+          </div>
+          <div id="habit-list" class="grouped-list"></div>
+        </section>
+      </section>
+
+      <section id="view-more" class="view" data-title="Ещё">
+        <section class="summary-panel compact">
+          <span class="caption">AI сегодня</span>
+          <strong id="ai-usage">0 / 0</strong>
+          <p class="muted">Фото, штрихкод, поддержка, напоминания и оплата остаются в боте до следующего слоя Mini App.</p>
+        </section>
+        <div class="action-list">
+          <button id="open-bot" type="button">
+            <span>Открыть бота</span>
+            <b>Фото еды, штрихкод, подписка, поддержка</b>
+          </button>
+          <button id="export-food" type="button">
+            <span>Экспорт питания</span>
+            <b>CSV для внешнего анализа</b>
+          </button>
+        </div>
       </section>
     </main>
 
-    <button id="open-add" class="fab" type="button">+ Еда</button>
-
-    <div id="add-sheet" class="sheet hidden" aria-hidden="true">
-      <button id="sheet-backdrop" class="sheet-backdrop" type="button" aria-label="Закрыть"></button>
-      <section class="sheet-panel">
-        <div class="sheet-handle"></div>
-        <div class="section-title">
-          <h2>Добавить еду</h2>
-          <button id="close-add" class="text-button" type="button">Готово</button>
-        </div>
-        <form id="food-form" class="food-form">
-          <input id="food-name" name="name" autocomplete="off" placeholder="Название" required />
-          <div class="field-row">
-            <input id="food-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
-            <input id="food-weight" name="weight" inputmode="decimal" placeholder="граммы" />
-          </div>
-          <div class="field-row three">
-            <input id="food-protein" name="protein" inputmode="decimal" placeholder="белки" />
-            <input id="food-fat" name="fat" inputmode="decimal" placeholder="жиры" />
-            <input id="food-carbs" name="carbs" inputmode="decimal" placeholder="углеводы" />
-          </div>
-          <button class="primary-button" type="submit">Добавить в дневник</button>
-        </form>
-      </section>
-    </div>
+    <nav class="tab-bar" aria-label="Разделы">
+      <button class="active" type="button" data-view="today"><span>⌂</span>Сегодня</button>
+      <button type="button" data-view="food"><span>＋</span>Еда</button>
+      <button type="button" data-view="progress"><span>▥</span>Прогресс</button>
+      <button type="button" data-view="body"><span>♡</span>Тело</button>
+      <button type="button" data-view="more"><span>⋯</span>Ещё</button>
+    </nav>
 
     <div id="toast" class="toast hidden"></div>
     <script src="/app/static/app.js" type="module"></script>
