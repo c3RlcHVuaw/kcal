@@ -193,10 +193,10 @@ def food_confirmation_keyboard(
 def food_recovery_keyboard(*, allow_ai: bool = True, allow_database: bool = True) -> InlineKeyboardMarkup:
     rows = []
     if allow_ai:
-        rows.append([InlineKeyboardButton(text="✨ AI-разбор", callback_data="food:ai")])
+        rows.append([InlineKeyboardButton(text="🤖 Уточнить через AI", callback_data="food:ai")])
     if allow_database:
-        rows.append([InlineKeyboardButton(text="🔎 Искать в базе", callback_data="food:search")])
-    rows.append([InlineKeyboardButton(text="✍️ Написать заново", callback_data="nav:add-food")])
+        rows.append([InlineKeyboardButton(text="🔎 Найти в базе", callback_data="food:search")])
+    rows.append([InlineKeyboardButton(text="✍️ Ввести вручную", callback_data="nav:add-food")])
     rows.append([InlineKeyboardButton(text="🆘 Поддержка", callback_data="support:open")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -237,7 +237,7 @@ def smart_after_food_save_keyboard(
     if entry_id is not None:
         rows.append(
             [
-                InlineKeyboardButton(text="⚖️ Граммовка", callback_data=f"entry:edit:{entry_id}"),
+                InlineKeyboardButton(text="✏️ Исправить", callback_data=f"entry:edit-menu:{entry_id}"),
                 InlineKeyboardButton(text="↩️ Отменить", callback_data=f"entry:delete:{entry_id}"),
             ]
         )
@@ -251,6 +251,22 @@ def smart_after_food_save_keyboard(
     if entry_id is not None:
         rows.append([InlineKeyboardButton(text="⭐ В шаблон", callback_data=f"entry:fav:{entry_id}")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def entry_edit_keyboard(entry_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="⚖️ Граммовка", callback_data=f"entry:edit:{entry_id}"),
+                InlineKeyboardButton(text="✏️ Название", callback_data=f"entry:edit-name:{entry_id}"),
+            ],
+            [
+                InlineKeyboardButton(text="🔥 Калории", callback_data=f"entry:edit-kcal:{entry_id}"),
+                InlineKeyboardButton(text="Б/Ж/У", callback_data=f"entry:edit-macros:{entry_id}"),
+            ],
+            [InlineKeyboardButton(text="📊 Сегодня", callback_data="nav:today")],
+        ]
+    )
 
 
 def after_water_save_keyboard() -> InlineKeyboardMarkup:

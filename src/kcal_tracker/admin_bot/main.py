@@ -294,6 +294,14 @@ async def quality_callback(callback: CallbackQuery) -> None:
     await callback.answer("Обновлено")
 
 
+@router.callback_query(F.data.startswith("admin:quality:"))
+async def quality_filtered_callback(callback: CallbackQuery) -> None:
+    mode = callback.data.rsplit(":", 1)[1]
+    text = await _quality_text(mode=mode)
+    await callback.message.edit_text(text, reply_markup=_quality_keyboard(mode=mode))
+    await callback.answer("Обновлено")
+
+
 @router.message(Command("funnel"))
 async def funnel_command(message: Message) -> None:
     text = await _funnel_text()
@@ -837,9 +845,10 @@ async def _alerts_text() -> str:
     return "\n".join(lines)
 
 
-async def _quality_text() -> str:
+async def _quality_text(mode: str = "overview") -> str:
     tz = ZoneInfo(settings.default_timezone)
     start, end = _today_bounds(tz)
+    event_filter = _quality_event_filter(mode)
     async with SessionLocal() as session:
         totals = await session.execute(
             select(QualityEvent.event_type, func.count(QualityEvent.id))
@@ -847,19 +856,64 @@ async def _quality_text() -> str:
             .group_by(QualityEvent.event_type)
             .order_by(func.count(QualityEvent.id).desc())
         )
+        top_queries = await session.execute(
+            select(QualityEvent.query, func.count(QualityEvent.id))
+            .where(
+                QualityEvent.created_at >= start,
+                QualityEvent.created_at <= end,
+                QualityEvent.query.is_not(None),
+                *event_filter,
+            )
+            .group_by(QualityEvent.query)
+            .order_by(func.count(QualityEvent.id).desc())
+            .limit(5)
+        )
+        top_users = await session.execute(
+            select(User.telegram_id, User.username, func.count(QualityEvent.id))
+            .join(User, User.id == QualityEvent.user_id)
+            .where(
+                QualityEvent.created_at >= start,
+                QualityEvent.created_at <= end,
+                *event_filter,
+            )
+            .group_by(User.id, User.telegram_id, User.username)
+            .order_by(func.count(QualityEvent.id).desc())
+            .limit(5)
+        )
         recent = await session.execute(
             select(QualityEvent)
+            .where(*event_filter)
             .order_by(QualityEvent.created_at.desc())
             .limit(10)
         )
 
-    lines = ["📉 Quality", "", "Сегодня:"]
+    lines = [f"📉 Quality · {_quality_mode_title(mode)}", "", "Сегодня:"]
     total_rows = list(totals)
     if total_rows:
         for event_type, count in total_rows:
             lines.append(f"{event_type}: {count}")
     else:
         lines.append("событий нет")
+
+    lines.extend(["", "Топ запросов:"])
+    query_rows = [(query, count) for query, count in top_queries if query]
+    if query_rows:
+        for query, count in query_rows:
+            label = query.replace("\n", " ")
+            if len(label) > 46:
+                label = label[:43] + "..."
+            lines.append(f"· {label}: {count}")
+    else:
+        lines.append("нет")
+
+    lines.extend(["", "Пользователи с ошибками:"])
+    user_rows = list(top_users)
+    if user_rows:
+        for telegram_id, username, count in user_rows:
+            label = f"@{username}" if username else str(telegram_id)
+            lines.append(f"· {label}: {count}")
+    else:
+        lines.append("нет")
 
     lines.extend(["", "Последние:"])
     events = list(recent.scalars())
@@ -874,6 +928,24 @@ async def _quality_text() -> str:
         source = f" / {event.source}" if event.source else ""
         lines.append(f"· {event.event_type}{source}: {query or 'без текста'}")
     return "\n".join(lines)
+
+
+def _quality_event_filter(mode: str) -> list:
+    if mode == "not-it":
+        return [QualityEvent.event_type == "food_not_it"]
+    if mode == "ai":
+        return [QualityEvent.event_type == "food_ai_failed"]
+    if mode == "search":
+        return [QualityEvent.event_type.in_(["food_no_match", "food_search_cancelled"])]
+    return []
+
+
+def _quality_mode_title(mode: str) -> str:
+    return {
+        "not-it": "Не то",
+        "ai": "AI ошибки",
+        "search": "Поиск",
+    }.get(mode, "обзор")
 
 
 async def _funnel_text() -> str:
@@ -1265,12 +1337,18 @@ def _alerts_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def _quality_keyboard() -> InlineKeyboardMarkup:
+def _quality_keyboard(mode: str = "overview") -> InlineKeyboardMarkup:
+    refresh_callback = "admin:quality" if mode == "overview" else f"admin:quality:{mode}"
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:quality"),
+                InlineKeyboardButton(text="🔄 Обновить", callback_data=refresh_callback),
                 InlineKeyboardButton(text="🚨 Alerts", callback_data="admin:alerts"),
+            ],
+            [
+                InlineKeyboardButton(text="🙅 Не то", callback_data="admin:quality:not-it"),
+                InlineKeyboardButton(text="🤖 AI", callback_data="admin:quality:ai"),
+                InlineKeyboardButton(text="🔎 Поиск", callback_data="admin:quality:search"),
             ],
             [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
         ]

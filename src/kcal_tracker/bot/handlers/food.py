@@ -532,6 +532,12 @@ async def retry_confirmation_with_database_search(callback: CallbackQuery, state
         await callback.answer()
         return
 
+    await _record_callback_quality_event(
+        callback,
+        "food_fix_database",
+        source="database_retry",
+        query=query,
+    )
     await state.set_state(FoodFlow.confirming)
     estimate_list = FoodEstimateList(foods=estimates)
     await state.update_data(search_estimates=estimate_list.model_dump_json(), source="food_search")
@@ -604,6 +610,13 @@ async def parse_search_query_with_ai(callback: CallbackQuery, state: FSMContext)
         await callback.answer()
         return
 
+    await _record_callback_quality_event(
+        callback,
+        "food_fix_ai",
+        source="callback",
+        query=query,
+        details={"foods": len(estimates.foods)},
+    )
     await _show_estimates_confirmation(callback.message, state, estimates, "manual", query=query)
     await callback.answer()
 

@@ -22,7 +22,7 @@ class FoodEstimateList(BaseModel):
 
 
 class FoodEntryCreate(FoodEstimate):
-    source: str = Field(pattern="^(ai_photo|manual|food_search|barcode|apple_health)$")
+    source: str = Field(pattern="^(ai_photo|manual|food_search|barcode|apple_health|history)$")
 
 
 class FoodEntryRead(FoodEntryCreate):

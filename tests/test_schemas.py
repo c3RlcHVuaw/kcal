@@ -17,6 +17,7 @@ from kcal_tracker.bot.handlers.diary import (
     _meal_summary_lines,
     _month_delta_line,
     _month_focus,
+    _next_step_line,
     _today_view,
     _week_highlight_lines,
     _weight_chart,
@@ -31,6 +32,7 @@ from kcal_tracker.bot.handlers.payments import _payment_choice_from_callback, _p
 from kcal_tracker.bot.handlers.profile import _apple_health_shortcut_text, _parse_birth_date
 from kcal_tracker.bot.keyboards import (
     activity_menu_keyboard,
+    entry_edit_keyboard,
     food_confirmation_keyboard,
     food_entries_keyboard,
     food_recovery_keyboard,
@@ -45,7 +47,7 @@ from kcal_tracker.bot.text_parsing import (
     parse_activity_kcal,
     parse_int_from_text,
 )
-from kcal_tracker.schemas import FoodEstimate
+from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate
 from kcal_tracker.services.ai_food import food_refinement_user_text, photo_recognition_user_text
 from kcal_tracker.services.diary import (
     NutritionPatterns,
@@ -168,6 +170,11 @@ def test_remaining_advice_is_soft_when_over_target() -> None:
     text = remaining_advice(summary)
     assert "выше цели" in text
     assert "Без наказаний" in text
+
+
+def test_history_source_is_valid_for_saved_food() -> None:
+    payload = FoodEntryCreate(name="Барни", kcal=120, weight_g=30, source="history")
+    assert payload.source == "history"
 
 
 def test_saved_food_text_adds_mini_goal() -> None:
@@ -513,9 +520,33 @@ def test_after_food_save_keyboard_has_fast_correction_actions() -> None:
         for row in keyboard.inline_keyboard
         for button in row
     ]
-    assert callbacks[:4] == ["nav:today", "nav:add-food", "entry:edit:42", "entry:delete:42"]
+    assert callbacks[:4] == ["nav:today", "nav:add-food", "entry:edit-menu:42", "entry:delete:42"]
     assert "coach:meal" in callbacks
     assert "entry:fav:42" in callbacks
+
+
+def test_entry_edit_keyboard_has_manual_correction_fields() -> None:
+    keyboard = entry_edit_keyboard(42)
+    callbacks = [
+        button.callback_data
+        for row in keyboard.inline_keyboard
+        for button in row
+    ]
+    assert "entry:edit:42" in callbacks
+    assert "entry:edit-name:42" in callbacks
+    assert "entry:edit-kcal:42" in callbacks
+    assert "entry:edit-macros:42" in callbacks
+
+
+def test_today_next_step_prioritizes_protein() -> None:
+    summary = SimpleNamespace(
+        kcal=1300,
+        target_kcal=2100,
+        protein=60,
+        target_protein=120,
+        entries=[SimpleNamespace()],
+    )
+    assert _next_step_line(summary, water_ml=1500) == "Следующий шаг: добрать белок."
 
 
 def test_weight_chart_returns_sparkline_for_recent_logs() -> None:

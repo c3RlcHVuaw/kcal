@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
@@ -21,6 +22,7 @@ from kcal_tracker.bot.keyboards import (
     after_activity_save_keyboard,
     after_save_keyboard,
     after_water_save_keyboard,
+    entry_edit_keyboard,
     favorites_keyboard,
     food_entries_keyboard,
     progress_share_keyboard,
@@ -74,6 +76,9 @@ DAILY_CARD_CAPTION = (
 
 class DiaryFlow(StatesGroup):
     editing_saved_weight = State()
+    editing_saved_name = State()
+    editing_saved_kcal = State()
+    editing_saved_macros = State()
     refining_saved_entry = State()
     water_custom = State()
     activity_custom = State()
@@ -270,6 +275,51 @@ async def edit_saved_entry(callback: CallbackQuery, state: FSMContext) -> None:
     await callback.answer()
 
 
+@router.callback_query(F.data.startswith("entry:edit-menu:"))
+async def show_saved_entry_edit_menu(callback: CallbackQuery) -> None:
+    entry_id = int(callback.data.rsplit(":", 1)[1])
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            callback.from_user.id,
+            callback.from_user.username,
+        )
+        entry = await DiaryService(session).get_entry(user, entry_id)
+    if entry is None:
+        await callback.answer("Не нашёл эту запись.", show_alert=True)
+        return
+    await callback.message.edit_text(
+        f"Что исправить в записи: {food_label(entry)}?",
+        reply_markup=entry_edit_keyboard(entry_id),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("entry:edit-name:"))
+async def edit_saved_entry_name(callback: CallbackQuery, state: FSMContext) -> None:
+    entry_id = int(callback.data.rsplit(":", 1)[1])
+    await state.update_data(entry_id=entry_id)
+    await state.set_state(DiaryFlow.editing_saved_name)
+    await callback.message.edit_text("Напиши правильное название продукта или блюда.")
+    await callback.answer()
+
+
+@router.message(DiaryFlow.editing_saved_name, F.text)
+async def save_entry_name(message: Message, state: FSMContext) -> None:
+    name = " ".join((message.text or "").split())
+    if len(name) < 2:
+        await message.answer("Название слишком короткое. Например: Барни с бананом.")
+        return
+    data = await state.get_data()
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            message.from_user.id,
+            message.from_user.username,
+        )
+        entry = await DiaryService(session).update_entry_name(user, int(data["entry_id"]), name)
+    await state.clear()
+    await _answer_entry_update(message, entry)
+
+
 @router.message(DiaryFlow.editing_saved_weight, F.text)
 async def save_entry_weight(message: Message, state: FSMContext) -> None:
     grams = _parse_float(message.text or "", 1, 10000)
@@ -287,10 +337,65 @@ async def save_entry_weight(message: Message, state: FSMContext) -> None:
     if entry is None:
         await message.answer("Не нашёл эту запись.")
     else:
-        await message.answer(
-            f"Обновил: {food_label(entry)} — {entry.weight_g:.0f}г, {entry.kcal:.0f} ккал.",
-            reply_markup=after_save_keyboard(),
+        await _answer_entry_update(message, entry)
+
+
+@router.callback_query(F.data.startswith("entry:edit-kcal:"))
+async def edit_saved_entry_kcal(callback: CallbackQuery, state: FSMContext) -> None:
+    entry_id = int(callback.data.rsplit(":", 1)[1])
+    await state.update_data(entry_id=entry_id)
+    await state.set_state(DiaryFlow.editing_saved_kcal)
+    await callback.message.edit_text("Напиши калории числом. Например: 245")
+    await callback.answer()
+
+
+@router.message(DiaryFlow.editing_saved_kcal, F.text)
+async def save_entry_kcal(message: Message, state: FSMContext) -> None:
+    kcal = _parse_float(message.text or "", 1, 5000)
+    if kcal is None:
+        await message.answer("Напиши калории числом, например 245.")
+        return
+    data = await state.get_data()
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            message.from_user.id,
+            message.from_user.username,
         )
+        entry = await DiaryService(session).update_entry_kcal(user, int(data["entry_id"]), kcal)
+    await state.clear()
+    await _answer_entry_update(message, entry)
+
+
+@router.callback_query(F.data.startswith("entry:edit-macros:"))
+async def edit_saved_entry_macros(callback: CallbackQuery, state: FSMContext) -> None:
+    entry_id = int(callback.data.rsplit(":", 1)[1])
+    await state.update_data(entry_id=entry_id)
+    await state.set_state(DiaryFlow.editing_saved_macros)
+    await callback.message.edit_text("Напиши Б/Ж/У через пробел или слэш. Например: 20 8 35")
+    await callback.answer()
+
+
+@router.message(DiaryFlow.editing_saved_macros, F.text)
+async def save_entry_macros(message: Message, state: FSMContext) -> None:
+    macros = _parse_macros(message.text or "")
+    if macros is None:
+        await message.answer("Напиши три числа: белки жиры углеводы. Например: 20 8 35.")
+        return
+    data = await state.get_data()
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            message.from_user.id,
+            message.from_user.username,
+        )
+        entry = await DiaryService(session).update_entry_macros(
+            user,
+            int(data["entry_id"]),
+            macros[0],
+            macros[1],
+            macros[2],
+        )
+    await state.clear()
+    await _answer_entry_update(message, entry)
 
 
 @router.callback_query(F.data.startswith("entry:delete:"))
@@ -1234,6 +1339,7 @@ def _today_view(
         "",
         target_line,
         _kcal_left_line(kcal_left),
+        _next_step_line(summary, water_ml),
         "",
         _progress_line("Калории", summary.kcal, summary.target_kcal, unit="ккал"),
         _progress_line("Белки", summary.protein, summary.target_protein, unit="г"),
@@ -1303,6 +1409,22 @@ def _mini_goal_lines(missions: WeeklyMissions) -> list[str]:
         left = max(mission.target - current, 0)
         lines.append(f"· {mission.title}: {current}/{mission.target}, осталось {left}")
     return lines
+
+
+def _next_step_line(summary, water_ml: int) -> str:
+    kcal_left = summary.target_kcal - summary.kcal
+    protein_left = summary.target_protein - summary.protein
+    if not summary.entries:
+        return "Следующий шаг: записать первый приём пищи."
+    if kcal_left < -150:
+        return "Следующий шаг: спокойно закрыть день лёгким выбором."
+    if protein_left > 30 and kcal_left > 150:
+        return "Следующий шаг: добрать белок."
+    if water_ml < 1000:
+        return "Следующий шаг: добавить воды."
+    if kcal_left > 500:
+        return "Следующий шаг: не пропустить нормальный приём пищи."
+    return "Следующий шаг: держать текущий темп."
 
 
 def _kcal_left_line(kcal_left: float) -> str:
@@ -1554,6 +1676,28 @@ def _parse_float(text: str, minimum: float, maximum: float) -> float | None:
     except ValueError:
         return None
     return value if minimum <= value <= maximum else None
+
+
+def _parse_macros(text: str) -> tuple[float, float, float] | None:
+    values = re.findall(r"\d+(?:[.,]\d+)?", text)
+    if len(values) != 3:
+        return None
+    parsed = tuple(float(value.replace(",", ".")) for value in values)
+    if any(value < 0 or value > 500 for value in parsed):
+        return None
+    return parsed
+
+
+async def _answer_entry_update(message: Message, entry) -> None:
+    if entry is None:
+        await message.answer("Не нашёл эту запись.")
+        return
+    weight = f"{entry.weight_g:.0f}г, " if entry.weight_g else ""
+    await message.answer(
+        f"Обновил: {food_label(entry)} — {weight}{entry.kcal:.0f} ккал, "
+        f"Б {entry.protein:.0f} / Ж {entry.fat:.0f} / У {entry.carbs:.0f}.",
+        reply_markup=after_save_keyboard(),
+    )
 
 
 def _parse_time(text: str) -> str | None:

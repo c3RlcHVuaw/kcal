@@ -168,6 +168,80 @@ class DiaryService:
         await self.session.refresh(entry)
         return entry
 
+    async def update_entry_name(
+        self,
+        user: User,
+        entry_id: int,
+        name: str,
+    ) -> FoodEntry | None:
+        entry = await self.get_entry(user, entry_id)
+        if entry is None:
+            return None
+        entry.food_name = name.strip()
+        entry.emoji = food_emoji(entry.food_name)
+        entry.advice = food_advice(
+            entry.food_name,
+            kcal=entry.kcal,
+            protein=entry.protein,
+            fat=entry.fat,
+            carbs=entry.carbs,
+        )
+        await self.session.commit()
+        await self.session.refresh(entry)
+        return entry
+
+    async def update_entry_kcal(
+        self,
+        user: User,
+        entry_id: int,
+        kcal: float,
+    ) -> FoodEntry | None:
+        entry = await self.get_entry(user, entry_id)
+        if entry is None:
+            return None
+        old_kcal = entry.kcal or 0
+        if old_kcal > 0:
+            ratio = kcal / old_kcal
+            entry.protein = round(entry.protein * ratio, 1)
+            entry.fat = round(entry.fat * ratio, 1)
+            entry.carbs = round(entry.carbs * ratio, 1)
+        entry.kcal = round(kcal, 1)
+        entry.advice = food_advice(
+            entry.food_name,
+            kcal=entry.kcal,
+            protein=entry.protein,
+            fat=entry.fat,
+            carbs=entry.carbs,
+        )
+        await self.session.commit()
+        await self.session.refresh(entry)
+        return entry
+
+    async def update_entry_macros(
+        self,
+        user: User,
+        entry_id: int,
+        protein: float,
+        fat: float,
+        carbs: float,
+    ) -> FoodEntry | None:
+        entry = await self.get_entry(user, entry_id)
+        if entry is None:
+            return None
+        entry.protein = round(protein, 1)
+        entry.fat = round(fat, 1)
+        entry.carbs = round(carbs, 1)
+        entry.advice = food_advice(
+            entry.food_name,
+            kcal=entry.kcal,
+            protein=entry.protein,
+            fat=entry.fat,
+            carbs=entry.carbs,
+        )
+        await self.session.commit()
+        await self.session.refresh(entry)
+        return entry
+
     async def repeat_yesterday(self, user: User) -> list[FoodEntry]:
         entries = await self.entries_for_day_offset(user, days_ago=1)
         repeated = [
