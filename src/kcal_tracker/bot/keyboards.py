@@ -422,7 +422,7 @@ def multi_food_keyboard(count: int, added_indices: set[int] | None = None) -> In
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def food_search_results_keyboard(count: int) -> InlineKeyboardMarkup:
+def food_search_results_keyboard(count: int, *, allow_ai: bool = True) -> InlineKeyboardMarkup:
     rows = [
         [
             InlineKeyboardButton(
@@ -432,6 +432,8 @@ def food_search_results_keyboard(count: int) -> InlineKeyboardMarkup:
         ]
         for index in range(1, count + 1)
     ]
+    if allow_ai:
+        rows.append([InlineKeyboardButton(text="✨ Разобрать через AI", callback_data="foodsearch:ai")])
     rows.append([InlineKeyboardButton(text="❌ Отмена", callback_data="foodsearch:cancel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 

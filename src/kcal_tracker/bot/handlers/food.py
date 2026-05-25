@@ -47,6 +47,8 @@ from kcal_tracker.services.wellness import WellnessService
 router = Router()
 logger = logging.getLogger(__name__)
 
+MIN_SEARCH_RELEVANCE = 0.34
+
 
 class FoodFlow(StatesGroup):
     waiting_manual = State()
@@ -100,24 +102,28 @@ async def parse_manual_food(message: Message, state: FSMContext) -> None:
     if await _show_history_confirmation(message, state):
         return
 
-    free_estimates = await _free_food_estimates(message.text or "")
+    query = " ".join((message.text or "").split())
+    free_estimates = await _free_food_estimates(query)
     if len(free_estimates) == 1:
-        await _show_confirmation(message, state, free_estimates[0], "food_search")
+        if _is_confident_single_search_match(query, free_estimates[0]):
+            await _show_confirmation(message, state, free_estimates[0], "food_search")
+            return
+        await _show_search_results(message, state, free_estimates, query=query)
         return
     if len(free_estimates) > 1:
-        await _show_search_results(message, state, free_estimates)
+        await _show_search_results(message, state, free_estimates, query=query)
         return
 
     if not await _can_use_ai(message):
         await message.answer(
-            "В базе продуктов не нашёл. Попробуй написать короче, например "
-            "«ореховый латте», отправить цифры штрихкода или фото штрихкода. "
-            "Premium умеет разбирать такие описания через AI и сразу готовить запись.",
+            "Не нашёл достаточно похожий продукт в базе. "
+            "Попробуй написать точнее, отправить штрихкод или фото. "
+            "AI-разбор может понять свободное описание и сразу подготовить запись.",
             reply_markup=subscription_cta_keyboard(),
         )
         return
 
-    estimates = await AIFoodService().parse_text(message.text or "")
+    estimates = await AIFoodService().parse_text(query)
     await _record_ai_request(message, "manual_text")
     if not estimates.foods:
         await message.answer("Не разобрал еду достаточно уверенно. Попробуй написать чуть проще.")
@@ -298,22 +304,20 @@ async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimat
                     )
                 )
             ]
+        estimate = estimate_common_food(text)
+        if estimate is not None:
+            return [estimate]
         try:
             estimates = await OpenFoodFactsService(session).search_products(text, limit=limit)
         except Exception:
             logger.debug("OpenFoodFacts text search failed", exc_info=True)
             estimates = []
+    estimates = _filter_relevant_estimates(text, estimates, limit=limit)
     if estimates:
-        return _dedupe_estimates(estimates, limit=limit)
+        return estimates
 
     estimates = await FatSecretService().search_products(text, limit=limit)
-    if estimates:
-        return _dedupe_estimates(estimates, limit=limit)
-
-    estimate = estimate_common_food(text)
-    if estimate is not None:
-        return [estimate]
-    return []
+    return _filter_relevant_estimates(text, estimates, limit=limit)
 
 
 def _looks_like_quick_food_text(text: str) -> bool:
@@ -359,12 +363,18 @@ async def _show_search_results(
     message: Message,
     state: FSMContext,
     estimates: list[FoodEstimate],
+    *,
+    query: str,
 ) -> None:
     await state.set_state(FoodFlow.confirming)
     estimate_list = FoodEstimateList(foods=estimates)
-    await state.update_data(search_estimates=estimate_list.model_dump_json(), source="food_search")
+    await state.update_data(
+        search_estimates=estimate_list.model_dump_json(),
+        search_query=query,
+        source="food_search",
+    )
     await message.answer(
-        _format_search_results(estimates),
+        _format_search_results(estimates, query=query),
         reply_markup=food_search_results_keyboard(len(estimates)),
     )
 
@@ -401,6 +411,35 @@ async def cancel_food_search(callback: CallbackQuery, state: FSMContext) -> None
     await callback.answer()
 
 
+@router.callback_query(F.data == "foodsearch:ai")
+async def parse_search_query_with_ai(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    query = str(data.get("search_query") or "").strip()
+    if not query:
+        await callback.answer("Поиск уже устарел. Напиши продукт ещё раз.", show_alert=True)
+        return
+    if not await _ensure_ai_available_for_callback(callback):
+        return
+
+    await callback.message.edit_text("Ок, разбираю это через AI.")
+    try:
+        estimates = await AIFoodService().parse_text(query)
+    except Exception:
+        logger.exception("AI food search fallback failed")
+        await callback.message.answer("AI сейчас не смог разобрать текст. Попробуй чуть проще.")
+        await callback.answer()
+        return
+
+    await _record_ai_request_for_callback(callback, "manual_text")
+    if not estimates.foods:
+        await callback.message.answer("AI тоже не разобрал еду уверенно. Попробуй переформулировать.")
+        await callback.answer()
+        return
+
+    await _show_estimates_confirmation(callback.message, state, estimates, "manual")
+    await callback.answer()
+
+
 def _dedupe_estimates(estimates: list[FoodEstimate], *, limit: int) -> list[FoodEstimate]:
     deduped: list[FoodEstimate] = []
     seen: set[str] = set()
@@ -411,6 +450,67 @@ def _dedupe_estimates(estimates: list[FoodEstimate], *, limit: int) -> list[Food
         seen.add(key)
         deduped.append(estimate)
     return deduped[:limit]
+
+
+def _filter_relevant_estimates(
+    query: str,
+    estimates: list[FoodEstimate],
+    *,
+    limit: int,
+) -> list[FoodEstimate]:
+    scored: list[tuple[float, FoodEstimate]] = []
+    for estimate in estimates:
+        score = _search_relevance(query, estimate.name)
+        if score < MIN_SEARCH_RELEVANCE:
+            continue
+        confidence = estimate.confidence or 0
+        estimate.confidence = max(confidence, min(score, 0.88))
+        scored.append((score, estimate))
+    scored.sort(key=lambda item: (item[0], item[1].confidence or 0), reverse=True)
+    return _dedupe_estimates([estimate for _, estimate in scored], limit=limit)
+
+
+def _is_confident_single_search_match(query: str, estimate: FoodEstimate) -> bool:
+    return _search_relevance(query, estimate.name) >= 0.68 or (estimate.confidence or 0) >= 0.88
+
+
+def _search_relevance(query: str, name: str) -> float:
+    query_tokens = _search_tokens(query)
+    name_tokens = _search_tokens(name)
+    if not query_tokens or not name_tokens:
+        return 0
+    exact_overlap = query_tokens & name_tokens
+    if exact_overlap:
+        return len(exact_overlap) / max(len(query_tokens), 1)
+
+    fuzzy_hits = 0
+    for query_token in query_tokens:
+        if len(query_token) < 4:
+            continue
+        if any(query_token in name_token or name_token in query_token for name_token in name_tokens):
+            fuzzy_hits += 1
+    if fuzzy_hits:
+        return fuzzy_hits / max(len(query_tokens), 1) * 0.75
+    return 0
+
+
+def _search_tokens(value: str) -> set[str]:
+    normalized = re.sub(r"[^0-9a-zа-яё]+", " ", value.casefold())
+    tokens = {token for token in normalized.split() if len(token) >= 3}
+    stop_words = {
+        "мне",
+        "это",
+        "или",
+        "для",
+        "без",
+        "со",
+        "вкусом",
+        "примерно",
+        "около",
+        "грамм",
+        "граммов",
+    }
+    return tokens - stop_words
 
 
 @router.message(F.text.in_({"⚡ Частое", "⭐ Частые продукты"}))
@@ -1008,6 +1108,32 @@ async def _ensure_ai_available(message: Message, request_count: int = 1) -> bool
     return True
 
 
+async def _ensure_ai_available_for_callback(
+    callback: CallbackQuery,
+    request_count: int = 1,
+) -> bool:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=callback.from_user.id,
+            username=callback.from_user.username,
+        )
+        usage_service = AIUsageService(session)
+        try:
+            if has_active_subscription(user):
+                await usage_service.ensure_allowed(user, request_count=request_count)
+            else:
+                await usage_service.ensure_trial_allowed(user, request_count=request_count)
+        except AILimitReachedError:
+            await callback.message.answer(
+                "AI-разбор сейчас недоступен. Можно выбрать вариант из базы, "
+                "написать точнее или оформить Premium.",
+                reply_markup=subscription_cta_keyboard(),
+            )
+            await callback.answer("AI недоступен", show_alert=True)
+            return False
+    return True
+
+
 async def _can_use_ai(message: Message, request_count: int = 1) -> bool:
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
@@ -1030,6 +1156,15 @@ async def _record_ai_request(message: Message, request_type: str) -> None:
         user = await UserService(session).get_or_create(
             telegram_id=message.from_user.id,
             username=message.from_user.username,
+        )
+        await AIUsageService(session).record_request(user, request_type)
+
+
+async def _record_ai_request_for_callback(callback: CallbackQuery, request_type: str) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=callback.from_user.id,
+            username=callback.from_user.username,
         )
         await AIUsageService(session).record_request(user, request_type)
 
@@ -1183,8 +1318,12 @@ def _format_estimate_confirmation(
     return "\n".join(lines)
 
 
-def _format_search_results(estimates: list[FoodEstimate]) -> str:
-    lines = ["Нашёл несколько вариантов. Выбери самый похожий:", ""]
+def _format_search_results(estimates: list[FoodEstimate], *, query: str) -> str:
+    lines = [
+        f"По запросу «{query}» нашёл варианты в базе.",
+        "Выбери только если продукт действительно похож:",
+        "",
+    ]
     for index, estimate in enumerate(estimates, start=1):
         lines.append(
             f"#{index} {food_label(estimate)} — {estimate.weight_g or 100:.0f}г, "
@@ -1193,7 +1332,7 @@ def _format_search_results(estimates: list[FoodEstimate]) -> str:
         lines.append(
             f"   Б {estimate.protein:.0f} / Ж {estimate.fat:.0f} / У {estimate.carbs:.0f} г"
         )
-    lines.extend(["", "Если ничего не подходит, можно отменить и написать точнее."])
+    lines.extend(["", "Если ничего не подходит, нажми AI-разбор или напиши точнее."])
     return "\n".join(lines)
 
 

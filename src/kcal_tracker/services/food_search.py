@@ -87,6 +87,7 @@ def _extract_grams(text: str) -> float | None:
 
 def _find_food(text: str) -> FoodNutrition | None:
     for key in sorted(COMMON_FOODS, key=len, reverse=True):
-        if key in text:
+        pattern = rf"(?<![a-zа-яё0-9]){re.escape(key)}(?![a-zа-яё0-9])"
+        if re.search(pattern, text, flags=re.IGNORECASE):
             return COMMON_FOODS[key]
     return None
