@@ -115,3 +115,26 @@ class WeeklyAnalyticsRead(BaseModel):
     average_kcal: float
     target_kcal: int
     days_in_target: int
+
+
+class WebAppUser(BaseModel):
+    telegram_id: int
+    username: str | None
+    first_name: str | None = None
+
+
+class WebAppToday(BaseModel):
+    user: UserRead
+    diary: DiarySummary
+    water_ml: int
+    latest_weight_kg: float | None
+    ai_usage: AIUsageSummary
+    weight_goal: WeightGoalRead
+
+
+class WebAppWaterCreate(BaseModel):
+    amount_ml: int = Field(ge=1, le=5000)
+
+
+class WebAppWeightCreate(BaseModel):
+    weight_kg: float = Field(ge=30, le=250)

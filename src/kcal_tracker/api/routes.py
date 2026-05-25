@@ -23,6 +23,9 @@ from kcal_tracker.schemas import (
     FoodEntryCreate,
     FoodEntryRead,
     UserRead,
+    WebAppToday,
+    WebAppWaterCreate,
+    WebAppWeightCreate,
     WeeklyAnalyticsRead,
     WeightGoalRead,
     WeightGoalUpdate,
@@ -37,11 +40,27 @@ from kcal_tracker.services.profile import (
 )
 from kcal_tracker.services.subscriptions import user_ai_daily_limit
 from kcal_tracker.services.users import UserService
+from kcal_tracker.services.webapp_auth import (
+    WebAppAuthError,
+    WebAppIdentity,
+    validate_webapp_init_data,
+)
 from kcal_tracker.services.wellness import WellnessService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+
+
+async def get_webapp_identity(request: Request) -> WebAppIdentity:
+    init_data = request.headers.get("x-telegram-init-data", "")
+    try:
+        return validate_webapp_init_data(init_data)
+    except WebAppAuthError as exc:
+        raise HTTPException(status_code=401, detail=str(exc)) from exc
+
+
+WebAppIdentityDep = Annotated[WebAppIdentity, Depends(get_webapp_identity)]
 
 
 @router.get("/health")
@@ -216,6 +235,67 @@ async def export_wellness_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="kcal_wellness.csv"'},
     )
+
+
+@router.get("/webapp/me/today", response_model=WebAppToday)
+async def webapp_today(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WebAppToday:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    diary = await DiaryService(session).today_summary(user)
+    wellness = WellnessService(session)
+    latest_weight = await wellness.latest_weight(user)
+    usage_service = AIUsageService(session)
+    used_today = await usage_service.today_count(user)
+    daily_limit = user_ai_daily_limit(user)
+    return WebAppToday(
+        user=user,
+        diary=diary,
+        water_ml=await wellness.today_water_ml(user),
+        latest_weight_kg=latest_weight.weight_kg if latest_weight else user.weight,
+        ai_usage=AIUsageSummary(
+            used_today=used_today,
+            remaining_today=10**9 if daily_limit is None else max(daily_limit - used_today, 0),
+            daily_limit=0 if daily_limit is None else daily_limit,
+        ),
+        weight_goal=weight_goal_summary(user),
+    )
+
+
+@router.post("/webapp/me/entries", response_model=FoodEntryRead)
+async def webapp_create_entry(
+    payload: FoodEntryCreate,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> FoodEntryRead:
+    if payload.source != "manual":
+        raise HTTPException(status_code=400, detail="Web app supports manual entries only")
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    return await DiaryService(session).add_entry(user, payload)
+
+
+@router.post("/webapp/me/water")
+async def webapp_add_water(
+    payload: WebAppWaterCreate,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> dict[str, int]:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    wellness = WellnessService(session)
+    await wellness.add_water(user, payload.amount_ml)
+    return {"water_ml": await wellness.today_water_ml(user)}
+
+
+@router.post("/webapp/me/weight")
+async def webapp_add_weight(
+    payload: WebAppWeightCreate,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> dict[str, float]:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    log = await WellnessService(session).add_weight(user, payload.weight_kg)
+    return {"weight_kg": log.weight_kg}
 
 
 @router.post("/integrations/apple-health/{token}", response_model=AppleHealthImportResult)

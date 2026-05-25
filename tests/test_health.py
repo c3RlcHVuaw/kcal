@@ -14,6 +14,14 @@ def test_health_returns_ok() -> None:
     assert response.json() == {"ok": True}
 
 
+def test_webapp_shell_is_served() -> None:
+    with TestClient(app) as client:
+        response = client.get("/app")
+
+    assert response.status_code == 200
+    assert "Kcal Tracker" in response.text
+
+
 def test_openapi_exposes_external_client_routes() -> None:
     with TestClient(app) as client:
         response = client.get("/openapi.json")
@@ -23,6 +31,7 @@ def test_openapi_exposes_external_client_routes() -> None:
     assert "/users/{telegram_id}/goals/weight" in paths
     assert "/users/{telegram_id}/analytics/week" in paths
     assert "/users/{telegram_id}/exports/food.csv" in paths
+    assert "/webapp/me/today" in paths
 
 
 def test_readiness_returns_ok_when_dependencies_are_available(monkeypatch) -> None:

@@ -3,6 +3,27 @@ from __future__ import annotations
 import pytest
 
 from kcal_tracker.config import Settings, parse_admin_ids, validate_production_settings
+from kcal_tracker.services.webapp_auth import validate_webapp_init_data
+
+
+def _signed_init_data(bot_token: str, *, auth_date: int = 1_800_000_000) -> str:
+    import hashlib
+    import hmac
+    import json
+    from urllib.parse import urlencode
+
+    payload = {
+        "auth_date": str(auth_date),
+        "query_id": "test-query",
+        "user": json.dumps(
+            {"id": 12345, "username": "tester", "first_name": "Test"},
+            separators=(",", ":"),
+        ),
+    }
+    data_check_string = "\n".join(f"{key}={payload[key]}" for key in sorted(payload))
+    secret_key = hmac.new(b"WebAppData", bot_token.encode(), hashlib.sha256).digest()
+    payload["hash"] = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+    return urlencode(payload)
 
 
 def test_validate_production_settings_ignores_local_environment() -> None:
@@ -90,3 +111,23 @@ def test_food_search_timeouts_are_configurable() -> None:
 
     assert settings.food_search_openfoodfacts_timeout_seconds == 1.5
     assert settings.food_search_fatsecret_timeout_seconds == 2.5
+
+
+def test_webapp_init_data_validation_accepts_signed_payload() -> None:
+    identity = validate_webapp_init_data(
+        _signed_init_data("bot-token"),
+        bot_token="bot-token",
+        now=1_800_000_100,
+    )
+
+    assert identity.telegram_id == 12345
+    assert identity.username == "tester"
+
+
+def test_webapp_init_data_validation_rejects_bad_signature() -> None:
+    with pytest.raises(RuntimeError, match="Invalid init data signature"):
+        validate_webapp_init_data(
+            _signed_init_data("bot-token").replace("tester", "attacker"),
+            bot_token="bot-token",
+            now=1_800_000_100,
+        )

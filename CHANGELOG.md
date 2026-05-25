@@ -2,6 +2,8 @@
 
 ## 2026-05-25
 
+- Added the first Telegram Mini App MVP at `/app` with signed Telegram WebApp
+  authentication, today's dashboard, manual food entry, water, and weight.
 - Added promo codes for subscription payments with admin creation/listing/
   disabling and user entry before choosing a payment method.
 - Removed raw Apple Health payload logging and replaced it with a privacy-safe

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Kcal</title>
+    <link rel="stylesheet" href="/app/static/styles.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Kcal Tracker</p>
+          <h1>Сегодня</h1>
+        </div>
+        <button id="refresh" class="icon-button" type="button" aria-label="Обновить">↻</button>
+      </header>
+
+      <section id="auth-warning" class="notice hidden">
+        Открой приложение из Telegram, чтобы дневник подключился к твоему профилю.
+      </section>
+
+      <section class="summary">
+        <div class="ring" aria-label="Прогресс калорий">
+          <span id="kcal-value">0</span>
+          <small>ккал</small>
+        </div>
+        <div class="summary-copy">
+          <p id="kcal-left">Загрузка...</p>
+          <div class="macro-grid">
+            <span>Б <b id="protein">0</b></span>
+            <span>Ж <b id="fat">0</b></span>
+            <span>У <b id="carbs">0</b></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="quick-grid">
+        <button class="quick-action" type="button" data-water="250">+250 мл</button>
+        <button class="quick-action" type="button" data-water="500">+500 мл</button>
+        <button id="weight-button" class="quick-action" type="button">Вес</button>
+      </section>
+
+      <section class="panel">
+        <h2>Добавить еду</h2>
+        <form id="food-form" class="food-form">
+          <input id="food-name" name="name" autocomplete="off" placeholder="Название" required />
+          <div class="inline-fields">
+            <input id="food-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
+            <input id="food-weight" name="weight" inputmode="decimal" placeholder="г" />
+          </div>
+          <div class="inline-fields">
+            <input id="food-protein" name="protein" inputmode="decimal" placeholder="белки" />
+            <input id="food-fat" name="fat" inputmode="decimal" placeholder="жиры" />
+            <input id="food-carbs" name="carbs" inputmode="decimal" placeholder="углеводы" />
+          </div>
+          <button class="primary" type="submit">Добавить</button>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <h2>Дневник</h2>
+          <span id="water">0 мл воды</span>
+        </div>
+        <div id="entries" class="entries"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Цель веса</h2>
+        <p id="weight-goal" class="muted">Загрузка...</p>
+      </section>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+    <script src="/app/static/app.js" type="module"></script>
+  </body>
+</html>
