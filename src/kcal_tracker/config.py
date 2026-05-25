@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     fatsecret_scope: str = "premier localization"
     fatsecret_region: str = "RU"
     fatsecret_language: str = "ru"
+    food_search_openfoodfacts_timeout_seconds: float = Field(default=3.0, ge=0.5)
+    food_search_fatsecret_timeout_seconds: float = Field(default=3.0, ge=0.5)
 
     default_timezone: str = "Europe/Samara"
     default_daily_kcal_target: int = 2200

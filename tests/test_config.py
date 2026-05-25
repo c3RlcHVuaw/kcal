@@ -80,3 +80,13 @@ def test_parse_admin_ids_accepts_commas_and_semicolons() -> None:
 def test_parse_admin_ids_rejects_non_numeric_values() -> None:
     with pytest.raises(RuntimeError, match="ADMIN_TELEGRAM_IDS"):
         parse_admin_ids("123, nope")
+
+
+def test_food_search_timeouts_are_configurable() -> None:
+    settings = Settings(
+        food_search_openfoodfacts_timeout_seconds=1.5,
+        food_search_fatsecret_timeout_seconds=2.5,
+    )
+
+    assert settings.food_search_openfoodfacts_timeout_seconds == 1.5
+    assert settings.food_search_fatsecret_timeout_seconds == 2.5

@@ -22,6 +22,7 @@ from kcal_tracker.bot.keyboards import (
     smart_after_food_save_keyboard,
     subscription_cta_keyboard,
 )
+from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate, FoodEstimateList
 from kcal_tracker.services.ai_audio import AIAudioService
@@ -309,7 +310,13 @@ async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimat
         if estimate is not None:
             return [estimate]
         try:
-            estimates = await OpenFoodFactsService(session).search_products(text, limit=limit)
+            estimates = await asyncio.wait_for(
+                OpenFoodFactsService(session).search_products(text, limit=limit),
+                timeout=settings.food_search_openfoodfacts_timeout_seconds,
+            )
+        except TimeoutError:
+            logger.info("OpenFoodFacts text search timed out query=%r", text)
+            estimates = []
         except Exception:
             logger.debug("OpenFoodFacts text search failed", exc_info=True)
             estimates = []
@@ -317,7 +324,17 @@ async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimat
     if estimates:
         return estimates
 
-    estimates = await FatSecretService().search_products(text, limit=limit)
+    try:
+        estimates = await asyncio.wait_for(
+            FatSecretService().search_products(text, limit=limit),
+            timeout=settings.food_search_fatsecret_timeout_seconds,
+        )
+    except TimeoutError:
+        logger.info("FatSecret text search timed out query=%r", text)
+        estimates = []
+    except Exception:
+        logger.debug("FatSecret text search failed", exc_info=True)
+        estimates = []
     return _filter_relevant_estimates(text, estimates, limit=limit)
 
 
