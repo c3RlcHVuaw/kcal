@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     admin_pending_payments_alert_threshold: int = Field(default=3, ge=1)
     admin_failed_payments_hour_threshold: int = Field(default=2, ge=1)
     admin_no_onboarding_alert_threshold: int = Field(default=5, ge=1)
+    admin_quality_not_it_hour_threshold: int = Field(default=5, ge=1)
+    admin_quality_ai_failed_hour_threshold: int = Field(default=3, ge=1)
+    admin_quality_no_match_hour_threshold: int = Field(default=5, ge=1)
+    admin_daily_digest_time: str = "09:05"
 
     @property
     def is_production(self) -> bool:

@@ -36,6 +36,7 @@ from kcal_tracker.bot.keyboards import (
     food_confirmation_keyboard,
     food_entries_keyboard,
     food_recovery_keyboard,
+    food_tools_keyboard,
     settings_keyboard,
     smart_after_food_save_keyboard,
     subscription_bonuses_keyboard,
@@ -651,6 +652,16 @@ def test_food_recovery_keyboard_has_safe_next_steps() -> None:
     ]
 
     assert callbacks == ["food:ai", "food:search", "nav:add-food", "support:open"]
+
+
+def test_food_tools_keyboard_can_delete_last_entry() -> None:
+    keyboard = food_tools_keyboard(has_frequent_foods=False, has_yesterday_entries=False)
+    callbacks = [
+        button.callback_data
+        for row in keyboard.inline_keyboard
+        for button in row
+    ]
+    assert "entry:delete-last" in callbacks
 
 
 def test_compound_text_prefers_ai_first() -> None:

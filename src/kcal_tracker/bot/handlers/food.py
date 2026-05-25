@@ -801,6 +801,25 @@ async def cancel_repeat_yesterday(callback: CallbackQuery) -> None:
     await callback.answer()
 
 
+@router.callback_query(F.data == "entry:delete-last")
+async def delete_last_food_entry(callback: CallbackQuery) -> None:
+    async with SessionLocal() as session:
+        user = await UserService(session).get_or_create(
+            telegram_id=callback.from_user.id,
+            username=callback.from_user.username,
+        )
+        deleted = await DiaryService(session).delete_latest_entry(user)
+
+    if deleted is None:
+        await callback.answer("В дневнике пока нет еды.", show_alert=True)
+        return
+    await callback.message.edit_text(
+        f"Удалил последнее: {food_label(deleted)} — {deleted.kcal:.0f} ккал.",
+        reply_markup=after_save_keyboard(),
+    )
+    await callback.answer()
+
+
 @router.callback_query(F.data.startswith("food:repeat:"))
 async def repeat_frequent_food(callback: CallbackQuery) -> None:
     entry_id = int(callback.data.rsplit(":", 1)[1])
@@ -1046,6 +1065,8 @@ async def _add_confirmed_food(
     estimate: FoodEstimate,
     source: str,
 ) -> None:
+    state_data = await state.get_data()
+    query = str(state_data.get("search_query") or "").strip()
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
             telegram_id=callback.from_user.id,
@@ -1059,6 +1080,21 @@ async def _add_confirmed_food(
             entry = await diary.add_entry(user, payload)
         summary = await diary.today_summary(user)
         water_ml = await WellnessService(session).today_water_ml(user)
+
+    if query and not duplicate:
+        await record_quality_event(
+            "food_learned",
+            telegram_id=callback.from_user.id,
+            username=callback.from_user.username,
+            source=source,
+            query=query,
+            details={
+                "entry_id": entry.id,
+                "estimate": estimate.name,
+                "kcal": estimate.kcal,
+                "weight_g": estimate.weight_g,
+            },
+        )
 
     await state.clear()
     await callback.message.edit_text(

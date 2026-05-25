@@ -89,12 +89,16 @@ async def main() -> None:
     dispatcher.callback_query.middleware(AdminAccessMiddleware(admin_ids))
     dispatcher.include_router(router)
     admin_alerts = asyncio.create_task(admin_alert_loop(bot, admin_ids))
+    daily_digest = asyncio.create_task(admin_daily_digest_loop(bot, admin_ids))
     try:
         await dispatcher.start_polling(bot)
     finally:
         admin_alerts.cancel()
+        daily_digest.cancel()
         with suppress(asyncio.CancelledError):
             await admin_alerts
+        with suppress(asyncio.CancelledError):
+            await daily_digest
         await bot.session.close()
 
 
@@ -139,6 +143,41 @@ async def today_callback(callback: CallbackQuery) -> None:
     text = await _today_text()
     await callback.message.edit_text(text, reply_markup=_today_keyboard())
     await callback.answer("Обновлено")
+
+
+@router.message(Command("digest"))
+async def digest_command(message: Message) -> None:
+    text = await _digest_text()
+    await message.answer(text, reply_markup=_today_keyboard())
+
+
+async def admin_daily_digest_loop(bot: Bot, admin_ids: set[int]) -> None:
+    if not admin_ids:
+        return
+    sent_dates: set[str] = set()
+    await asyncio.sleep(20)
+    while True:
+        try:
+            now = datetime.now(ZoneInfo(settings.default_timezone))
+            scheduled_hour, scheduled_minute = _parse_hhmm(settings.admin_daily_digest_time, "09:05")
+            key = now.date().isoformat()
+            is_due = now.hour * 60 + now.minute >= scheduled_hour * 60 + scheduled_minute
+            if is_due and key not in sent_dates:
+                text = await _digest_text()
+                for admin_id in admin_ids:
+                    await bot.send_message(admin_id, text, reply_markup=_today_keyboard())
+                sent_dates.add(key)
+                sent_dates = {key}
+        except Exception:
+            logger.exception("Failed to send daily admin digest")
+        await asyncio.sleep(60)
+
+
+async def _digest_text() -> str:
+    today = await _today_text()
+    quality = await _quality_text()
+    alerts = await _alerts_text()
+    return "\n\n".join(["🗞 Ежедневный дайджест", today, quality, alerts])
 
 
 async def _today_text() -> str:
@@ -1188,6 +1227,21 @@ def _today_bounds(tz: ZoneInfo) -> tuple[datetime, datetime]:
     return start, end
 
 
+def _parse_hhmm(value: str, fallback: str) -> tuple[int, int]:
+    raw = value if ":" in value else fallback
+    try:
+        hour_text, minute_text = raw.split(":", 1)
+        hour = int(hour_text)
+        minute = int(minute_text)
+    except ValueError:
+        hour_text, minute_text = fallback.split(":", 1)
+        hour = int(hour_text)
+        minute = int(minute_text)
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return _parse_hhmm(fallback, "09:05")
+    return hour, minute
+
+
 def _command_arg(text: str | None) -> str | None:
     parts = (text or "").split(maxsplit=1)
     if len(parts) < 2:
@@ -1203,7 +1257,7 @@ def _main_menu_text() -> str:
             "Выбери раздел кнопками ниже.",
             "",
             "Команды тоже работают:",
-            "/today, /server, /openai, /alerts, /quality, /funnel, /user, /grant",
+            "/today, /digest, /server, /openai, /alerts, /quality, /funnel, /user, /grant",
         ]
     )
 

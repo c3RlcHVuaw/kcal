@@ -93,6 +93,7 @@ def food_tools_keyboard(
     if has_yesterday_entries:
         rows.append([InlineKeyboardButton(text="↩️ Как вчера", callback_data="nav:yesterday")])
     rows.append([InlineKeyboardButton(text="➕ Добавить еду", callback_data="nav:add-food")])
+    rows.append([InlineKeyboardButton(text="↩️ Удалить последнее", callback_data="entry:delete-last")])
     rows.append([InlineKeyboardButton(text="☰ Ещё", callback_data="nav:more")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 

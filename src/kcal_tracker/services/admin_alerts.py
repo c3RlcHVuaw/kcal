@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 
 from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
-from kcal_tracker.models import AIUsage, Payment, User
+from kcal_tracker.models import AIUsage, Payment, QualityEvent, User
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,7 @@ async def collect_admin_alerts() -> list[AdminAlert]:
     alerts.extend(await _api_alerts())
     alerts.extend(await _openai_alerts())
     alerts.extend(await _business_alerts())
+    alerts.extend(await _quality_alerts())
     return alerts
 
 
@@ -246,6 +247,50 @@ async def _business_alerts() -> list[AdminAlert]:
             AdminAlert(
                 "ai_usage_zero_today",
                 _alert_text("AI сегодня не используют", "В БД 0 AI-запросов за текущую дату."),
+            )
+        )
+    return alerts
+
+
+async def _quality_alerts() -> list[AdminAlert]:
+    now = datetime.now(UTC)
+    hour_ago = now - timedelta(hours=1)
+    async with SessionLocal() as session:
+        rows = await session.execute(
+            select(QualityEvent.event_type, func.count(QualityEvent.id))
+            .where(QualityEvent.created_at >= hour_ago)
+            .group_by(QualityEvent.event_type)
+        )
+    counts = {event_type: int(count or 0) for event_type, count in rows}
+    alerts: list[AdminAlert] = []
+    if counts.get("food_not_it", 0) >= settings.admin_quality_not_it_hour_threshold:
+        alerts.append(
+            AdminAlert(
+                "quality_not_it_spike",
+                _alert_text(
+                    "Всплеск «Не то»",
+                    f"За последний час: {counts.get('food_not_it', 0)}. Проверь /quality.",
+                ),
+            )
+        )
+    if counts.get("food_ai_failed", 0) >= settings.admin_quality_ai_failed_hour_threshold:
+        alerts.append(
+            AdminAlert(
+                "quality_ai_failed_spike",
+                _alert_text(
+                    "AI часто не разбирает еду",
+                    f"За последний час AI failures: {counts.get('food_ai_failed', 0)}.",
+                ),
+            )
+        )
+    if counts.get("food_no_match", 0) >= settings.admin_quality_no_match_hour_threshold:
+        alerts.append(
+            AdminAlert(
+                "quality_no_match_spike",
+                _alert_text(
+                    "Поиск часто ничего не находит",
+                    f"За последний час no_match: {counts.get('food_no_match', 0)}.",
+                ),
             )
         )
     return alerts

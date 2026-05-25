@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from kcal_tracker.models import ActivityLog, FoodEntry, User
+from kcal_tracker.models import ActivityLog, FoodEntry, QualityEvent, User
 from kcal_tracker.schemas import DiarySummary, FoodEntryCreate, FoodEstimate
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
 from kcal_tracker.services.growth import GrowthService
@@ -109,6 +109,36 @@ class DiaryService:
         if entry is None or entry.user_id != user.id:
             return None
         return await self.add_entry(user, self._payload_from_entry(entry))
+
+    async def latest_entry(self, user: User) -> FoodEntry | None:
+        result = await self.session.execute(
+            select(FoodEntry)
+            .where(FoodEntry.user_id == user.id)
+            .order_by(FoodEntry.created_at.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def delete_latest_entry(self, user: User) -> FoodEntry | None:
+        entry = await self.latest_entry(user)
+        if entry is None:
+            return None
+        label = FoodEntry(
+            user_id=entry.user_id,
+            food_name=entry.food_name,
+            kcal=entry.kcal,
+            protein=entry.protein,
+            fat=entry.fat,
+            carbs=entry.carbs,
+            weight_g=entry.weight_g,
+            emoji=entry.emoji,
+            advice=entry.advice,
+            source=entry.source,
+            confidence=entry.confidence,
+        )
+        await self.session.delete(entry)
+        await self.session.commit()
+        return label
 
     async def get_entry(self, user: User, entry_id: int) -> FoodEntry | None:
         entry = await self.session.get(FoodEntry, entry_id)
@@ -355,6 +385,10 @@ class DiaryService:
         if len(query) < 3:
             return None
 
+        learned = await self._learned_matching_entry(user, query)
+        if learned is not None:
+            return learned
+
         result = await self.session.execute(
             select(FoodEntry)
             .where(FoodEntry.user_id == user.id)
@@ -366,6 +400,28 @@ class DiaryService:
             if not entry_query:
                 continue
             if _matches_food_history_query(query, entry_query):
+                return entry
+        return None
+
+    async def _learned_matching_entry(self, user: User, query: str) -> FoodEntry | None:
+        result = await self.session.execute(
+            select(QualityEvent)
+            .where(
+                QualityEvent.user_id == user.id,
+                QualityEvent.event_type == "food_learned",
+            )
+            .order_by(QualityEvent.created_at.desc())
+            .limit(100)
+        )
+        for event in result.scalars():
+            event_query = _normalize_food_query(event.query or "")
+            if not event_query or not _matches_food_history_query(query, event_query):
+                continue
+            entry_id = (event.details or {}).get("entry_id")
+            if not entry_id:
+                continue
+            entry = await self.get_entry(user, int(entry_id))
+            if entry is not None:
                 return entry
         return None
 
