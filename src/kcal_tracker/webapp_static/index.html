@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/app/static/styles.css" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
-  <body>
+  <body data-view="today">
     <main class="app-shell">
       <header class="app-header">
         <div>
@@ -22,31 +22,60 @@
       </section>
 
       <section id="view-today" class="view active" data-title="Сегодня">
-        <section class="summary-panel">
-          <div class="summary-head">
-            <div>
-              <span class="caption">Осталось</span>
-              <strong id="kcal-left">Загрузка...</strong>
+        <section class="lifesum-hero">
+          <div class="brand-row">
+            <strong>Kcal</strong>
+            <div class="hero-actions">
+              <button id="refresh-hero" class="hero-icon" type="button" aria-label="Обновить">↻</button>
             </div>
-            <b id="kcal-percent">0%</b>
           </div>
+
+          <div class="energy-board">
+            <div class="energy-side">
+              <b id="kcal-eaten">0</b>
+              <span>съедено</span>
+            </div>
+            <div class="energy-ring" id="kcal-ring">
+              <div>
+                <strong id="kcal-left">...</strong>
+                <span>осталось</span>
+              </div>
+            </div>
+            <div class="energy-side">
+              <b id="kcal-burned">0</b>
+              <span>сожжено</span>
+            </div>
+          </div>
+
+          <button class="stats-link" type="button" data-view-shortcut="progress">
+            <span id="kcal-target">0 / 0 ккал</span>
+            <b id="kcal-percent">0%</b>
+          </button>
           <div class="progress-track"><span id="kcal-progress"></span></div>
-          <p id="kcal-target" class="muted">0 / 0 ккал</p>
         </section>
 
-        <section class="metric-grid" aria-label="БЖУ">
+        <section class="macro-card" aria-label="БЖУ">
+          <article>
+            <span>Углеводы</span>
+            <b id="carbs">0/0</b>
+            <i class="macro-line carbs-line"></i>
+          </article>
           <article>
             <span>Белки</span>
             <b id="protein">0/0</b>
+            <i class="macro-line protein-line"></i>
           </article>
           <article>
             <span>Жиры</span>
             <b id="fat">0/0</b>
+            <i class="macro-line fat-line"></i>
           </article>
-          <article>
-            <span>Углеводы</span>
-            <b id="carbs">0/0</b>
-          </article>
+        </section>
+
+        <section class="day-switcher" aria-label="Дата">
+          <button type="button" aria-label="Предыдущий день">‹</button>
+          <strong>Сегодня</strong>
+          <button type="button" aria-label="Следующий день">›</button>
         </section>
 
         <section class="list-section">

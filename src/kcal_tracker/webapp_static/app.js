@@ -13,6 +13,9 @@ const nodes = {
   refresh: document.querySelector("#refresh"),
   hello: document.querySelector("#hello"),
   screenTitle: document.querySelector("#screen-title"),
+  kcalEaten: document.querySelector("#kcal-eaten"),
+  kcalBurned: document.querySelector("#kcal-burned"),
+  kcalRing: document.querySelector("#kcal-ring"),
   kcalLeft: document.querySelector("#kcal-left"),
   kcalTarget: document.querySelector("#kcal-target"),
   kcalPercent: document.querySelector("#kcal-percent"),
@@ -67,6 +70,10 @@ document.querySelectorAll("[data-food-tab]").forEach((button) => {
 });
 
 nodes.refresh.addEventListener("click", loadAll);
+document.querySelector("#refresh-hero")?.addEventListener("click", loadAll);
+document.querySelectorAll("[data-view-shortcut]").forEach((button) => {
+  button.addEventListener("click", () => switchView(button.dataset.viewShortcut));
+});
 nodes.deleteLatest.addEventListener("click", deleteLatestEntry);
 nodes.repeatYesterday.addEventListener("click", repeatYesterday);
 nodes.openBot.addEventListener("click", () => tg?.close());
@@ -223,9 +230,12 @@ function renderToday(data) {
   const diary = data.diary;
   const progress = diary.target_kcal > 0 ? Math.min(diary.kcal / diary.target_kcal, 1) : 0;
   nodes.kcalProgress.style.width = `${Math.round(progress * 100)}%`;
+  nodes.kcalRing.style.setProperty("--ring-progress", `${Math.round(progress * 100)}%`);
   nodes.kcalPercent.textContent = `${Math.round(progress * 100)}%`;
   const left = Math.round(diary.target_kcal - diary.kcal);
-  nodes.kcalLeft.textContent = left >= 0 ? `${left} ккал` : `+${Math.abs(left)} ккал`;
+  nodes.kcalEaten.textContent = Math.round(diary.kcal);
+  nodes.kcalBurned.textContent = Math.round(diary.activity_kcal);
+  nodes.kcalLeft.textContent = left >= 0 ? String(left) : `+${Math.abs(left)}`;
   nodes.kcalTarget.textContent = `${Math.round(diary.kcal)} / ${diary.target_kcal} ккал`;
   nodes.protein.textContent = `${Math.round(diary.protein)}/${Math.round(diary.target_protein)} г`;
   nodes.fat.textContent = `${Math.round(diary.fat)}/${Math.round(diary.target_fat)} г`;
@@ -246,7 +256,9 @@ function renderToday(data) {
     return;
   }
   nodes.entries.innerHTML = diary.entries.map((entry) => `
-    <article class="entry">
+    <article class="entry food-card">
+      <div class="food-thumb">${escapeHtml(entry.emoji || foodInitial(entry.name))}</div>
+      <div class="food-content">
       <div class="entry-main">
         <strong>${escapeHtml(entry.name)}</strong>
         <b>${Math.round(entry.kcal)} ккал</b>
@@ -260,6 +272,7 @@ function renderToday(data) {
       <div class="entry-actions">
         <button type="button" data-delete-entry="${entry.id}">Удалить</button>
         <button type="button" data-favorite-entry="${entry.id}">В шаблон</button>
+      </div>
       </div>
     </article>
   `).join("");
@@ -407,6 +420,7 @@ function switchView(view) {
   });
   const active = document.querySelector(`#view-${view}`);
   nodes.screenTitle.textContent = active?.dataset.title || "Kcal";
+  document.body.dataset.view = view;
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -462,6 +476,10 @@ function escapeHtml(value) {
     '"': "&quot;",
     "'": "&#039;",
   })[char]);
+}
+
+function foodInitial(value) {
+  return String(value || "Е").trim().slice(0, 1).toUpperCase();
 }
 
 function toast(message) {
