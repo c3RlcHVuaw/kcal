@@ -1049,7 +1049,7 @@ async def _add_confirmed_food(
 
     await state.clear()
     await callback.message.edit_text(
-        _format_saved_food(estimate, duplicate=duplicate),
+        _format_saved_food(estimate, summary=summary, water_ml=water_ml, duplicate=duplicate),
         reply_markup=smart_after_food_save_keyboard(
             entry_id=entry.id,
             kcal_left=summary.target_kcal - summary.kcal,
@@ -1630,12 +1630,40 @@ def _format_multi_foods(
     return "\n".join(lines)
 
 
-def _format_saved_food(estimate: FoodEstimate, *, duplicate: bool = False) -> str:
+def _format_saved_food(
+    estimate: FoodEstimate,
+    *,
+    summary=None,
+    water_ml: int | None = None,
+    duplicate: bool = False,
+) -> str:
     prefix = "Уже добавлено" if duplicate else "Добавил"
     lines = [f"{prefix}: {food_label(estimate)} — {estimate.kcal:.0f} ккал."]
     if estimate.advice:
         lines.append(f"💡 {estimate.advice}")
+    if summary is not None:
+        lines.extend(["", _after_food_progress_note(summary, water_ml)])
     return "\n".join(lines)
+
+
+def _after_food_progress_note(summary, water_ml: int | None = None) -> str:
+    kcal_left = summary.target_kcal - summary.kcal
+    protein_left = summary.target_protein - summary.protein
+    if kcal_left < -150:
+        return (
+            f"Мини-цель: день выше плана на {abs(kcal_left):.0f} ккал, "
+            "дальше просто выбираем что-то лёгкое и без компенсаций."
+        )
+    if protein_left > 25 and kcal_left > 150:
+        return (
+            f"Мини-цель: осталось около {kcal_left:.0f} ккал и "
+            f"{protein_left:.0f}г белка. Хорошо зайдёт белковый приём."
+        )
+    if water_ml is not None and water_ml < 1000:
+        return "Мини-цель: добавить воды, чтобы день ощущался ровнее."
+    if kcal_left > 0:
+        return f"Осталось около {kcal_left:.0f} ккал. Двигаемся спокойно."
+    return "День близко к цели. Дальше без резких ограничений."
 
 
 async def _require_food_state(

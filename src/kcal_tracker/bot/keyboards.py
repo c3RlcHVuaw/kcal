@@ -234,6 +234,13 @@ def smart_after_food_save_keyboard(
             InlineKeyboardButton(text="➕ Ещё еду", callback_data="nav:add-food"),
         ]
     ]
+    if entry_id is not None:
+        rows.append(
+            [
+                InlineKeyboardButton(text="⚖️ Граммовка", callback_data=f"entry:edit:{entry_id}"),
+                InlineKeyboardButton(text="↩️ Отменить", callback_data=f"entry:delete:{entry_id}"),
+            ]
+        )
     smart_row: list[InlineKeyboardButton] = []
     if water_ml is not None and water_ml < 1000:
         smart_row.append(InlineKeyboardButton(text="💧 Вода", callback_data="water:add:250"))

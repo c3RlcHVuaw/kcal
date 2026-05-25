@@ -302,7 +302,12 @@ async def delete_saved_entry(callback: CallbackQuery) -> None:
             callback.from_user.username,
         )
         deleted = await DiaryService(session).delete_entry(user, entry_id)
-    await callback.message.edit_text("Удалил запись." if deleted else "Не нашёл эту запись.")
+    text = (
+        "Откатил последнюю запись. Дневник уже обновлён."
+        if deleted
+        else "Не нашёл эту запись. Возможно, её уже удалили."
+    )
+    await callback.message.edit_text(text, reply_markup=after_save_keyboard())
     await callback.answer()
 
 

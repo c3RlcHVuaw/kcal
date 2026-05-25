@@ -23,6 +23,7 @@ from kcal_tracker.bot.handlers.diary import (
 )
 from kcal_tracker.bot.handlers.food import (
     _format_estimate_confirmation,
+    _format_saved_food,
     _scale_estimate,
     _should_use_ai_first,
 )
@@ -34,6 +35,7 @@ from kcal_tracker.bot.keyboards import (
     food_entries_keyboard,
     food_recovery_keyboard,
     settings_keyboard,
+    smart_after_food_save_keyboard,
     subscription_bonuses_keyboard,
     subscription_payment_method_keyboard,
     subscription_plan_keyboard,
@@ -60,6 +62,7 @@ from kcal_tracker.services.nutrition import (
     high_calorie_add_warning,
     is_high_calorie_food,
     meal_suggestion_text,
+    remaining_advice,
     smart_day_coach,
     smart_problem_signals,
     weekly_coach_note,
@@ -153,6 +156,31 @@ def test_meal_suggestion_prefers_light_food_when_calories_are_spent() -> None:
     text = meal_suggestion_text(summary, water_ml=500)
     assert "Калорий почти не осталось" in text
     assert "стакан воды" in text
+
+
+def test_remaining_advice_is_soft_when_over_target() -> None:
+    summary = SimpleNamespace(
+        kcal=2350,
+        target_kcal=2100,
+        protein=100,
+        target_protein=110,
+    )
+    text = remaining_advice(summary)
+    assert "выше цели" in text
+    assert "Без наказаний" in text
+
+
+def test_saved_food_text_adds_mini_goal() -> None:
+    estimate = FoodEstimate(name="Творог", kcal=180, protein=25, fat=5, carbs=8, weight_g=150)
+    summary = SimpleNamespace(
+        kcal=1350,
+        target_kcal=2100,
+        protein=70,
+        target_protein=120,
+    )
+    text = _format_saved_food(estimate, summary=summary, water_ml=800)
+    assert "Мини-цель" in text
+    assert "белка" in text
 
 
 def test_weekly_coach_note_mentions_average_delta() -> None:
@@ -476,6 +504,18 @@ def test_food_entries_keyboard_expands_entry_actions() -> None:
     assert rows[0][3].callback_data == "entry:refine:10"
     assert rows[-1][0].callback_data == "nav:today"
     assert rows[-1][1].callback_data == "coach:meal"
+
+
+def test_after_food_save_keyboard_has_fast_correction_actions() -> None:
+    keyboard = smart_after_food_save_keyboard(entry_id=42, kcal_left=300, protein_left=35)
+    callbacks = [
+        button.callback_data
+        for row in keyboard.inline_keyboard
+        for button in row
+    ]
+    assert callbacks[:4] == ["nav:today", "nav:add-food", "entry:edit:42", "entry:delete:42"]
+    assert "coach:meal" in callbacks
+    assert "entry:fav:42" in callbacks
 
 
 def test_weight_chart_returns_sparkline_for_recent_logs() -> None:

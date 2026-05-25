@@ -9,7 +9,12 @@ HIGH_CALORIE_DENSITY_PER_100G = 250
 
 
 def remaining_advice(summary: DiarySummary) -> str:
-    kcal_left = max(summary.target_kcal - summary.kcal, 0)
+    kcal_left = summary.target_kcal - summary.kcal
+    if kcal_left < -150:
+        return (
+            f"Сегодня выше цели примерно на {abs(kcal_left):.0f} ккал. "
+            "Без наказаний: дальше подойдёт лёгкий белок, овощи и вода."
+        )
     protein_hint = (
         "омлет, курица или творог"
         if summary.protein < summary.target_protein
@@ -23,7 +28,7 @@ def diet_quality_note(summary: DiarySummary) -> str:
     if summary.protein < summary.target_protein:
         notes.append(f"Белка осталось примерно {summary.target_protein - summary.protein:.0f}г.")
     if summary.kcal > summary.target_kcal:
-        notes.append("Калории выше цели, без резких компенсаций.")
+        notes.append("Калории выше цели, но день ещё можно мягко выровнять.")
     if summary.fat > summary.target_fat:
         notes.append("Жиры выше плана, следующий приём можно сделать легче.")
     if not notes:
@@ -114,7 +119,7 @@ def smart_day_coach(summary: DiarySummary, water_ml: int = 0) -> str:
 
     risks: list[str] = []
     if kcal_delta > 150:
-        risks.append("калории выше цели, без резких компенсаций")
+        risks.append("калории выше цели, дальше лучше лёгкий спокойный выбор")
     if protein_left > 25:
         risks.append("белка заметно не хватает")
     if fat_over > 10:
@@ -153,7 +158,7 @@ def daily_focus(summary: DiarySummary, water_ml: int = 0) -> str:
             "сыра и жареного"
         )
     if kcal_left < -150:
-        return "закрыть день лёгкой едой и водой"
+        return "выбрать лёгкий следующий приём без компенсаций"
     if water_ml < 1200:
         return "добавить воды"
     if kcal_left > 500:
