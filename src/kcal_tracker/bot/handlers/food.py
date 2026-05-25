@@ -261,6 +261,7 @@ async def _show_history_confirmation(message: Message, state: FSMContext) -> boo
         estimate,
         "history",
         intro="Обычно ты добавляешь это так:",
+        query=message.text or "",
     )
     return True
 
@@ -402,6 +403,38 @@ async def choose_food_search_result(callback: CallbackQuery, state: FSMContext) 
         reply_markup=food_confirmation_keyboard("food"),
     )
     await callback.answer()
+
+
+@router.callback_query(F.data == "food:search")
+async def retry_confirmation_with_database_search(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    query = str(data.get("search_query") or "").strip()
+    if not query:
+        await callback.answer("Запрос уже устарел. Напиши продукт ещё раз.", show_alert=True)
+        return
+
+    estimates = await _free_food_estimates(query)
+    if not estimates:
+        await callback.message.edit_text(
+            "В базе не нашёл похожий продукт. Можно разобрать через AI или написать точнее.",
+            reply_markup=food_search_results_keyboard(0),
+        )
+        await callback.answer()
+        return
+
+    await state.set_state(FoodFlow.confirming)
+    estimate_list = FoodEstimateList(foods=estimates)
+    await state.update_data(search_estimates=estimate_list.model_dump_json(), source="food_search")
+    await callback.message.edit_text(
+        _format_search_results(estimates, query=query),
+        reply_markup=food_search_results_keyboard(len(estimates)),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "food:ai")
+async def retry_confirmation_with_ai(callback: CallbackQuery, state: FSMContext) -> None:
+    await parse_search_query_with_ai(callback, state)
 
 
 @router.callback_query(F.data == "foodsearch:cancel")
@@ -1004,10 +1037,13 @@ async def _show_confirmation(
     source: str,
     *,
     intro: str = "Я нашёл:",
+    query: str | None = None,
 ) -> None:
     await state.set_state(FoodFlow.confirming)
     data = await state.get_data()
     update = {"estimate": estimate.model_dump_json(), "source": source}
+    if query:
+        update["search_query"] = " ".join(query.split())
     if source == "ai_photo" and "base_estimate" not in data:
         update["base_estimate"] = estimate.model_dump_json()
     await state.update_data(**update)
@@ -1022,6 +1058,8 @@ async def _show_confirmation(
             allow_refine=source in {"ai_photo", "manual"},
             allow_portions=source == "ai_photo",
             allow_photo_questions=source == "ai_photo",
+            allow_ai_retry=source in {"history", "food_search"},
+            allow_database_retry=source == "history",
         ),
     )
 

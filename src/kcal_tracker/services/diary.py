@@ -258,15 +258,11 @@ class DiaryService:
             .order_by(FoodEntry.created_at.desc())
             .limit(200)
         )
-        query_words = set(query.split())
         for entry in result.scalars():
             entry_query = _normalize_food_query(entry.food_name)
             if not entry_query:
                 continue
-            entry_words = set(entry_query.split())
-            if query == entry_query or query in entry_query or entry_query in query:
-                return entry
-            if query_words and entry_words and query_words.issubset(entry_words):
+            if _matches_food_history_query(query, entry_query):
                 return entry
         return None
 
@@ -428,6 +424,14 @@ def _normalize_food_query(text: str) -> str:
     value = re.sub(r"\b(?:г|гр|грамм|граммов|кг|мл|л|ккал|кал)\b", " ", value)
     value = re.sub(r"[^a-zа-яё0-9]+", " ", value)
     return " ".join(value.split())
+
+
+def _matches_food_history_query(query: str, entry_query: str) -> bool:
+    if query == entry_query or query in entry_query:
+        return True
+    query_words = set(query.split())
+    entry_words = set(entry_query.split())
+    return bool(query_words and entry_words and query_words.issubset(entry_words))
 
 
 def _as_user_time(value: datetime, tz: ZoneInfo) -> datetime:

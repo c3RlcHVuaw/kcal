@@ -40,7 +40,11 @@ from kcal_tracker.bot.text_parsing import (
 )
 from kcal_tracker.schemas import FoodEstimate
 from kcal_tracker.services.ai_food import food_refinement_user_text, photo_recognition_user_text
-from kcal_tracker.services.diary import NutritionPatterns, estimate_from_entry
+from kcal_tracker.services.diary import (
+    NutritionPatterns,
+    _matches_food_history_query,
+    estimate_from_entry,
+)
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
 from kcal_tracker.services.growth import _referral_code_from_payload, progress_share_url
 from kcal_tracker.services.media import _sample_timestamps
@@ -56,13 +60,13 @@ from kcal_tracker.services.nutrition import (
     weekly_coach_note,
     weekly_score,
 )
-from kcal_tracker.services.share_cards import _wrap_card_lines
 from kcal_tracker.services.profile import age_from_birth_date
 from kcal_tracker.services.reminders import (
     _has_meal_entry,
     _inactivity_reminder_due,
     _inactivity_reminder_text,
 )
+from kcal_tracker.services.share_cards import _wrap_card_lines
 
 
 def test_confidence_must_be_less_than_one() -> None:
@@ -547,6 +551,24 @@ def test_photo_confirmation_keyboard_includes_question_buttons() -> None:
     assert "food:ask:sauce" in callbacks
     assert "food:ask:drink" in callbacks
     assert "food:portion:0.5" in callbacks
+
+
+def test_history_confirmation_keyboard_can_recover_wrong_match() -> None:
+    keyboard = food_confirmation_keyboard("food", allow_ai_retry=True, allow_database_retry=True)
+    callbacks = [
+        button.callback_data
+        for row in keyboard.inline_keyboard
+        for button in row
+    ]
+
+    assert "food:ai" in callbacks
+    assert "food:search" in callbacks
+
+
+def test_history_match_does_not_match_short_entry_inside_long_query() -> None:
+    assert _matches_food_history_query("барни", "барни") is True
+    assert _matches_food_history_query("барни", "барни банановый") is True
+    assert _matches_food_history_query("барни пироженное", "барни") is False
 
 
 def test_scale_estimate_uses_original_portion_ratio() -> None:
