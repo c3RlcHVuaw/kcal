@@ -8,8 +8,11 @@ const state = {
 const nodes = {
   authWarning: document.querySelector("#auth-warning"),
   refresh: document.querySelector("#refresh"),
-  kcalValue: document.querySelector("#kcal-value"),
+  hello: document.querySelector("#hello"),
   kcalLeft: document.querySelector("#kcal-left"),
+  kcalTarget: document.querySelector("#kcal-target"),
+  kcalPercent: document.querySelector("#kcal-percent"),
+  kcalProgress: document.querySelector("#kcal-progress"),
   protein: document.querySelector("#protein"),
   fat: document.querySelector("#fat"),
   carbs: document.querySelector("#carbs"),
@@ -18,11 +21,20 @@ const nodes = {
   foodForm: document.querySelector("#food-form"),
   toast: document.querySelector("#toast"),
   weightButton: document.querySelector("#weight-button"),
+  weightValue: document.querySelector("#weight-value"),
   weightGoal: document.querySelector("#weight-goal"),
+  openAdd: document.querySelector("#open-add"),
+  addSheet: document.querySelector("#add-sheet"),
+  closeAdd: document.querySelector("#close-add"),
+  sheetBackdrop: document.querySelector("#sheet-backdrop"),
 };
 
 tg?.ready();
 tg?.expand();
+
+if (tg?.initDataUnsafe?.user?.first_name) {
+  nodes.hello.textContent = `Привет, ${tg.initDataUnsafe.user.first_name}`;
+}
 
 if (!initData) {
   nodes.authWarning.classList.remove("hidden");
@@ -31,6 +43,9 @@ if (!initData) {
 }
 
 nodes.refresh.addEventListener("click", loadToday);
+nodes.openAdd.addEventListener("click", openSheet);
+nodes.closeAdd.addEventListener("click", closeSheet);
+nodes.sheetBackdrop.addEventListener("click", closeSheet);
 
 document.querySelectorAll("[data-water]").forEach((button) => {
   button.addEventListener("click", async () => {
@@ -76,6 +91,7 @@ nodes.foodForm.addEventListener("submit", async (event) => {
     body: JSON.stringify(payload),
   });
   nodes.foodForm.reset();
+  closeSheet();
   await loadToday();
   toast("Еда добавлена");
 });
@@ -92,31 +108,38 @@ async function loadToday() {
 
 function renderToday(data) {
   const diary = data.diary;
-  const progress = diary.target_kcal > 0 ? Math.min(diary.kcal / diary.target_kcal, 1) * 100 : 0;
-  document.documentElement.style.setProperty("--progress", `${progress}%`);
-  nodes.kcalValue.textContent = Math.round(diary.kcal);
+  const progress = diary.target_kcal > 0 ? Math.min(diary.kcal / diary.target_kcal, 1) : 0;
+  nodes.kcalProgress.style.width = `${Math.round(progress * 100)}%`;
+  nodes.kcalPercent.textContent = `${Math.round(progress * 100)}%`;
   const left = Math.round(diary.target_kcal - diary.kcal);
-  nodes.kcalLeft.textContent = left >= 0 ? `Осталось ${left} ккал` : `Выше цели на ${Math.abs(left)} ккал`;
-  nodes.protein.textContent = `${Math.round(diary.protein)}/${Math.round(diary.target_protein)}`;
-  nodes.fat.textContent = `${Math.round(diary.fat)}/${Math.round(diary.target_fat)}`;
-  nodes.carbs.textContent = `${Math.round(diary.carbs)}/${Math.round(diary.target_carbs)}`;
-  nodes.water.textContent = `${data.water_ml} мл воды`;
+  nodes.kcalLeft.textContent = left >= 0 ? `${left} ккал осталось` : `+${Math.abs(left)} ккал`;
+  nodes.kcalTarget.textContent = `${Math.round(diary.kcal)} / ${diary.target_kcal} ккал`;
+  nodes.protein.textContent = `${Math.round(diary.protein)}/${Math.round(diary.target_protein)} г`;
+  nodes.fat.textContent = `${Math.round(diary.fat)}/${Math.round(diary.target_fat)} г`;
+  nodes.carbs.textContent = `${Math.round(diary.carbs)}/${Math.round(diary.target_carbs)} г`;
+  nodes.water.textContent = `${data.water_ml} мл`;
+  nodes.weightValue.textContent = data.latest_weight_kg ? `${formatNumber(data.latest_weight_kg)} кг` : "Записать";
   nodes.weightGoal.textContent = [
     data.weight_goal.forecast_text,
-    data.latest_weight_kg ? `Текущий вес: ${formatNumber(data.latest_weight_kg)} кг.` : "",
+    data.latest_weight_kg ? `Сейчас ${formatNumber(data.latest_weight_kg)} кг.` : "",
   ].filter(Boolean).join(" ");
 
   if (!diary.entries.length) {
-    nodes.entries.innerHTML = '<p class="muted">Сегодня пока нет еды.</p>';
+    nodes.entries.innerHTML = '<p class="empty-state">Сегодня пока пусто. Добавь первый приём еды.</p>';
     return;
   }
   nodes.entries.innerHTML = diary.entries.map((entry) => `
     <article class="entry">
-      <div>
+      <div class="entry-main">
         <strong>${escapeHtml(entry.name)}</strong>
-        <small>${entry.weight_g ? `${formatNumber(entry.weight_g)} г` : "без граммовки"}</small>
+        <b>${Math.round(entry.kcal)} ккал</b>
       </div>
-      <b>${Math.round(entry.kcal)} ккал</b>
+      <div class="entry-meta">
+        <span>${entry.weight_g ? `${formatNumber(entry.weight_g)} г` : "без граммовки"}</span>
+        <span>${Math.round(entry.protein)}Б</span>
+        <span>${Math.round(entry.fat)}Ж</span>
+        <span>${Math.round(entry.carbs)}У</span>
+      </div>
     </article>
   `).join("");
 }
@@ -135,6 +158,17 @@ async function api(path, options = {}) {
     throw new Error(message || `Ошибка ${response.status}`);
   }
   return response.json();
+}
+
+function openSheet() {
+  nodes.addSheet.classList.remove("hidden");
+  nodes.addSheet.setAttribute("aria-hidden", "false");
+  window.setTimeout(() => document.querySelector("#food-name")?.focus(), 40);
+}
+
+function closeSheet() {
+  nodes.addSheet.classList.add("hidden");
+  nodes.addSheet.setAttribute("aria-hidden", "true");
 }
 
 function parseNumber(value) {

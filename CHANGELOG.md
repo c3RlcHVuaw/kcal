@@ -2,6 +2,8 @@
 
 ## 2026-05-25
 
+- Refined the Mini App UI into a more native diary layout with compact calorie
+  progress, macro tiles, quick actions, and a bottom sheet for manual food entry.
 - Added the first Telegram Mini App MVP at `/app` with signed Telegram WebApp
   authentication, today's dashboard, manual food entry, water, and weight.
 - Added promo codes for subscription payments with admin creation/listing/
