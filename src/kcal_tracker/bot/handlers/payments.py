@@ -6,6 +6,8 @@ from datetime import UTC, datetime
 
 from aiogram import F, Router
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     CallbackQuery,
     InlineKeyboardButton,
@@ -36,6 +38,7 @@ from kcal_tracker.services.subscriptions import (
     YooKassaPaymentError,
     YooKassaRefundError,
     has_active_subscription,
+    payload_with_promo,
     subscription_plan,
     subscription_plans,
     subscription_until_text,
@@ -43,6 +46,10 @@ from kcal_tracker.services.subscriptions import (
 from kcal_tracker.services.users import UserService
 
 router = Router()
+
+
+class PaymentFlow(StatesGroup):
+    waiting_promo = State()
 
 
 @dataclass(frozen=True)
@@ -146,18 +153,24 @@ async def _subscription_action_flags(session, user) -> SubscriptionActionFlags:
 
 @router.callback_query(F.data.startswith("subscription:stars") | (F.data == "subscription:buy"))
 async def buy_subscription_with_stars(callback: CallbackQuery) -> None:
-    plan = _plan_from_callback(callback.data, default=SUBSCRIPTION_PLAN_BASIC)
+    plan, promo = _plan_and_promo_from_callback(callback.data, default=SUBSCRIPTION_PLAN_BASIC)
+    async with SessionLocal() as session:
+        discount = await SubscriptionService(session).get_valid_promo(promo)
+    amount = discount.apply_to_stars(plan.stars) if discount else plan.stars
+    title = f"AI в Kcal: {plan.title}"
+    if discount:
+        title = f"{title} -{discount.discount_percent}%"
     await callback.bot.send_invoice(
         chat_id=callback.message.chat.id,
-        title=f"AI в Kcal: {plan.title}",
+        title=title,
         description="Распознавание еды по фото, тексту и голосу на 30 дней.",
-        payload=f"{SUBSCRIPTION_PAYLOAD}:{plan.code}",
+        payload=payload_with_promo(SUBSCRIPTION_PAYLOAD, plan.code, discount.code if discount else None),
         provider_token="",
         currency="XTR",
         prices=[
             LabeledPrice(
                 label=f"{plan.title} на {settings.ai_subscription_days} дней",
-                amount=plan.stars,
+                amount=amount,
             )
         ],
     )
@@ -208,6 +221,44 @@ async def choose_subscription_payment(callback: CallbackQuery) -> None:
         reply_markup=subscription_payment_method_keyboard(plan.code),
     )
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("subscription:promo:ask:"))
+async def ask_promo_code(callback: CallbackQuery, state: FSMContext) -> None:
+    plan = _plan_from_callback(callback.data, default=SUBSCRIPTION_PLAN_BASIC)
+    await state.update_data(promo_plan=plan.code)
+    await state.set_state(PaymentFlow.waiting_promo)
+    await callback.message.edit_text(
+        "Введи промокод одним сообщением.",
+        reply_markup=_promo_cancel_keyboard(plan.code),
+    )
+    await callback.answer()
+
+
+@router.message(PaymentFlow.waiting_promo, F.text)
+async def apply_promo_code(message: Message, state: FSMContext) -> None:
+    data = await state.get_data()
+    plan = subscription_plan(str(data.get("promo_plan") or SUBSCRIPTION_PLAN_BASIC))
+    code = (message.text or "").strip()
+    async with SessionLocal() as session:
+        discount = await SubscriptionService(session).get_valid_promo(code)
+    if discount is None:
+        await message.answer("Промокод не найден, истёк или уже закончился. Попробуй другой.")
+        return
+    await state.clear()
+    rub = discount.apply_to_rub(plan.rub)
+    stars = discount.apply_to_stars(plan.stars)
+    await message.answer(
+        "\n".join(
+            [
+                f"Промокод {discount.code} применён: скидка {discount.discount_percent}%.",
+                "",
+                f"Тариф «{plan.title}»: {rub} ₽ вместо {plan.rub} ₽.",
+                f"Через Stars: {stars} ⭐ вместо {plan.stars} ⭐.",
+            ]
+        ),
+        reply_markup=subscription_payment_method_keyboard(plan.code, promo_code=discount.code),
+    )
 
 
 @router.callback_query(F.data == "subscription:bonuses")
@@ -333,9 +384,9 @@ async def confirm_refund(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("subscription:yookassa:"))
 async def buy_subscription_with_yookassa(callback: CallbackQuery) -> None:
-    plan, method = _payment_choice_from_callback(callback.data)
+    plan, method, promo_code = _payment_choice_from_callback(callback.data)
     if settings.yookassa_provider_token and method != "sbp":
-        await _send_yookassa_invoice(callback, plan.code, method)
+        await _send_yookassa_invoice(callback, plan.code, method, promo_code=promo_code)
         return
 
     async with SessionLocal() as session:
@@ -348,6 +399,7 @@ async def buy_subscription_with_yookassa(callback: CallbackQuery) -> None:
                 user,
                 method,
                 plan.code,
+                promo_code=promo_code,
             )
         except PaymentConfigurationError:
             await callback.answer(
@@ -361,11 +413,12 @@ async def buy_subscription_with_yookassa(callback: CallbackQuery) -> None:
             return
 
     method_text = _yookassa_method_text(method)
+    amount_text = _payment_amount_text(payment.amount_kopecks, payment.original_amount_kopecks)
     await callback.message.answer(
         "\n".join(
             [
                 f"Счёт на оплату тарифа «{plan.title}» {method_text} готов.",
-                f"Сумма: {plan.rub} ₽.",
+                f"Сумма: {amount_text}.",
                 "После оплаты я сам проверю статус и открою AI.",
                 "Если не оплатить в течение часа, счёт истечёт.",
             ]
@@ -675,7 +728,13 @@ def _payment_error_message(message: str) -> str:
     return message
 
 
-async def _send_yookassa_invoice(callback: CallbackQuery, plan_code: str, method: str) -> None:
+async def _send_yookassa_invoice(
+    callback: CallbackQuery,
+    plan_code: str,
+    method: str,
+    *,
+    promo_code: str | None = None,
+) -> None:
     plan = subscription_plan(plan_code)
     async with SessionLocal() as session:
         user = await UserService(session).get_or_create(
@@ -687,6 +746,7 @@ async def _send_yookassa_invoice(callback: CallbackQuery, plan_code: str, method
                 user,
                 method,
                 plan.code,
+                promo_code=promo_code,
             )
         except PaymentConfigurationError:
             await callback.answer("ЮKassa ещё не настроена на сервере.", show_alert=True)
@@ -697,6 +757,7 @@ async def _send_yookassa_invoice(callback: CallbackQuery, plan_code: str, method
             "payment_id": str(payment.id),
             "telegram_id": str(callback.from_user.id),
             "plan": plan.code,
+            "promo_code": payment.promo_code or "",
         },
     }
     if method in YOOKASSA_FORCED_PAYMENT_METHODS:
@@ -713,7 +774,7 @@ async def _send_yookassa_invoice(callback: CallbackQuery, plan_code: str, method
             prices=[
                 LabeledPrice(
                     label=f"{plan.title} на {settings.ai_subscription_days} дней",
-                    amount=plan.rub * 100,
+                    amount=payment.amount_kopecks or plan.rub * 100,
                 )
             ],
             provider_data=provider_data,
@@ -783,15 +844,17 @@ def _payment_id_from_yookassa_payload(payload: str) -> int | None:
         return None
 
 
-def _payment_choice_from_callback(data: str) -> tuple[SubscriptionPlan, str]:
+def _payment_choice_from_callback(data: str) -> tuple[SubscriptionPlan, str, str | None]:
     parts = data.split(":")
     if len(parts) == 3:
         if parts[2] in subscription_plans():
-            return subscription_plan(parts[2]), YOOKASSA_PAYMENT_METHOD_AUTO
-        return subscription_plan(SUBSCRIPTION_PLAN_BASIC), parts[2]
+            return subscription_plan(parts[2]), YOOKASSA_PAYMENT_METHOD_AUTO, None
+        return subscription_plan(SUBSCRIPTION_PLAN_BASIC), parts[2], None
     if len(parts) == 4:
-        return subscription_plan(parts[2]), parts[3]
-    return subscription_plan(SUBSCRIPTION_PLAN_BASIC), YOOKASSA_PAYMENT_METHOD_AUTO
+        return subscription_plan(parts[2]), parts[3], None
+    if len(parts) >= 5:
+        return subscription_plan(parts[2]), parts[3], parts[4]
+    return subscription_plan(SUBSCRIPTION_PLAN_BASIC), YOOKASSA_PAYMENT_METHOD_AUTO, None
 
 
 def _yookassa_method_text(method: str) -> str:
@@ -815,3 +878,26 @@ def _plan_from_callback(data: str, *, default: str) -> SubscriptionPlan:
     if len(parts) >= 3 and parts[2] in subscription_plans():
         return subscription_plan(parts[2])
     return subscription_plan(default)
+
+
+def _plan_and_promo_from_callback(data: str, *, default: str) -> tuple[SubscriptionPlan, str | None]:
+    parts = data.split(":")
+    plan = subscription_plan(parts[2]) if len(parts) >= 3 and parts[2] in subscription_plans() else subscription_plan(default)
+    promo = parts[3] if len(parts) >= 4 else None
+    return plan, promo
+
+
+def _promo_cancel_keyboard(plan_code: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="Назад к оплате", callback_data=f"subscription:plan:{plan_code}")],
+        ]
+    )
+
+
+def _payment_amount_text(amount_kopecks: int | None, original_amount_kopecks: int | None) -> str:
+    amount = (amount_kopecks or 0) / 100
+    if original_amount_kopecks:
+        original = original_amount_kopecks / 100
+        return f"{amount:.0f} ₽ вместо {original:.0f} ₽"
+    return f"{amount:.0f} ₽"

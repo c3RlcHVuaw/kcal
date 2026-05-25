@@ -24,14 +24,29 @@ from aiogram.types import (
     TelegramObject,
 )
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.logging import configure_logging
-from kcal_tracker.models import AIUsage, FoodEntry, Payment, QualityEvent, User, WaterLog, WeightLog
+from kcal_tracker.models import (
+    AIUsage,
+    FoodEntry,
+    Payment,
+    PromoCode,
+    QualityEvent,
+    User,
+    WaterLog,
+    WeightLog,
+)
 from kcal_tracker.services.admin_alerts import admin_alert_loop
 from kcal_tracker.services.diary import DiaryService
-from kcal_tracker.services.subscriptions import has_active_subscription
+from kcal_tracker.services.subscriptions import (
+    SubscriptionService,
+    has_active_subscription,
+    normalize_promo_code,
+    promo_is_available,
+)
 from kcal_tracker.services.users import UserService
 
 logger = logging.getLogger(__name__)
@@ -42,6 +57,7 @@ class AdminFlow(StatesGroup):
     waiting_user_lookup = State()
     waiting_grant_target = State()
     waiting_grant_days = State()
+    waiting_promo_create = State()
     waiting_broadcast_text = State()
     waiting_support_reply = State()
 
@@ -365,6 +381,85 @@ async def payments_callback(callback: CallbackQuery) -> None:
     text = await _payments_text()
     await callback.message.edit_text(text, reply_markup=_payments_keyboard())
     await callback.answer("Обновлено")
+
+
+@router.message(Command("promos"))
+async def promos_command(message: Message) -> None:
+    text = await _promos_text()
+    await message.answer(text, reply_markup=_promos_keyboard())
+
+
+@router.callback_query(F.data == "admin:promos")
+async def promos_callback(callback: CallbackQuery) -> None:
+    text = await _promos_text()
+    await callback.message.edit_text(text, reply_markup=_promos_keyboard())
+    await callback.answer("Обновлено")
+
+
+@router.callback_query(F.data == "admin:promos:create")
+async def ask_promo_create(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(AdminFlow.waiting_promo_create)
+    await callback.message.edit_text(
+        "\n".join(
+            [
+                "Создание промокода",
+                "",
+                "Формат:",
+                "CODE 20 100 2026-06-30 описание",
+                "",
+                "Где 20 — скидка %, 100 — лимит использований.",
+                "Лимит, дата и описание необязательны.",
+            ]
+        ),
+        reply_markup=_cancel_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.message(Command("promo"))
+async def promo_create_command(message: Message) -> None:
+    raw = _command_arg(message.text)
+    if not raw:
+        await message.answer(
+            "Формат: /promo CODE 20 [max_uses] [YYYY-MM-DD] [описание]",
+            reply_markup=_promos_keyboard(),
+        )
+        return
+    text = await _create_promo_from_text(raw)
+    await message.answer(text, reply_markup=_promos_keyboard())
+
+
+@router.message(Command("promo_off"))
+async def promo_disable_command(message: Message) -> None:
+    target = _command_arg(message.text)
+    if not target:
+        await message.answer("Формат: /promo_off <id|CODE>", reply_markup=_promos_keyboard())
+        return
+    text = await _disable_promo_by_target(target)
+    await message.answer(text, reply_markup=_promos_keyboard())
+
+
+@router.message(AdminFlow.waiting_promo_create, F.text)
+async def promo_create_from_state(message: Message, state: FSMContext) -> None:
+    text = await _create_promo_from_text(message.text or "")
+    if text.startswith("Не понял"):
+        await message.answer(text, reply_markup=_cancel_keyboard())
+        return
+    await state.clear()
+    await message.answer(text, reply_markup=_promos_keyboard())
+
+
+@router.callback_query(F.data.startswith("admin:promo:disable:"))
+async def promo_disable_callback(callback: CallbackQuery) -> None:
+    promo_id = int(callback.data.rsplit(":", 1)[1])
+    async with SessionLocal() as session:
+        promo = await SubscriptionService(session).disable_promo(promo_id)
+    if promo is None:
+        await callback.answer("Промокод не найден.", show_alert=True)
+        return
+    text = await _promos_text()
+    await callback.message.edit_text(text, reply_markup=_promos_keyboard())
+    await callback.answer(f"{promo.code} отключён")
 
 
 @router.message(Command("growth"))
@@ -1097,6 +1192,111 @@ async def _payments_text() -> str:
     return "\n".join(lines)
 
 
+async def _promos_text() -> str:
+    async with SessionLocal() as session:
+        promos = await SubscriptionService(session).active_promos(limit=15)
+        promo_payments = await _scalar(
+            session,
+            select(func.count(Payment.id)).where(Payment.promo_code_id.is_not(None)),
+        )
+    lines = [
+        "🎟 Промокоды",
+        "",
+        f"Оплат с промокодом: {promo_payments}",
+        "Создать: /promo CODE 20 [max] [YYYY-MM-DD] [note]",
+        "Отключить: /promo_off <id|CODE>",
+        "",
+        "Последние:",
+    ]
+    if not promos:
+        lines.append("нет промокодов")
+        return "\n".join(lines)
+    now = datetime.now(UTC)
+    for promo in promos:
+        status = "активен" if promo_is_available(promo, now=now) else "выкл/истёк"
+        limit = "∞" if promo.max_uses is None else str(promo.max_uses)
+        expires = promo.expires_at.strftime("%d.%m.%Y") if promo.expires_at else "без срока"
+        lines.append(
+            f"· #{promo.id} {promo.code}: -{promo.discount_percent}% "
+            f"{promo.used_count}/{limit}, {expires}, {status}"
+        )
+        if promo.note:
+            lines.append(f"  {promo.note}")
+    return "\n".join(lines)
+
+
+async def _create_promo_from_text(raw: str) -> str:
+    parsed = _parse_promo_create_text(raw)
+    if parsed is None:
+        return "Не понял формат. Пример: NEWYEAR 20 100 2026-06-30 январская акция"
+    code, discount_percent, max_uses, expires_at, note = parsed
+    async with SessionLocal() as session:
+        try:
+            promo = await SubscriptionService(session).create_promo(
+                code=code,
+                discount_percent=discount_percent,
+                max_uses=max_uses,
+                expires_at=expires_at,
+                note=note,
+            )
+        except IntegrityError:
+            await session.rollback()
+            return "Промокод с таким кодом уже существует."
+        except ValueError as exc:
+            return str(exc)
+    limit = "без лимита" if promo.max_uses is None else f"лимит {promo.max_uses}"
+    expires = "без срока" if promo.expires_at is None else promo.expires_at.strftime("%d.%m.%Y")
+    return f"Промокод создан: {promo.code}, скидка {promo.discount_percent}%, {limit}, {expires}."
+
+
+async def _disable_promo_by_target(target: str) -> str:
+    value = target.strip()
+    async with SessionLocal() as session:
+        if value.isdigit():
+            promo = await SubscriptionService(session).disable_promo(int(value))
+        else:
+            code = normalize_promo_code(value)
+            result = await session.execute(select(PromoCode).where(PromoCode.code == code))
+            found = result.scalar_one_or_none()
+            promo = await SubscriptionService(session).disable_promo(found.id) if found else None
+    if promo is None:
+        return "Промокод не найден."
+    return f"Промокод {promo.code} отключён."
+
+
+def _parse_promo_create_text(
+    raw: str,
+) -> tuple[str, int, int | None, datetime | None, str | None] | None:
+    parts = raw.split()
+    if len(parts) < 2:
+        return None
+    code = normalize_promo_code(parts[0])
+    try:
+        discount_percent = int(parts[1])
+    except ValueError:
+        return None
+    index = 2
+    max_uses: int | None = None
+    expires_at: datetime | None = None
+    if len(parts) > index:
+        try:
+            max_uses = int(parts[index])
+            if max_uses <= 0:
+                return None
+            index += 1
+        except ValueError:
+            pass
+    if len(parts) > index:
+        try:
+            expires_date = datetime.strptime(parts[index], "%Y-%m-%d").date()
+            expires_at = datetime.combine(expires_date, datetime.max.time(), tzinfo=UTC)
+            index += 1
+        except ValueError:
+            pass
+    note = " ".join(parts[index:]).strip() or None
+    return code, discount_percent, max_uses, expires_at, note
+
+
 async def _growth_text() -> str:
     async with SessionLocal() as session:
         invited = await _scalar(session, select(func.count(User.id)).where(User.referred_by_user_id.is_not(None)))
@@ -1316,7 +1516,7 @@ def _main_menu_text() -> str:
             "Выбери раздел кнопками ниже.",
             "",
             "Команды тоже работают:",
-            "/today, /digest, /server, /openai, /alerts, /quality, /funnel, /user, /grant",
+            "/today, /digest, /server, /openai, /alerts, /quality, /funnel, /promos, /user, /grant",
         ]
     )
 
@@ -1386,8 +1586,9 @@ def _ops_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(text="💰 Payments", callback_data="admin:payments"),
-                InlineKeyboardButton(text="⚙️ Config", callback_data="admin:config"),
+                InlineKeyboardButton(text="🎟 Promos", callback_data="admin:promos"),
             ],
+            [InlineKeyboardButton(text="⚙️ Config", callback_data="admin:config")],
             [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
         ]
     )
@@ -1408,6 +1609,7 @@ def _crm_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="📣 Broadcast", callback_data="admin:broadcast"),
                 InlineKeyboardButton(text="💰 Payments", callback_data="admin:payments"),
             ],
+            [InlineKeyboardButton(text="🎟 Promos", callback_data="admin:promos")],
             [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
         ]
     )
@@ -1487,6 +1689,19 @@ def _payments_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:payments"),
                 InlineKeyboardButton(text="👤 Пользователь", callback_data="admin:user:ask"),
             ],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _promos_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:promos"),
+                InlineKeyboardButton(text="➕ Создать", callback_data="admin:promos:create"),
+            ],
+            [InlineKeyboardButton(text="💰 Payments", callback_data="admin:payments")],
             [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
         ]
     )

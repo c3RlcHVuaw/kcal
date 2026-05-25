@@ -308,8 +308,17 @@ class Payment(Base):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
+    promo_code_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("promo_codes.id", ondelete="SET NULL"),
+        index=True,
+    )
     amount_stars: Mapped[int | None] = mapped_column(Integer)
     amount_kopecks: Mapped[int | None] = mapped_column(Integer)
+    original_amount_stars: Mapped[int | None] = mapped_column(Integer)
+    original_amount_kopecks: Mapped[int | None] = mapped_column(Integer)
+    promo_code: Mapped[str | None] = mapped_column(String(64))
+    promo_discount_percent: Mapped[int | None] = mapped_column(Integer)
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="XTR")
     method: Mapped[str] = mapped_column(String(32), nullable=False, default="stars")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="succeeded")
@@ -334,6 +343,37 @@ class Payment(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="payments")
+    promo: Mapped[PromoCode | None] = relationship(back_populates="payments")
+
+
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+    __table_args__ = (
+        UniqueConstraint("code"),
+        Index("ix_promo_codes_active", "active"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    code: Mapped[str] = mapped_column(String(64), nullable=False)
+    discount_percent: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_uses: Mapped[int | None] = mapped_column(Integer)
+    used_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    note: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    payments: Mapped[list[Payment]] = relationship(back_populates="promo")
 
 
 class QualityEvent(Base):

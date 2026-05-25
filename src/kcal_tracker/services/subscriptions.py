@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kcal_tracker.config import settings
-from kcal_tracker.models import Payment, User
+from kcal_tracker.models import Payment, PromoCode, User
 
 SUBSCRIPTION_PAYLOAD = "ai_subscription_30d"
 YOOKASSA_PAYLOAD = "ai_subscription_30d_yookassa"
@@ -61,6 +61,19 @@ class SubscriptionPlan:
     rub: int
     stars: int
     daily_limit: int | None
+
+
+@dataclass(frozen=True)
+class PromoDiscount:
+    promo: PromoCode
+    code: str
+    discount_percent: int
+
+    def apply_to_rub(self, amount_rub: int) -> int:
+        return _discounted_amount(amount_rub, self.discount_percent)
+
+    def apply_to_stars(self, amount_stars: int) -> int:
+        return _discounted_amount(amount_stars, self.discount_percent)
 
 
 @dataclass(frozen=True)
@@ -132,14 +145,21 @@ class SubscriptionService:
             return existing_user.subscription_expires_at
 
         plan = subscription_plan(_plan_from_payload(payload))
+        promo = await self.get_promo_for_paid_payload(_promo_from_payload(payload))
         now = datetime.now(UTC)
         base = user.subscription_expires_at if has_active_subscription(user) else now
         user.subscription_expires_at = base + timedelta(days=settings.ai_subscription_days)
         user.subscription_plan = plan.code
+        if promo is not None:
+            promo.promo.used_count += 1
         self.session.add(
             Payment(
                 user_id=user.id,
+                promo_code_id=promo.promo.id if promo else None,
                 amount_stars=amount_stars,
+                original_amount_stars=plan.stars if promo else None,
+                promo_code=promo.code if promo else None,
+                promo_discount_percent=promo.discount_percent if promo else None,
                 currency="XTR",
                 method="stars",
                 status="succeeded",
@@ -158,8 +178,10 @@ class SubscriptionService:
         user: User,
         method: str,
         plan_code: str = SUBSCRIPTION_PLAN_BASIC,
+        promo_code: str | None = None,
     ) -> Payment:
         plan = subscription_plan(plan_code)
+        promo = await self.get_valid_promo(promo_code) if promo_code else None
         if method not in YOOKASSA_PAYMENT_METHODS:
             raise ValueError(f"Unsupported YooKassa payment method: {method}")
         if not settings.yookassa_shop_id or not settings.yookassa_secret_key:
@@ -167,10 +189,15 @@ class SubscriptionService:
 
         now = datetime.now(UTC)
         expires_at = now + timedelta(minutes=settings.yookassa_payment_timeout_minutes)
-        amount_kopecks = plan.rub * 100
+        amount_rub = promo.apply_to_rub(plan.rub) if promo else plan.rub
+        amount_kopecks = amount_rub * 100
         payment = Payment(
             user_id=user.id,
+            promo_code_id=promo.promo.id if promo else None,
             amount_kopecks=amount_kopecks,
+            original_amount_kopecks=plan.rub * 100 if promo else None,
+            promo_code=promo.code if promo else None,
+            promo_discount_percent=promo.discount_percent if promo else None,
             currency="RUB",
             method=method,
             status="creating",
@@ -181,7 +208,7 @@ class SubscriptionService:
         await self.session.flush()
 
         response = await _create_yookassa_payment(
-            amount_rub=plan.rub,
+            amount_rub=amount_rub,
             method=method,
             description=f"AI в Kcal: {plan.title} на {settings.ai_subscription_days} дней",
             return_url=_yookassa_return_url(),
@@ -191,6 +218,7 @@ class SubscriptionService:
                 "telegram_id": str(user.telegram_id),
                 "payload": _payload_with_plan(YOOKASSA_PAYLOAD, plan.code),
                 "plan": plan.code,
+                "promo_code": promo.code if promo else "",
             },
         )
         confirmation_url = response.get("confirmation", {}).get("confirmation_url")
@@ -213,8 +241,10 @@ class SubscriptionService:
         user: User,
         method: str,
         plan_code: str = SUBSCRIPTION_PLAN_BASIC,
+        promo_code: str | None = None,
     ) -> Payment:
         plan = subscription_plan(plan_code)
+        promo = await self.get_valid_promo(promo_code) if promo_code else None
         if method not in YOOKASSA_PAYMENT_METHODS:
             raise ValueError(f"Unsupported YooKassa payment method: {method}")
         if not settings.yookassa_provider_token:
@@ -222,7 +252,11 @@ class SubscriptionService:
 
         payment = Payment(
             user_id=user.id,
-            amount_kopecks=plan.rub * 100,
+            promo_code_id=promo.promo.id if promo else None,
+            amount_kopecks=(promo.apply_to_rub(plan.rub) if promo else plan.rub) * 100,
+            original_amount_kopecks=plan.rub * 100 if promo else None,
+            promo_code=promo.code if promo else None,
+            promo_discount_percent=promo.discount_percent if promo else None,
             currency="RUB",
             method=method,
             status=YOOKASSA_TELEGRAM_PENDING_STATUS,
@@ -312,6 +346,10 @@ class SubscriptionService:
         base = user.subscription_expires_at if has_active_subscription(user) else now
         user.subscription_expires_at = base + timedelta(days=settings.ai_subscription_days)
         user.subscription_plan = plan.code
+        if payment.promo_code_id is not None:
+            promo = await self.session.get(PromoCode, payment.promo_code_id)
+            if promo is not None:
+                promo.used_count += 1
         payment.status = "succeeded"
         payment.telegram_payment_charge_id = telegram_payment_charge_id
         payment.provider_payment_charge_id = provider_payment_charge_id
@@ -435,6 +473,10 @@ class SubscriptionService:
         base = user.subscription_expires_at if has_active_subscription(user) else now
         user.subscription_expires_at = base + timedelta(days=settings.ai_subscription_days)
         user.subscription_plan = plan.code
+        if payment.promo_code_id is not None:
+            promo = await self.session.get(PromoCode, payment.promo_code_id)
+            if promo is not None:
+                promo.used_count += 1
         payment.paid_at = now
         payment.last_error = None
         await self.session.commit()
@@ -459,6 +501,78 @@ class SubscriptionService:
                 return payment
         return None
 
+    async def get_valid_promo(self, code: str | None) -> PromoDiscount | None:
+        promo = await self._promo_by_code(code)
+        if promo is None or not promo_is_available(promo):
+            return None
+        return PromoDiscount(
+            promo=promo,
+            code=promo.code,
+            discount_percent=promo.discount_percent,
+        )
+
+    async def get_promo_for_paid_payload(self, code: str | None) -> PromoDiscount | None:
+        promo = await self._promo_by_code(code)
+        if promo is None:
+            return None
+        return PromoDiscount(
+            promo=promo,
+            code=promo.code,
+            discount_percent=promo.discount_percent,
+        )
+
+    async def _promo_by_code(self, code: str | None) -> PromoCode | None:
+        normalized = normalize_promo_code(code)
+        if not normalized:
+            return None
+        result = await self.session.execute(
+            select(PromoCode).where(PromoCode.code == normalized).limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def create_promo(
+        self,
+        *,
+        code: str,
+        discount_percent: int,
+        max_uses: int | None = None,
+        expires_at: datetime | None = None,
+        note: str | None = None,
+    ) -> PromoCode:
+        normalized = normalize_promo_code(code)
+        if not normalized:
+            raise ValueError("Promo code is empty")
+        if discount_percent <= 0 or discount_percent > 95:
+            raise ValueError("Discount percent must be between 1 and 95")
+        promo = PromoCode(
+            code=normalized,
+            discount_percent=discount_percent,
+            max_uses=max_uses,
+            expires_at=expires_at,
+            note=note[:255] if note else None,
+            active=True,
+            used_count=0,
+        )
+        self.session.add(promo)
+        await self.session.commit()
+        await self.session.refresh(promo)
+        return promo
+
+    async def active_promos(self, limit: int = 20) -> list[PromoCode]:
+        result = await self.session.execute(
+            select(PromoCode).order_by(PromoCode.created_at.desc()).limit(limit)
+        )
+        return list(result.scalars())
+
+    async def disable_promo(self, promo_id: int) -> PromoCode | None:
+        promo = await self.session.get(PromoCode, promo_id)
+        if promo is None:
+            return None
+        promo.active = False
+        await self.session.commit()
+        await self.session.refresh(promo)
+        return promo
+
 
 def _yookassa_return_url() -> str:
     if settings.yookassa_return_url:
@@ -475,6 +589,37 @@ def _plan_from_payload(payload: str) -> str:
     if len(parts) >= 2 and parts[1] in subscription_plans():
         return parts[1]
     return SUBSCRIPTION_PLAN_BASIC
+
+
+def _promo_from_payload(payload: str) -> str | None:
+    parts = payload.split(":")
+    if len(parts) >= 3:
+        return normalize_promo_code(parts[2])
+    return None
+
+
+def payload_with_promo(payload: str, plan_code: str, promo_code: str | None = None) -> str:
+    base = _payload_with_plan(payload, plan_code)
+    promo = normalize_promo_code(promo_code)
+    return f"{base}:{promo}" if promo else base
+
+
+def normalize_promo_code(code: str | None) -> str:
+    return "".join((code or "").strip().upper().split())[:64]
+
+
+def promo_is_available(promo: PromoCode, *, now: datetime | None = None) -> bool:
+    now = now or datetime.now(UTC)
+    if not promo.active:
+        return False
+    if promo.expires_at is not None and promo.expires_at <= now:
+        return False
+    return not (promo.max_uses is not None and promo.used_count >= promo.max_uses)
+
+
+def _discounted_amount(amount: int, discount_percent: int) -> int:
+    discounted = round(amount * (100 - discount_percent) / 100)
+    return max(discounted, 1)
 
 
 def _payment_is_inside_refund_window(payment: Payment) -> bool:

@@ -2,6 +2,8 @@
 
 ## 2026-05-25
 
+- Added promo codes for subscription payments with admin creation/listing/
+  disabling and user entry before choosing a payment method.
 - Removed raw Apple Health payload logging and replaced it with a privacy-safe
   field summary.
 - Added weight goals with target weight, weekly pace, and forecast text in

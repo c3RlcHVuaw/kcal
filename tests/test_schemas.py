@@ -82,6 +82,7 @@ from kcal_tracker.services.reminders import (
     _inactivity_reminder_text,
 )
 from kcal_tracker.services.share_cards import _wrap_card_lines
+from kcal_tracker.services.subscriptions import _discounted_amount, normalize_promo_code
 
 
 def test_confidence_must_be_less_than_one() -> None:
@@ -927,6 +928,7 @@ def test_subscription_payment_keyboard_shows_only_selected_plan() -> None:
         for row in subscription_payment_method_keyboard("basic").inline_keyboard
         for button in row
     ]
+    assert "subscription:promo:ask:basic" in callbacks
     assert "subscription:yookassa:basic:sbp" in callbacks
     assert "subscription:yookassa:basic:auto" in callbacks
     assert "subscription:stars:basic" in callbacks
@@ -936,10 +938,24 @@ def test_subscription_payment_keyboard_shows_only_selected_plan() -> None:
 
 
 def test_yookassa_payment_callback_defaults_to_auto_method() -> None:
-    basic_plan, basic_method = _payment_choice_from_callback("subscription:yookassa:basic:auto")
-    legacy_plan, legacy_method = _payment_choice_from_callback("subscription:yookassa:unlimited")
-    assert (basic_plan.code, basic_method) == ("basic", "auto")
-    assert (legacy_plan.code, legacy_method) == ("unlimited", "auto")
+    basic_plan, basic_method, basic_promo = _payment_choice_from_callback(
+        "subscription:yookassa:basic:auto"
+    )
+    legacy_plan, legacy_method, legacy_promo = _payment_choice_from_callback(
+        "subscription:yookassa:unlimited"
+    )
+    promo_plan, promo_method, promo = _payment_choice_from_callback(
+        "subscription:yookassa:basic:sbp:START20"
+    )
+    assert (basic_plan.code, basic_method, basic_promo) == ("basic", "auto", None)
+    assert (legacy_plan.code, legacy_method, legacy_promo) == ("unlimited", "auto", None)
+    assert (promo_plan.code, promo_method, promo) == ("basic", "sbp", "START20")
+
+
+def test_promo_code_helpers_normalize_and_discount() -> None:
+    assert normalize_promo_code(" start 20 ") == "START20"
+    assert _discounted_amount(299, 20) == 239
+    assert _discounted_amount(1, 95) == 1
 
 
 def test_subscription_bonuses_hide_refund_action() -> None:

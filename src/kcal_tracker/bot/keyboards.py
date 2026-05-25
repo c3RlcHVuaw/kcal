@@ -685,31 +685,37 @@ def subscription_plan_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def subscription_payment_method_keyboard(plan_code: str) -> InlineKeyboardMarkup:
+def subscription_payment_method_keyboard(
+    plan_code: str,
+    *,
+    promo_code: str | None = None,
+) -> InlineKeyboardMarkup:
     is_unlimited = plan_code == "unlimited"
     title = "Безлимит" if is_unlimited else "Старт"
     rub = settings.ai_unlimited_subscription_rub if is_unlimited else settings.ai_subscription_rub
     stars = (
         settings.ai_unlimited_subscription_stars if is_unlimited else settings.ai_subscription_stars
     )
+    promo_suffix = f":{promo_code}" if promo_code else ""
     return InlineKeyboardMarkup(
         inline_keyboard=[
+            [InlineKeyboardButton(text="Ввести промокод", callback_data=f"subscription:promo:ask:{plan_code}")],
             [
                 InlineKeyboardButton(
                     text=f"СБП {rub} ₽",
-                    callback_data=f"subscription:yookassa:{plan_code}:sbp",
+                    callback_data=f"subscription:yookassa:{plan_code}:sbp{promo_suffix}",
                 )
             ],
             [
                 InlineKeyboardButton(
                     text=f"Карта/SberPay {rub} ₽",
-                    callback_data=f"subscription:yookassa:{plan_code}:auto",
+                    callback_data=f"subscription:yookassa:{plan_code}:auto{promo_suffix}",
                 )
             ],
             [
                 InlineKeyboardButton(
                     text=f"Звёзды Telegram {stars} ⭐",
-                    callback_data=f"subscription:stars:{plan_code}",
+                    callback_data=f"subscription:stars:{plan_code}{promo_suffix}",
                 )
             ],
             [
