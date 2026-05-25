@@ -21,13 +21,18 @@ from kcal_tracker.bot.handlers.diary import (
     _week_highlight_lines,
     _weight_chart,
 )
-from kcal_tracker.bot.handlers.food import _format_estimate_confirmation, _scale_estimate
+from kcal_tracker.bot.handlers.food import (
+    _format_estimate_confirmation,
+    _scale_estimate,
+    _should_use_ai_first,
+)
 from kcal_tracker.bot.handlers.payments import _payment_choice_from_callback, _payment_error_message
 from kcal_tracker.bot.handlers.profile import _apple_health_shortcut_text, _parse_birth_date
 from kcal_tracker.bot.keyboards import (
     activity_menu_keyboard,
     food_confirmation_keyboard,
     food_entries_keyboard,
+    food_recovery_keyboard,
     settings_keyboard,
     subscription_bonuses_keyboard,
     subscription_payment_method_keyboard,
@@ -563,6 +568,24 @@ def test_history_confirmation_keyboard_can_recover_wrong_match() -> None:
 
     assert "food:ai" in callbacks
     assert "food:search" in callbacks
+    assert "food:wrong" in callbacks
+
+
+def test_food_recovery_keyboard_has_safe_next_steps() -> None:
+    keyboard = food_recovery_keyboard()
+    callbacks = [
+        button.callback_data
+        for row in keyboard.inline_keyboard
+        for button in row
+    ]
+
+    assert callbacks == ["food:ai", "food:search", "nav:add-food", "support:open"]
+
+
+def test_compound_text_prefers_ai_first() -> None:
+    assert _should_use_ai_first("латте и два банана") is True
+    assert _should_use_ai_first("курица рис салат") is True
+    assert _should_use_ai_first("латте") is False
 
 
 def test_history_match_does_not_match_short_entry_inside_long_query() -> None:

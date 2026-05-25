@@ -28,7 +28,7 @@ from sqlalchemy import func, select
 from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.logging import configure_logging
-from kcal_tracker.models import AIUsage, FoodEntry, Payment, User, WaterLog, WeightLog
+from kcal_tracker.models import AIUsage, FoodEntry, Payment, QualityEvent, User, WaterLog, WeightLog
 from kcal_tracker.services.admin_alerts import admin_alert_loop
 from kcal_tracker.services.diary import DiaryService
 from kcal_tracker.services.subscriptions import has_active_subscription
@@ -278,6 +278,19 @@ async def alerts_command(message: Message) -> None:
 async def alerts_callback(callback: CallbackQuery) -> None:
     text = await _alerts_text()
     await callback.message.edit_text(text, reply_markup=_alerts_keyboard())
+    await callback.answer("Обновлено")
+
+
+@router.message(Command("quality"))
+async def quality_command(message: Message) -> None:
+    text = await _quality_text()
+    await message.answer(text, reply_markup=_quality_keyboard())
+
+
+@router.callback_query(F.data == "admin:quality")
+async def quality_callback(callback: CallbackQuery) -> None:
+    text = await _quality_text()
+    await callback.message.edit_text(text, reply_markup=_quality_keyboard())
     await callback.answer("Обновлено")
 
 
@@ -824,6 +837,45 @@ async def _alerts_text() -> str:
     return "\n".join(lines)
 
 
+async def _quality_text() -> str:
+    tz = ZoneInfo(settings.default_timezone)
+    start, end = _today_bounds(tz)
+    async with SessionLocal() as session:
+        totals = await session.execute(
+            select(QualityEvent.event_type, func.count(QualityEvent.id))
+            .where(QualityEvent.created_at >= start, QualityEvent.created_at <= end)
+            .group_by(QualityEvent.event_type)
+            .order_by(func.count(QualityEvent.id).desc())
+        )
+        recent = await session.execute(
+            select(QualityEvent)
+            .order_by(QualityEvent.created_at.desc())
+            .limit(10)
+        )
+
+    lines = ["📉 Quality", "", "Сегодня:"]
+    total_rows = list(totals)
+    if total_rows:
+        for event_type, count in total_rows:
+            lines.append(f"{event_type}: {count}")
+    else:
+        lines.append("событий нет")
+
+    lines.extend(["", "Последние:"])
+    events = list(recent.scalars())
+    if not events:
+        lines.append("нет")
+        return "\n".join(lines)
+
+    for event in events:
+        query = (event.query or "").replace("\n", " ")
+        if len(query) > 54:
+            query = query[:51] + "..."
+        source = f" / {event.source}" if event.source else ""
+        lines.append(f"· {event.event_type}{source}: {query or 'без текста'}")
+    return "\n".join(lines)
+
+
 async def _funnel_text() -> str:
     tz = ZoneInfo(settings.default_timezone)
     start, end = _today_bounds(tz)
@@ -1079,7 +1131,7 @@ def _main_menu_text() -> str:
             "Выбери раздел кнопками ниже.",
             "",
             "Команды тоже работают:",
-            "/today, /server, /openai, /alerts, /funnel, /user, /grant",
+            "/today, /server, /openai, /alerts, /quality, /funnel, /user, /grant",
         ]
     )
 
@@ -1094,6 +1146,9 @@ def _main_menu_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text="🧠 OpenAI", callback_data="admin:openai"),
                 InlineKeyboardButton(text="🚨 Alerts", callback_data="admin:alerts"),
+            ],
+            [
+                InlineKeyboardButton(text="📉 Quality", callback_data="admin:quality"),
             ],
             [
                 InlineKeyboardButton(text="👥 CRM", callback_data="admin:crm"),
@@ -1140,6 +1195,9 @@ def _ops_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text="💳 OpenAI costs", callback_data="admin:openai"),
                 InlineKeyboardButton(text="🚨 Alerts", callback_data="admin:alerts"),
+            ],
+            [
+                InlineKeyboardButton(text="📉 Quality", callback_data="admin:quality"),
             ],
             [
                 InlineKeyboardButton(text="💰 Payments", callback_data="admin:payments"),
@@ -1200,6 +1258,19 @@ def _alerts_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:alerts"),
                 InlineKeyboardButton(text="🖥 Сервер", callback_data="admin:server"),
+            ],
+            [InlineKeyboardButton(text="📉 Quality", callback_data="admin:quality")],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _quality_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:quality"),
+                InlineKeyboardButton(text="🚨 Alerts", callback_data="admin:alerts"),
             ],
             [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
         ]

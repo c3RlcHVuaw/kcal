@@ -106,6 +106,10 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    quality_events: Mapped[list[QualityEvent]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
     apple_health_syncs: Mapped[list[AppleHealthDailySync]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
@@ -328,3 +332,29 @@ class Payment(Base):
     )
 
     user: Mapped[User] = relationship(back_populates="payments")
+
+
+class QualityEvent(Base):
+    __tablename__ = "quality_events"
+    __table_args__ = (
+        Index("ix_quality_events_type_created", "event_type", "created_at"),
+        Index("ix_quality_events_user_created", "user_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(
+        BigInteger,
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    event_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    source: Mapped[str | None] = mapped_column(String(64))
+    query: Mapped[str | None] = mapped_column(String(512))
+    details: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    user: Mapped[User | None] = relationship(back_populates="quality_events")

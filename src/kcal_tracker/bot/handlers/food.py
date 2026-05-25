@@ -15,6 +15,7 @@ from kcal_tracker.bot.keyboards import (
     after_save_keyboard,
     calorie_warning_keyboard,
     food_confirmation_keyboard,
+    food_recovery_keyboard,
     food_search_results_keyboard,
     frequent_foods_keyboard,
     multi_food_keyboard,
@@ -41,6 +42,7 @@ from kcal_tracker.services.media import (
 )
 from kcal_tracker.services.nutrition import high_calorie_add_warning
 from kcal_tracker.services.open_food_facts import OpenFoodFactsService, ProductNotFoundError
+from kcal_tracker.services.quality import record_quality_event
 from kcal_tracker.services.subscriptions import has_active_subscription
 from kcal_tracker.services.users import UserService
 from kcal_tracker.services.wellness import WellnessService
@@ -104,6 +106,19 @@ async def parse_manual_food(message: Message, state: FSMContext) -> None:
         return
 
     query = " ".join((message.text or "").split())
+    if not query:
+        await message.answer(FOOD_INPUT_PROMPT)
+        return
+
+    quick_estimate = await _barcode_or_common_estimate(query)
+    if quick_estimate is not None:
+        await _show_confirmation(message, state, quick_estimate, "food_search", query=query)
+        return
+
+    if _should_use_ai_first(query) and await _can_use_ai(message):
+        if await _try_ai_text_parse(message, state, query, source="manual"):
+            return
+
     free_estimates = await _free_food_estimates(query)
     if len(free_estimates) == 1:
         if _is_confident_single_search_match(query, free_estimates[0]):
@@ -116,20 +131,27 @@ async def parse_manual_food(message: Message, state: FSMContext) -> None:
         return
 
     if not await _can_use_ai(message):
+        await _record_food_quality_event(
+            message,
+            "food_no_match",
+            source="text",
+            query=query,
+            details={"reason": "ai_unavailable"},
+        )
         await message.answer(
             "Не нашёл достаточно похожий продукт в базе. "
-            "Попробуй написать точнее, отправить штрихкод или фото. "
-            "AI-разбор может понять свободное описание и сразу подготовить запись.",
-            reply_markup=subscription_cta_keyboard(),
+            "Можно написать точнее, отправить штрихкод/фото или открыть Premium для AI-разбора.",
+            reply_markup=food_recovery_keyboard(allow_ai=False, allow_database=False),
         )
         return
 
-    estimates = await AIFoodService().parse_text(query)
-    await _record_ai_request(message, "manual_text")
-    if not estimates.foods:
-        await message.answer("Не разобрал еду достаточно уверенно. Попробуй написать чуть проще.")
+    if await _try_ai_text_parse(message, state, query, source="manual"):
         return
-    await _show_estimates_confirmation(message, state, estimates, "manual")
+
+    await message.answer(
+        "Не разобрал еду уверенно. Можно написать проще, поискать в базе или обратиться в поддержку.",
+        reply_markup=food_recovery_keyboard(),
+    )
 
 
 @router.message(StateFilter(None), F.text, lambda message: _looks_like_quick_food_text(message.text or ""))
@@ -338,6 +360,71 @@ async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimat
     return _filter_relevant_estimates(text, estimates, limit=limit)
 
 
+async def _barcode_or_common_estimate(text: str) -> FoodEstimate | None:
+    barcode = normalize_barcode(text)
+    if barcode is not None:
+        async with SessionLocal() as session:
+            try:
+                product = await OpenFoodFactsService(session).get_product(barcode)
+            except ProductNotFoundError:
+                return None
+            return enrich_food_payload(
+                FoodEstimate(
+                    name=product.product_name,
+                    weight_g=100,
+                    kcal=product.kcal_100g or 0,
+                    protein=product.protein_100g or 0,
+                    fat=product.fat_100g or 0,
+                    carbs=product.carbs_100g or 0,
+                    confidence=0.9,
+                )
+            )
+    return estimate_common_food(text)
+
+
+async def _try_ai_text_parse(
+    message: Message,
+    state: FSMContext,
+    query: str,
+    *,
+    source: str,
+) -> bool:
+    try:
+        estimates = await AIFoodService().parse_text(query)
+    except Exception:
+        logger.exception("AI text food parse failed")
+        await _record_food_quality_event(
+            message,
+            "food_ai_failed",
+            source=source,
+            query=query,
+            details={"reason": "exception"},
+        )
+        return False
+
+    await _record_ai_request(message, "manual_text")
+    if not estimates.foods:
+        await _record_food_quality_event(
+            message,
+            "food_ai_failed",
+            source=source,
+            query=query,
+            details={"reason": "empty_result"},
+        )
+        return False
+
+    await _show_estimates_confirmation(message, state, estimates, "manual", query=query)
+    return True
+
+
+def _should_use_ai_first(query: str) -> bool:
+    tokens = _search_tokens(query)
+    if len(tokens) >= 3:
+        return True
+    lowered = query.casefold()
+    return any(separator in lowered for separator in (" и ", ",", "+", " плюс ", " с "))
+
+
 def _looks_like_quick_food_text(text: str) -> bool:
     value = " ".join(text.split())
     if not value or value in MAIN_MENU_TEXTS or value.startswith("/"):
@@ -417,7 +504,7 @@ async def choose_food_search_result(callback: CallbackQuery, state: FSMContext) 
     await state.update_data(estimate=estimates.foods[index].model_dump_json(), source="food_search")
     await callback.message.edit_text(
         _format_estimate_confirmation(estimates.foods[index]),
-        reply_markup=food_confirmation_keyboard("food"),
+        reply_markup=food_confirmation_keyboard("food", allow_ai_retry=True, allow_database_retry=True),
     )
     await callback.answer()
 
@@ -432,6 +519,12 @@ async def retry_confirmation_with_database_search(callback: CallbackQuery, state
 
     estimates = await _free_food_estimates(query)
     if not estimates:
+        await _record_callback_quality_event(
+            callback,
+            "food_no_match",
+            source="database_retry",
+            query=query,
+        )
         await callback.message.edit_text(
             "В базе не нашёл похожий продукт. Можно разобрать через AI или написать точнее.",
             reply_markup=food_search_results_keyboard(0),
@@ -456,6 +549,14 @@ async def retry_confirmation_with_ai(callback: CallbackQuery, state: FSMContext)
 
 @router.callback_query(F.data == "foodsearch:cancel")
 async def cancel_food_search(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    if query := str(data.get("search_query") or "").strip():
+        await _record_callback_quality_event(
+            callback,
+            "food_search_cancelled",
+            source="search",
+            query=query,
+        )
     await state.clear()
     await callback.message.edit_text("Хорошо, ничего не добавляю.")
     await callback.answer()
@@ -476,17 +577,34 @@ async def parse_search_query_with_ai(callback: CallbackQuery, state: FSMContext)
         estimates = await AIFoodService().parse_text(query)
     except Exception:
         logger.exception("AI food search fallback failed")
+        await _record_callback_quality_event(
+            callback,
+            "food_ai_failed",
+            source="callback",
+            query=query,
+            details={"reason": "exception"},
+        )
         await callback.message.answer("AI сейчас не смог разобрать текст. Попробуй чуть проще.")
         await callback.answer()
         return
 
     await _record_ai_request_for_callback(callback, "manual_text")
     if not estimates.foods:
-        await callback.message.answer("AI тоже не разобрал еду уверенно. Попробуй переформулировать.")
+        await _record_callback_quality_event(
+            callback,
+            "food_ai_failed",
+            source="callback",
+            query=query,
+            details={"reason": "empty_result"},
+        )
+        await callback.message.answer(
+            "AI тоже не разобрал еду уверенно. Можно написать проще, поискать в базе или обратиться в поддержку.",
+            reply_markup=food_recovery_keyboard(),
+        )
         await callback.answer()
         return
 
-    await _show_estimates_confirmation(callback.message, state, estimates, "manual")
+    await _show_estimates_confirmation(callback.message, state, estimates, "manual", query=query)
     await callback.answer()
 
 
@@ -693,6 +811,8 @@ async def repeat_frequent_food(callback: CallbackQuery) -> None:
 @router.callback_query(F.data == "foodmulti:all")
 async def confirm_all_foods(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
+    if not await _require_food_state(callback, data, "estimates", "source"):
+        return
     estimates = FoodEstimateList.model_validate_json(data["estimates"])
     source = data["source"]
     added_indices = set(data.get("added_indices", []))
@@ -717,6 +837,8 @@ async def confirm_all_foods(callback: CallbackQuery, state: FSMContext) -> None:
 @router.callback_query(F.data == "foodmulti:all-anyway")
 async def confirm_all_foods_anyway(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
+    if not await _require_food_state(callback, data, "estimates", "source"):
+        return
     estimates = FoodEstimateList.model_validate_json(data["estimates"])
     source = data["source"]
     added_indices = set(data.get("added_indices", []))
@@ -740,8 +862,10 @@ async def _add_all_foods(
         for index, estimate in enumerate(estimates.foods):
             if index in added_indices:
                 continue
-            await diary.add_entry(user, FoodEntryCreate(**estimate.model_dump(), source=source))
-            added_count += 1
+            payload = FoodEntryCreate(**estimate.model_dump(), source=source)
+            if await diary.recent_duplicate_entry(user, payload) is None:
+                await diary.add_entry(user, payload)
+                added_count += 1
 
     await state.clear()
     total_count = len(added_indices) + added_count
@@ -756,6 +880,8 @@ async def _add_all_foods(
 async def confirm_one_food(callback: CallbackQuery, state: FSMContext) -> None:
     index = int(callback.data.rsplit(":", 1)[1])
     data = await state.get_data()
+    if not await _require_food_state(callback, data, "estimates", "source"):
+        return
     estimates = FoodEstimateList.model_validate_json(data["estimates"])
     added_indices = set(data.get("added_indices", []))
     if index >= len(estimates.foods):
@@ -782,6 +908,8 @@ async def confirm_one_food(callback: CallbackQuery, state: FSMContext) -> None:
 async def confirm_one_food_anyway(callback: CallbackQuery, state: FSMContext) -> None:
     index = int(callback.data.rsplit(":", 1)[1])
     data = await state.get_data()
+    if not await _require_food_state(callback, data, "estimates", "source"):
+        return
     estimates = FoodEstimateList.model_validate_json(data["estimates"])
     added_indices = set(data.get("added_indices", []))
     if index >= len(estimates.foods):
@@ -815,10 +943,10 @@ async def _add_one_food(
             telegram_id=callback.from_user.id,
             username=callback.from_user.username,
         )
-        await DiaryService(session).add_entry(
-            user,
-            FoodEntryCreate(**estimate.model_dump(), source=source),
-        )
+        diary = DiaryService(session)
+        payload = FoodEntryCreate(**estimate.model_dump(), source=source)
+        if await diary.recent_duplicate_entry(user, payload) is None:
+            await diary.add_entry(user, payload)
 
     added_indices.add(index)
     if len(added_indices) == len(estimates.foods):
@@ -865,6 +993,11 @@ async def cancel_multi_food(callback: CallbackQuery, state: FSMContext) -> None:
 @router.callback_query(F.data == "food:confirm")
 async def confirm_food(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
+    if not await _require_food_state(callback, data, "estimate", "source"):
+        return
+    if data.get("save_started"):
+        await callback.answer("Уже сохраняю эту запись.", show_alert=True)
+        return
     estimate = FoodEstimate.model_validate_json(data["estimate"])
     source = data["source"]
 
@@ -877,13 +1010,20 @@ async def confirm_food(callback: CallbackQuery, state: FSMContext) -> None:
         await callback.answer()
         return
 
+    await state.update_data(save_started=True)
     await _add_confirmed_food(callback, state, estimate, source)
 
 
 @router.callback_query(F.data == "food:confirm-anyway")
 async def confirm_food_anyway(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
+    if not await _require_food_state(callback, data, "estimate", "source"):
+        return
+    if data.get("save_started"):
+        await callback.answer("Уже сохраняю эту запись.", show_alert=True)
+        return
     estimate = FoodEstimate.model_validate_json(data["estimate"])
+    await state.update_data(save_started=True)
     await _add_confirmed_food(callback, state, estimate, data["source"])
 
 
@@ -899,16 +1039,17 @@ async def _add_confirmed_food(
             username=callback.from_user.username,
         )
         diary = DiaryService(session)
-        entry = await diary.add_entry(
-            user,
-            FoodEntryCreate(**estimate.model_dump(), source=source),
-        )
+        payload = FoodEntryCreate(**estimate.model_dump(), source=source)
+        entry = await diary.recent_duplicate_entry(user, payload)
+        duplicate = entry is not None
+        if entry is None:
+            entry = await diary.add_entry(user, payload)
         summary = await diary.today_summary(user)
         water_ml = await WellnessService(session).today_water_ml(user)
 
     await state.clear()
     await callback.message.edit_text(
-        _format_saved_food(estimate),
+        _format_saved_food(estimate, duplicate=duplicate),
         reply_markup=smart_after_food_save_keyboard(
             entry_id=entry.id,
             kcal_left=summary.target_kcal - summary.kcal,
@@ -921,13 +1062,45 @@ async def _add_confirmed_food(
 
 @router.callback_query(F.data == "food:cancel")
 async def cancel_food(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    await _record_callback_quality_event(
+        callback,
+        "food_cancelled",
+        source=str(data.get("source") or "food"),
+        query=str(data.get("search_query") or "") or None,
+    )
     await state.clear()
     await callback.message.edit_text("Хорошо, ничего не добавляю.")
     await callback.answer()
 
 
+@router.callback_query(F.data == "food:wrong")
+async def wrong_food_match(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    if not await _require_food_state(callback, data, "estimate"):
+        return
+    estimate = FoodEstimate.model_validate_json(data["estimate"])
+    query = str(data.get("search_query") or estimate.name).strip()
+    await _record_callback_quality_event(
+        callback,
+        "food_not_it",
+        source=str(data.get("source") or "food"),
+        query=query,
+        details={"estimate": estimate.name, "kcal": estimate.kcal},
+    )
+    await state.update_data(search_query=query)
+    await callback.message.edit_text(
+        "Понял, это не то. Давай исправим:",
+        reply_markup=food_recovery_keyboard(),
+    )
+    await callback.answer()
+
+
 @router.callback_query(F.data == "food:edit")
 async def edit_food(callback: CallbackQuery, state: FSMContext) -> None:
+    data = await state.get_data()
+    if not await _require_food_state(callback, data, "estimate", "source"):
+        return
     await state.set_state(FoodFlow.editing_weight)
     await callback.message.edit_text("Напиши новую граммовку числом. Например: 180")
     await callback.answer()
@@ -941,6 +1114,10 @@ async def update_food_weight(message: Message, state: FSMContext) -> None:
         return
 
     data = await state.get_data()
+    if "estimate" not in data or "source" not in data:
+        await state.clear()
+        await message.answer("Карточка устарела. Напиши еду заново.")
+        return
     estimate = FoodEstimate.model_validate_json(data["estimate"])
     old_grams = estimate.weight_g or 0
     if old_grams > 0:
@@ -957,6 +1134,9 @@ async def update_food_weight(message: Message, state: FSMContext) -> None:
 @router.callback_query(F.data.startswith("food:portion:"))
 async def update_food_portion(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
+    if not data:
+        await callback.answer("Карточка устарела. Напиши еду заново.", show_alert=True)
+        return
     if data.get("source") != "ai_photo" or "estimate" not in data:
         await callback.answer("Быстрые порции доступны только для фото.", show_alert=True)
         return
@@ -985,6 +1165,9 @@ async def update_food_portion(callback: CallbackQuery, state: FSMContext) -> Non
 @router.callback_query(F.data.startswith("food:ask:"))
 async def ask_photo_detail(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
+    if not data:
+        await callback.answer("Карточка устарела. Напиши еду заново.", show_alert=True)
+        return
     if data.get("source") != "ai_photo" or "estimate" not in data:
         await callback.answer("Вопросы доступны только для фото.", show_alert=True)
         return
@@ -1008,6 +1191,9 @@ async def ask_photo_detail(callback: CallbackQuery, state: FSMContext) -> None:
 @router.callback_query(F.data == "food:refine")
 async def refine_food(callback: CallbackQuery, state: FSMContext) -> None:
     data = await state.get_data()
+    if not data:
+        await callback.answer("Карточка устарела. Напиши еду заново.", show_alert=True)
+        return
     if data.get("source") not in {"ai_photo", "manual"} or "estimate" not in data:
         await callback.answer("Уточнение доступно только для AI-оценки.", show_alert=True)
         return
@@ -1029,6 +1215,10 @@ async def update_food_refinement(message: Message, state: FSMContext) -> None:
         return
 
     data = await state.get_data()
+    if "estimate" not in data or "source" not in data:
+        await state.clear()
+        await message.answer("Карточка устарела. Напиши еду заново.")
+        return
     estimate = FoodEstimate.model_validate_json(data["estimate"])
     await message.answer("Уточняю оценку с учётом комментария.")
     try:
@@ -1097,15 +1287,34 @@ async def _recognize_food_photo(
         estimates = await AIFoodService().recognize_photo(image_bytes, text_hint=text_hint)
     except Exception:
         logger.exception("AI photo recognition failed")
+        await _record_food_quality_event(
+            message,
+            "food_ai_failed",
+            source="photo",
+            query=text_hint,
+            details={"reason": "exception"},
+        )
         await message.answer(
             "Не смог сейчас распознать фото. "
-            "Попробуй отправить его ещё раз или напиши еду текстом."
+            "Попробуй отправить его ещё раз, напиши еду текстом или обратись в поддержку.",
+            reply_markup=food_recovery_keyboard(),
         )
         return
 
     await _record_ai_request(message, "photo")
     if not estimates.foods or (estimates.foods[0].confidence or 0) < 0.35:
-        await message.answer("Не вижу еду достаточно уверенно. Попробуй другое фото или угол.")
+        await _record_food_quality_event(
+            message,
+            "food_ai_failed",
+            source="photo",
+            query=text_hint,
+            details={"reason": "low_confidence"},
+        )
+        await message.answer(
+            "Не вижу еду достаточно уверенно. Попробуй другое фото, напиши текстом "
+            "или обратись в поддержку.",
+            reply_markup=food_recovery_keyboard(),
+        )
         return
     await _show_estimates_confirmation(message, state, estimates, "ai_photo")
 
@@ -1115,16 +1324,21 @@ async def _show_estimates_confirmation(
     state: FSMContext,
     estimates: FoodEstimateList,
     source: str,
+    *,
+    query: str | None = None,
 ) -> None:
     if len(estimates.foods) == 1:
-        await _show_confirmation(message, state, estimates.foods[0], source)
+        await _show_confirmation(message, state, estimates.foods[0], source, query=query)
         return
     await state.set_state(FoodFlow.confirming)
-    await state.update_data(
-        estimates=estimates.model_dump_json(),
-        source=source,
-        added_indices=[],
-    )
+    update = {
+        "estimates": estimates.model_dump_json(),
+        "source": source,
+        "added_indices": [],
+    }
+    if query:
+        update["search_query"] = " ".join(query.split())
+    await state.update_data(**update)
     await message.answer(
         _format_multi_foods(estimates),
         reply_markup=multi_food_keyboard(len(estimates.foods)),
@@ -1145,12 +1359,14 @@ async def _ensure_ai_available(message: Message, request_count: int = 1) -> bool
                 if await usage_service.remaining_trial(user) <= 0:
                     await message.answer(
                         "Пробные AI-распознавания закончились. "
-                        "Premium откроет фото, голос, уточнения еды и умные подсказки дня.",
-                        reply_markup=subscription_cta_keyboard(),
+                        "Можно написать еду проще, поискать в базе или открыть Premium.",
+                        reply_markup=food_recovery_keyboard(allow_ai=False),
                     )
                 else:
                     await message.answer(
-                        "AI на сегодня закончился. Штрихкоды и ручной ввод всё ещё работают."
+                        "AI на сегодня закончился. Можно искать по базе, отправить штрихкод "
+                        "или написать еду проще.",
+                        reply_markup=food_recovery_keyboard(allow_ai=False),
                     )
                 return False
             return True
@@ -1158,7 +1374,11 @@ async def _ensure_ai_available(message: Message, request_count: int = 1) -> bool
         try:
             await usage_service.ensure_allowed(user, request_count=request_count)
         except AILimitReachedError:
-            await message.answer("AI на сегодня закончился. Штрихкоды и ручной ввод всё ещё работают.")
+            await message.answer(
+                "AI на сегодня закончился. Можно искать по базе, отправить штрихкод "
+                "или написать еду проще.",
+                reply_markup=food_recovery_keyboard(allow_ai=False),
+            )
             return False
     return True
 
@@ -1180,9 +1400,9 @@ async def _ensure_ai_available_for_callback(
                 await usage_service.ensure_trial_allowed(user, request_count=request_count)
         except AILimitReachedError:
             await callback.message.answer(
-                "AI-разбор сейчас недоступен. Можно выбрать вариант из базы, "
-                "написать точнее или оформить Premium.",
-                reply_markup=subscription_cta_keyboard(),
+                "AI-разбор сейчас недоступен. Можно выбрать вариант из базы, написать точнее "
+                "или обратиться в поддержку.",
+                reply_markup=food_recovery_keyboard(allow_ai=False),
             )
             await callback.answer("AI недоступен", show_alert=True)
             return False
@@ -1410,11 +1630,60 @@ def _format_multi_foods(
     return "\n".join(lines)
 
 
-def _format_saved_food(estimate: FoodEstimate) -> str:
-    lines = [f"Добавил: {food_label(estimate)} — {estimate.kcal:.0f} ккал."]
+def _format_saved_food(estimate: FoodEstimate, *, duplicate: bool = False) -> str:
+    prefix = "Уже добавлено" if duplicate else "Добавил"
+    lines = [f"{prefix}: {food_label(estimate)} — {estimate.kcal:.0f} ккал."]
     if estimate.advice:
         lines.append(f"💡 {estimate.advice}")
     return "\n".join(lines)
+
+
+async def _require_food_state(
+    callback: CallbackQuery,
+    data: dict,
+    *keys: str,
+) -> bool:
+    missing = [key for key in keys if key not in data]
+    if not missing:
+        return True
+    await callback.answer("Эта карточка устарела. Напиши еду заново.", show_alert=True)
+    return False
+
+
+async def _record_food_quality_event(
+    message: Message,
+    event_type: str,
+    *,
+    source: str | None = None,
+    query: str | None = None,
+    details: dict | None = None,
+) -> None:
+    await record_quality_event(
+        event_type,
+        telegram_id=message.from_user.id if message.from_user else None,
+        username=message.from_user.username if message.from_user else None,
+        source=source,
+        query=query,
+        details=details,
+    )
+
+
+async def _record_callback_quality_event(
+    callback: CallbackQuery,
+    event_type: str,
+    *,
+    source: str | None = None,
+    query: str | None = None,
+    details: dict | None = None,
+) -> None:
+    await record_quality_event(
+        event_type,
+        telegram_id=callback.from_user.id,
+        username=callback.from_user.username,
+        source=source,
+        query=query,
+        details=details,
+    )
 
 
 def _parse_positive_float(value: str) -> float | None:

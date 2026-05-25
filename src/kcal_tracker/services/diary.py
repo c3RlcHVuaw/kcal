@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, time
+from datetime import UTC, date, datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -74,6 +74,35 @@ class DiaryService:
         await self.session.refresh(entry)
         await GrowthService(self.session).reward_referrer_for_activity(user)
         return entry
+
+    async def recent_duplicate_entry(
+        self,
+        user: User,
+        payload: FoodEntryCreate,
+        *,
+        seconds: int = 10,
+    ) -> FoodEntry | None:
+        since = datetime.now(UTC) - timedelta(seconds=seconds)
+        result = await self.session.execute(
+            select(FoodEntry)
+            .where(
+                FoodEntry.user_id == user.id,
+                FoodEntry.created_at >= since,
+                FoodEntry.food_name == payload.name,
+                FoodEntry.source == payload.source,
+            )
+            .order_by(FoodEntry.created_at.desc())
+            .limit(5)
+        )
+        target_kcal = round(payload.kcal, 1)
+        target_weight = round(payload.weight_g, 1) if payload.weight_g is not None else None
+        for entry in result.scalars():
+            if round(entry.kcal, 1) != target_kcal:
+                continue
+            entry_weight = round(entry.weight_g, 1) if entry.weight_g is not None else None
+            if entry_weight == target_weight:
+                return entry
+        return None
 
     async def repeat_entry(self, user: User, entry_id: int) -> FoodEntry | None:
         entry = await self.session.get(FoodEntry, entry_id)
