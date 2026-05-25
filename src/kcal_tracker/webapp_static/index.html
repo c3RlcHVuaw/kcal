@@ -22,9 +22,12 @@
       </section>
 
       <section id="view-today" class="view active" data-title="Сегодня">
-        <section class="lifesum-hero">
+        <section class="wellness-hero">
           <div class="brand-row">
-            <strong>Kcal</strong>
+            <div>
+              <strong>Kcal Flow</strong>
+              <span>персональный дневник</span>
+            </div>
             <div class="hero-actions">
               <button id="refresh-hero" class="hero-icon" type="button" aria-label="Обновить">↻</button>
             </div>
@@ -54,7 +57,7 @@
           <div class="progress-track"><span id="kcal-progress"></span></div>
         </section>
 
-        <section class="macro-card" aria-label="БЖУ">
+        <section class="macro-card component-card" aria-label="БЖУ">
           <article>
             <span>Углеводы</span>
             <b id="carbs">0/0</b>
@@ -78,7 +81,7 @@
           <button type="button" aria-label="Следующий день">›</button>
         </section>
 
-        <section class="list-section">
+        <section class="list-section component-section">
           <div class="section-title">
             <h2>Дневник</h2>
             <button id="delete-latest" class="text-button" type="button">Отменить</button>
@@ -88,14 +91,14 @@
       </section>
 
       <section id="view-food" class="view" data-title="Еда">
-        <div class="segmented" role="tablist" aria-label="Добавление еды">
+        <div class="segmented glass-control" role="tablist" aria-label="Добавление еды">
           <button class="active" type="button" data-food-tab="manual">Вручную</button>
           <button type="button" data-food-tab="frequent">Частое</button>
           <button type="button" data-food-tab="templates">Шаблоны</button>
         </div>
 
         <section id="food-tab-manual" class="food-tab active">
-          <form id="food-form" class="form-panel">
+          <form id="food-form" class="form-panel component-card">
             <input id="food-name" name="name" autocomplete="off" placeholder="Название" required />
             <div class="field-row">
               <input id="food-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
@@ -108,7 +111,7 @@
             </div>
             <button class="primary-button" type="submit">Добавить</button>
           </form>
-          <div class="action-list">
+          <div class="action-list component-card">
             <button id="repeat-yesterday" type="button">
               <span>Как вчера</span>
               <b>Повторить весь вчерашний дневник</b>
@@ -117,28 +120,28 @@
         </section>
 
         <section id="food-tab-frequent" class="food-tab">
-          <div id="frequent-list" class="grouped-list"></div>
+          <div id="frequent-list" class="grouped-list component-card"></div>
         </section>
 
         <section id="food-tab-templates" class="food-tab">
-          <div id="favorites-list" class="grouped-list"></div>
+          <div id="favorites-list" class="grouped-list component-card"></div>
         </section>
       </section>
 
       <section id="view-progress" class="view" data-title="Прогресс">
-        <section class="summary-panel compact">
+        <section class="summary-panel compact component-card accent-card">
           <span class="caption">Среднее за неделю</span>
           <strong id="week-average">0 ккал</strong>
           <p id="week-target" class="muted">Цель: 0 ккал</p>
         </section>
-        <section class="list-section">
+        <section class="list-section component-section">
           <div class="section-title">
             <h2>7 дней</h2>
             <span id="week-in-target" class="muted">0 дней в цели</span>
           </div>
           <div id="week-chart" class="week-chart"></div>
         </section>
-        <form id="goal-form" class="form-panel">
+        <form id="goal-form" class="form-panel component-card">
           <div class="section-title">
             <h2>Цель веса</h2>
             <span id="weight-goal" class="muted">Загрузка...</span>
@@ -157,7 +160,7 @@
       </section>
 
       <section id="view-body" class="view" data-title="Тело">
-        <section class="metric-grid body-actions">
+        <section class="metric-grid body-actions component-grid">
           <button type="button" data-water="250">
             <span>Вода</span>
             <b>+250 мл</b>
@@ -172,13 +175,13 @@
           </button>
         </section>
 
-        <section class="summary-panel compact">
+        <section class="summary-panel compact component-card accent-card">
           <span class="caption">Сегодня</span>
           <strong id="water">0 мл воды</strong>
           <p id="activity-total" class="muted">0 ккал активности</p>
         </section>
 
-        <form id="activity-form" class="form-panel">
+        <form id="activity-form" class="form-panel component-card">
           <div class="section-title">
             <h2>Активность</h2>
           </div>
@@ -187,7 +190,7 @@
           <button class="secondary-button" type="submit">Добавить активность</button>
         </form>
 
-        <section class="list-section">
+        <section class="list-section component-section">
           <div class="section-title">
             <h2>Вес</h2>
             <span id="weight-trend" class="muted">нет данных</span>
@@ -195,21 +198,21 @@
           <div id="weight-chart" class="weight-chart"></div>
         </section>
 
-        <section class="list-section">
+        <section class="list-section component-section">
           <div class="section-title">
             <h2>Привычки</h2>
           </div>
-          <div id="habit-list" class="grouped-list"></div>
+          <div id="habit-list" class="grouped-list component-card"></div>
         </section>
       </section>
 
       <section id="view-more" class="view" data-title="Ещё">
-        <section class="summary-panel compact">
+        <section class="summary-panel compact component-card accent-card">
           <span class="caption">AI сегодня</span>
           <strong id="ai-usage">0 / 0</strong>
           <p class="muted">Фото, штрихкод, поддержка, напоминания и оплата остаются в боте до следующего слоя Mini App.</p>
         </section>
-        <div class="action-list">
+        <div class="action-list component-card">
           <button id="open-bot" type="button">
             <span>Открыть бота</span>
             <b>Фото еды, штрихкод, подписка, поддержка</b>

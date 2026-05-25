@@ -2,6 +2,9 @@
 
 ## 2026-05-25
 
+- Reworked the Mini App visual system away from a literal reference copy:
+  shared wellness cards, soft surfaces, consistent forms/lists across tabs, and
+  a floating glass-style tab bar.
 - Reworked the Telegram Mini App toward an iOS-style tab interface and added
   webapp endpoints for week progress, body summary, frequent foods, templates,
   repeat-yesterday, entry deletion, activity, weight goals, and food export.
