@@ -31,7 +31,6 @@ const nodes = {
   weightButton: document.querySelector("#weight-button"),
   weightValue: document.querySelector("#weight-value"),
   weightGoal: document.querySelector("#weight-goal"),
-  deleteLatest: document.querySelector("#delete-latest"),
   repeatYesterday: document.querySelector("#repeat-yesterday"),
   frequentList: document.querySelector("#frequent-list"),
   favoritesList: document.querySelector("#favorites-list"),
@@ -74,7 +73,6 @@ document.querySelector("#refresh-hero")?.addEventListener("click", loadAll);
 document.querySelectorAll("[data-view-shortcut]").forEach((button) => {
   button.addEventListener("click", () => switchView(button.dataset.viewShortcut));
 });
-nodes.deleteLatest.addEventListener("click", deleteLatestEntry);
 nodes.repeatYesterday.addEventListener("click", repeatYesterday);
 nodes.openBot.addEventListener("click", () => tg?.close());
 nodes.exportFood.addEventListener("click", exportFood);
@@ -372,12 +370,6 @@ async function repeatYesterday() {
   await Promise.all([loadToday(), loadWeek()]);
   switchView("today");
   toast(entries.length ? "Вчерашний день добавлен" : "Вчера нечего повторять");
-}
-
-async function deleteLatestEntry() {
-  const result = await api("/webapp/me/entries/latest", { method: "DELETE" });
-  await Promise.all([loadToday(), loadWeek(), loadFrequent()]);
-  toast(result.deleted ? "Последняя запись удалена" : "Удалять нечего");
 }
 
 async function deleteEntry(entryId) {

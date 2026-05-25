@@ -2,6 +2,9 @@
 
 ## 2026-05-25
 
+- Updated the Mini App glass visual system with a cooler cyan/blue palette,
+  SF Pro typography stack, stronger Liquid Glass surfaces, a readable calorie
+  ring, and removed the Today undo button.
 - Reworked the Mini App visual system away from a literal reference copy:
   shared wellness cards, soft surfaces, consistent forms/lists across tabs, and
   a floating glass-style tab bar.
