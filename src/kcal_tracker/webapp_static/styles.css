@@ -20,6 +20,26 @@
   --glass-line: rgba(255, 255, 255, 0.74);
   --shadow-soft: 0 18px 42px rgba(24, 42, 58, 0.12);
   --shadow-tight: 0 8px 22px rgba(24, 42, 58, 0.08);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-page-x: 14px;
+  --radius-xs: 7px;
+  --radius-sm: 12px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 22px;
+  --radius-pill: 999px;
+  --control-sm: 34px;
+  --control-md: 40px;
+  --control-lg: 50px;
+  --panel-blur: blur(24px) saturate(1.42);
+  --control-blur: blur(24px) saturate(1.5);
+  --focus-ring: 0 0 0 4px rgba(70, 211, 124, 0.12);
+  --panel-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.08));
+  --control-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.18));
   font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -37,6 +57,9 @@
     --glass-line: rgba(255, 255, 255, 0.15);
     --shadow-soft: 0 20px 48px rgba(0, 0, 0, 0.32);
     --shadow-tight: 0 10px 30px rgba(0, 0, 0, 0.24);
+    --panel-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
+    --control-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+    --focus-ring: 0 0 0 4px rgba(94, 212, 209, 0.16);
   }
 }
 
@@ -80,10 +103,18 @@ button:disabled {
   opacity: 0.72;
 }
 
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .app-shell {
   width: min(100%, 560px);
   margin: 0 auto;
-  padding: calc(12px + env(safe-area-inset-top)) 14px calc(86px + env(safe-area-inset-bottom));
+  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-page-x) calc(86px + env(safe-area-inset-bottom));
 }
 
 .app-header,
@@ -168,6 +199,7 @@ h2 {
 .component-card,
 .summary-panel,
 .form-panel,
+.details-card,
 .grouped-list,
 .action-list,
 .metric-grid article,
@@ -175,21 +207,21 @@ h2 {
 .week-chart,
 .weight-chart {
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.08)),
+    var(--panel-gradient),
     var(--surface);
   box-shadow:
     var(--shadow-tight),
     inset 0 1px 0 rgba(255, 255, 255, 0.52),
     inset 0 -1px 0 rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(24px) saturate(1.42);
-  -webkit-backdrop-filter: blur(24px) saturate(1.42);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
 }
 
 .component-section {
   display: grid;
-  gap: 10px;
+  gap: var(--space-3);
   padding: 0;
   border: 0;
   background: transparent;
@@ -201,7 +233,7 @@ h2 {
 .component-section > .grouped-list,
 .component-section > .week-chart,
 .component-section > .weight-chart {
-  border-radius: 14px;
+  border-radius: var(--radius-md);
 }
 
 .accent-card {
@@ -227,8 +259,8 @@ h2 {
 .icon-button {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: var(--control-md);
+  height: var(--control-md);
   border-radius: 50%;
 }
 
@@ -237,8 +269,8 @@ h2 {
   background: var(--glass);
   color: var(--accent-strong);
   box-shadow: var(--shadow-tight);
-  backdrop-filter: blur(24px) saturate(1.5);
-  -webkit-backdrop-filter: blur(24px) saturate(1.5);
+  backdrop-filter: var(--control-blur);
+  -webkit-backdrop-filter: var(--control-blur);
   font-size: 21px;
 }
 
@@ -261,13 +293,15 @@ h2 {
 }
 
 .notice {
-  padding: 12px 14px;
+  padding: var(--space-3) var(--space-page-x);
   border: 1px solid var(--line);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.68);
+  border-radius: var(--radius-lg);
+  background:
+    var(--panel-gradient),
+    var(--surface);
   color: var(--muted);
-  backdrop-filter: blur(24px) saturate(1.35);
-  -webkit-backdrop-filter: blur(24px) saturate(1.35);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
 }
 
 #view-today.active {
@@ -295,11 +329,11 @@ h2 {
 .calorie-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 16px;
+  gap: var(--space-4);
   min-height: 154px;
   padding: 18px;
   overflow: hidden;
-  border-radius: 22px;
+  border-radius: var(--radius-xl);
   background:
     radial-gradient(circle at 12% 4%, rgba(71, 192, 139, 0.24), transparent 30%),
     radial-gradient(circle at 98% 4%, rgba(99, 128, 214, 0.16), transparent 28%),
@@ -415,7 +449,7 @@ h2 {
   gap: 0;
   margin: 0;
   padding: 13px 10px;
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.28)),
     var(--surface);
@@ -521,16 +555,16 @@ h2 {
 }
 
 .text-button {
-  min-height: 34px;
-  padding: 0 12px;
-  border-radius: 999px;
+  min-height: var(--control-sm);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
   background: var(--surface-soft);
   color: var(--accent-strong);
   font-weight: 720;
 }
 
 .summary-panel {
-  padding: 17px;
+  padding: var(--space-4);
 }
 
 .summary-panel.compact {
@@ -556,13 +590,13 @@ h2 {
 .component-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .metric-grid article,
 .metric-grid button {
   min-height: 82px;
-  padding: 13px;
+  padding: var(--space-3);
   color: var(--text);
   text-align: left;
 }
@@ -596,18 +630,22 @@ h2 {
 .meal-section {
   overflow: hidden;
   border: 1px solid var(--line);
-  border-radius: 18px;
-  background: var(--surface-solid);
-  box-shadow: var(--shadow-tight);
+  border-radius: var(--radius-lg);
+  background:
+    var(--panel-gradient),
+    var(--surface-solid);
+  box-shadow:
+    var(--shadow-tight),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
 }
 
 .meal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 48px;
-  padding: 12px 14px;
+  padding: var(--space-3) var(--space-page-x);
   border-bottom: 1px solid var(--line);
 }
 
@@ -635,9 +673,9 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--space-3);
   min-height: 54px;
-  padding: 0 14px;
+  padding: 0 var(--space-page-x);
   background: transparent;
   color: var(--muted);
   text-align: left;
@@ -692,7 +730,7 @@ h2 {
 .action-list button {
   width: 100%;
   min-height: 54px;
-  padding: 13px 14px;
+  padding: 13px var(--space-page-x);
   border-top: 1px solid var(--line);
   background: transparent;
   color: var(--text);
@@ -703,7 +741,7 @@ h2 {
 .action-list button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: var(--space-3);
   align-items: center;
 }
 
@@ -746,7 +784,7 @@ h2 {
 .food-card {
   display: grid;
   grid-template-columns: 74px minmax(0, 1fr);
-  gap: 11px;
+  gap: var(--space-3);
   min-height: 94px;
   padding: 10px 12px;
   border: 0;
@@ -762,7 +800,7 @@ h2 {
   width: 68px;
   height: 68px;
   place-items: center;
-  border-radius: 15px;
+  border-radius: var(--radius-md);
   background:
     radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.72), transparent 34%),
     linear-gradient(135deg, rgba(71, 192, 139, 0.42), rgba(99, 128, 214, 0.24));
@@ -798,7 +836,7 @@ h2 {
 .food-card .entry-meta span {
   min-height: 21px;
   padding: 3px 7px;
-  border-radius: 7px;
+  border-radius: var(--radius-xs);
   background: var(--surface-soft);
   color: var(--muted);
   font-size: 12px;
@@ -819,7 +857,7 @@ h2 {
 
 .entry-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   margin-top: 10px;
 }
 
@@ -828,9 +866,9 @@ h2 {
 }
 
 .entry-actions button {
-  min-height: 34px;
+  min-height: var(--control-sm);
   padding: 0 11px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(120, 120, 128, 0.13);
   color: var(--accent-strong);
   font-size: 13px;
@@ -846,22 +884,23 @@ h2 {
 
 .empty-state {
   display: grid;
-  min-height: 70px;
+  min-height: 76px;
   place-items: center;
-  padding: 18px 14px;
+  padding: 18px var(--space-page-x);
   color: var(--muted);
   text-align: center;
   font-size: 14px;
+  line-height: 1.35;
 }
 
 .glass-control,
 .segmented,
 .meal-picker {
   display: grid;
-  gap: 4px;
-  padding: 4px;
+  gap: var(--space-1);
+  padding: var(--space-1);
   border: 1px solid var(--glass-line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--glass);
   box-shadow: var(--shadow-tight);
   backdrop-filter: blur(28px) saturate(1.7);
@@ -874,13 +913,13 @@ h2 {
 
 .meal-picker {
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
 }
 
 .segmented button {
   height: 38px;
   min-width: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--muted);
   font-size: 14px;
@@ -890,7 +929,7 @@ h2 {
 .meal-picker button {
   min-height: 36px;
   min-width: 0;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--muted);
   font-size: 13px;
@@ -916,14 +955,14 @@ h2 {
 
 .form-panel {
   display: grid;
-  gap: 12px;
-  padding: 15px;
+  gap: var(--space-3);
+  padding: var(--space-4);
 }
 
 .field-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 9px;
+  gap: var(--space-2);
 }
 
 .field-row.three {
@@ -945,10 +984,10 @@ textarea {
   width: 100%;
   min-height: 48px;
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   padding: 0 13px;
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.18)),
+    var(--control-gradient),
     var(--glass);
   color: var(--text);
   outline: none;
@@ -965,7 +1004,7 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: color-mix(in srgb, var(--accent-strong) 52%, var(--line));
-  box-shadow: 0 0 0 4px rgba(70, 211, 124, 0.12);
+  box-shadow: var(--focus-ring);
 }
 
 .input-label {
@@ -981,7 +1020,7 @@ textarea:focus {
 
 .quick-prompts {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   overflow-x: auto;
   padding-bottom: 1px;
   scrollbar-width: none;
@@ -993,10 +1032,10 @@ textarea:focus {
 
 .quick-prompts button {
   flex: 0 0 auto;
-  min-height: 34px;
-  padding: 0 12px;
+  min-height: var(--control-sm);
+  padding: 0 var(--space-3);
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--surface-soft) 78%, transparent);
   color: var(--muted);
   font-size: 13px;
@@ -1010,15 +1049,15 @@ textarea:focus {
 
 .parsed-food-list {
   display: grid;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .parsed-food-card {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: var(--space-3);
+  padding: var(--space-3);
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: var(--surface-solid);
   box-shadow: var(--shadow-tight);
 }
@@ -1118,8 +1157,8 @@ textarea:focus {
 
 .primary-button,
 .secondary-button {
-  min-height: 50px;
-  border-radius: 16px;
+  min-height: var(--control-lg);
+  border-radius: var(--radius-lg);
   font-weight: 790;
 }
 
@@ -1133,7 +1172,7 @@ textarea:focus {
 
 .secondary-button {
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.16));
+    var(--control-gradient);
   color: var(--accent-strong);
   border: 1px solid var(--glass-line);
   backdrop-filter: blur(20px) saturate(1.35);
@@ -1167,7 +1206,7 @@ textarea:focus {
 .inline-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 9px;
+  gap: var(--space-2);
 }
 
 .inline-form .secondary-button {
@@ -1177,18 +1216,18 @@ textarea:focus {
 
 .promo-result {
   display: grid;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .promo-plan {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: var(--space-3);
   min-height: 44px;
-  padding: 10px 12px;
+  padding: 10px var(--space-3);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: var(--radius-md);
   background: var(--surface-soft);
 }
 
@@ -1376,7 +1415,7 @@ textarea:focus {
   .weight-chart,
   .meal-section {
     background:
-      linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+      var(--panel-gradient),
       var(--surface);
     box-shadow:
       0 12px 32px rgba(0, 0, 0, 0.24),
@@ -1398,7 +1437,9 @@ textarea:focus {
   select,
   textarea,
   .secondary-button {
-    background: rgba(255, 255, 255, 0.06);
+    background:
+      var(--control-gradient),
+      var(--glass);
     color: var(--text);
   }
 
@@ -1433,6 +1474,14 @@ textarea:focus {
   .icon-mini,
   .action-list button::after {
     background: rgba(255, 255, 255, 0.07);
+  }
+
+  .food-card .entry-actions button,
+  .quick-prompts button,
+  .promo-plan,
+  .meal-add {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--text);
   }
 }
 
