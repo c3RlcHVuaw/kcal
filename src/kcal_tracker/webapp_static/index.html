@@ -131,6 +131,12 @@
         <section id="food-tab-manual" class="food-tab active">
           <form id="food-text-form" class="form-panel component-card food-text-panel">
             <label class="input-label" for="food-text">Что съел?</label>
+            <div class="meal-picker" role="radiogroup" aria-label="Приём пищи">
+              <button class="active" type="button" data-meal="breakfast">Завтрак</button>
+              <button type="button" data-meal="lunch">Обед</button>
+              <button type="button" data-meal="dinner">Ужин</button>
+              <button type="button" data-meal="snack">Перекус</button>
+            </div>
             <textarea
               id="food-text"
               name="text"
@@ -177,6 +183,12 @@
                 <input id="food-fat" name="fat" inputmode="decimal" placeholder="жиры" />
                 <input id="food-carbs" name="carbs" inputmode="decimal" placeholder="углеводы" />
               </div>
+              <select id="food-meal" name="meal_type" aria-label="Приём пищи">
+                <option value="breakfast">Завтрак</option>
+                <option value="lunch">Обед</option>
+                <option value="dinner">Ужин</option>
+                <option value="snack">Перекус</option>
+              </select>
               <button class="primary-button" type="submit">Добавить</button>
             </form>
           </details>
@@ -302,6 +314,19 @@
           <strong id="ai-usage">0 / 0</strong>
           <p class="muted">Лимит обновляется каждый день</p>
         </section>
+        <form id="promo-form" class="form-panel component-card promo-card">
+          <div class="section-title">
+            <div>
+              <h2>Промокод</h2>
+              <p id="promo-status" class="section-subtitle">Проверь скидку перед оплатой</p>
+            </div>
+          </div>
+          <div class="inline-form">
+            <input id="promo-code" name="code" autocomplete="off" placeholder="KCAL20" />
+            <button class="secondary-button" type="submit">Проверить</button>
+          </div>
+          <div id="promo-result" class="promo-result hidden"></div>
+        </form>
         <section class="list-section component-section">
           <div class="section-title">
             <div>

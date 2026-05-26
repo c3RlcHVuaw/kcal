@@ -23,6 +23,10 @@ class FoodEstimateList(BaseModel):
 
 class FoodEntryCreate(FoodEstimate):
     source: str = Field(pattern="^(ai_photo|manual|food_search|barcode|apple_health|history)$")
+    meal_type: str | None = Field(
+        default=None,
+        pattern="^(breakfast|lunch|dinner|snack)$",
+    )
 
 
 class FoodEntryRead(FoodEntryCreate):
@@ -41,6 +45,25 @@ class WebAppFoodTextParseResult(BaseModel):
     source: str = Field(pattern="^(history|common|ai)$")
     ai_used: bool = False
     remaining_ai_today: int | None = None
+
+
+class WebAppPromoValidate(BaseModel):
+    code: str = Field(min_length=1, max_length=64)
+
+
+class WebAppPromoPlan(BaseModel):
+    code: str
+    title: str
+    rub: int
+    stars: int
+    daily_limit: int | None = None
+
+
+class WebAppPromoValidateResult(BaseModel):
+    valid: bool
+    code: str | None = None
+    discount_percent: int | None = None
+    plans: list[WebAppPromoPlan] = Field(default_factory=list)
 
 
 class ActivityEstimate(BaseModel):

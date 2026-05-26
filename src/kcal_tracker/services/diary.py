@@ -66,6 +66,7 @@ class DiaryService:
             weight_g=round(payload.weight_g, 1) if payload.weight_g is not None else None,
             emoji=payload.emoji,
             advice=payload.advice,
+            meal_type=payload.meal_type,
             source=payload.source,
             confidence=payload.confidence,
         )
@@ -133,6 +134,7 @@ class DiaryService:
             weight_g=entry.weight_g,
             emoji=entry.emoji,
             advice=entry.advice,
+            meal_type=entry.meal_type,
             source=entry.source,
             confidence=entry.confidence,
         )
@@ -292,6 +294,7 @@ class DiaryService:
                     fat=entry.fat,
                     carbs=entry.carbs,
                 ),
+                meal_type=entry.meal_type,
                 source=entry.source,
                 confidence=entry.confidence,
             )
@@ -560,6 +563,7 @@ class DiaryService:
             advice=entry.advice,
             confidence=entry.confidence,
             source=entry.source,
+            meal_type=entry.meal_type,
         )
 
 

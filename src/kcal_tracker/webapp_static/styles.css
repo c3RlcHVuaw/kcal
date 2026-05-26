@@ -612,7 +612,8 @@ h2 {
 }
 
 .meal-header strong,
-.meal-header b {
+.meal-header b,
+.meal-add span {
   display: block;
   font-size: 16px;
   line-height: 1.15;
@@ -644,7 +645,8 @@ h2 {
 }
 
 .meal-empty b,
-.row-action {
+.row-action,
+.meal-add {
   display: grid;
   flex: 0 0 auto;
   width: 30px;
@@ -655,6 +657,28 @@ h2 {
   color: var(--accent-strong);
   font-size: 17px;
   line-height: 1;
+}
+
+.meal-add {
+  grid-template-columns: minmax(0, auto) 18px;
+  gap: 7px;
+  width: auto;
+  min-height: 32px;
+  padding: 0 10px 0 12px;
+  background: var(--surface-soft);
+  font-weight: 760;
+}
+
+.meal-add svg,
+.meal-empty b svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.7;
 }
 
 .row-action svg {
@@ -831,9 +855,9 @@ h2 {
 }
 
 .glass-control,
-.segmented {
+.segmented,
+.meal-picker {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
   border: 1px solid var(--glass-line);
@@ -842,6 +866,15 @@ h2 {
   box-shadow: var(--shadow-tight);
   backdrop-filter: blur(28px) saturate(1.7);
   -webkit-backdrop-filter: blur(28px) saturate(1.7);
+}
+
+.segmented {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.meal-picker {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-radius: 18px;
 }
 
 .segmented button {
@@ -854,7 +887,18 @@ h2 {
   font-weight: 760;
 }
 
-.segmented button.active {
+.meal-picker button {
+  min-height: 36px;
+  min-width: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 740;
+}
+
+.segmented button.active,
+.meal-picker button.active {
   background:
     linear-gradient(180deg, var(--glass-strong), var(--glass));
   color: var(--text);
@@ -1118,6 +1162,44 @@ textarea:focus {
   margin-top: 5px;
   font-size: 13px;
   font-weight: 520;
+}
+
+.inline-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 9px;
+}
+
+.inline-form .secondary-button {
+  min-width: 112px;
+  padding: 0 14px;
+}
+
+.promo-result {
+  display: grid;
+  gap: 8px;
+}
+
+.promo-plan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.promo-plan strong,
+.promo-plan b {
+  display: block;
+}
+
+.promo-plan span {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .week-chart {

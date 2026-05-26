@@ -134,6 +134,7 @@ class FoodEntry(Base):
     weight_g: Mapped[float | None] = mapped_column(Float)
     emoji: Mapped[str | None] = mapped_column(String(16))
     advice: Mapped[str | None] = mapped_column(String(255))
+    meal_type: Mapped[str | None] = mapped_column(String(32))
     source: Mapped[str] = mapped_column(String(32), nullable=False)
     confidence: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(

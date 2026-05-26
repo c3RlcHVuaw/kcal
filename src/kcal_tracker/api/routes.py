@@ -30,6 +30,9 @@ from kcal_tracker.schemas import (
     WebAppFoodTextParseResult,
     WebAppFrequentFood,
     WebAppHabitSummary,
+    WebAppPromoPlan,
+    WebAppPromoValidate,
+    WebAppPromoValidateResult,
     WebAppToday,
     WebAppWaterCreate,
     WebAppWeightCreate,
@@ -48,7 +51,11 @@ from kcal_tracker.services.profile import (
     calculate_daily_kcal_target,
     weight_goal_summary,
 )
-from kcal_tracker.services.subscriptions import user_ai_daily_limit
+from kcal_tracker.services.subscriptions import (
+    SubscriptionService,
+    subscription_plans,
+    user_ai_daily_limit,
+)
 from kcal_tracker.services.users import UserService
 from kcal_tracker.services.webapp_auth import (
     WebAppAuthError,
@@ -334,6 +341,34 @@ async def webapp_parse_food_text(
         source="ai",
         ai_used=True,
         remaining_ai_today=await usage.remaining_today(user),
+    )
+
+
+@router.post("/webapp/me/promos/validate", response_model=WebAppPromoValidateResult)
+async def webapp_validate_promo(
+    payload: WebAppPromoValidate,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WebAppPromoValidateResult:
+    await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    discount = await SubscriptionService(session).get_valid_promo(payload.code)
+    if discount is None:
+        return WebAppPromoValidateResult(valid=False)
+
+    return WebAppPromoValidateResult(
+        valid=True,
+        code=discount.code,
+        discount_percent=discount.discount_percent,
+        plans=[
+            WebAppPromoPlan(
+                code=plan.code,
+                title=plan.title,
+                rub=discount.apply_to_rub(plan.rub),
+                stars=discount.apply_to_stars(plan.stars),
+                daily_limit=plan.daily_limit,
+            )
+            for plan in subscription_plans().values()
+        ],
     )
 
 

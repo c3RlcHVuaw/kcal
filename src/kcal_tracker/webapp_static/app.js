@@ -6,6 +6,7 @@ const state = {
   week: null,
   body: null,
   activeView: "today",
+  selectedMeal: "lunch",
   parsedFoods: [],
   parsedFoodSource: "ai",
 };
@@ -35,6 +36,7 @@ const nodes = {
   foodPreviewList: document.querySelector("#food-preview-list"),
   saveParsedFood: document.querySelector("#save-parsed-food"),
   foodForm: document.querySelector("#food-form"),
+  foodMeal: document.querySelector("#food-meal"),
   toast: document.querySelector("#toast"),
   weightButton: document.querySelector("#weight-button"),
   weightValue: document.querySelector("#weight-value"),
@@ -55,6 +57,10 @@ const nodes = {
   weightChart: document.querySelector("#weight-chart"),
   habitList: document.querySelector("#habit-list"),
   aiUsage: document.querySelector("#ai-usage"),
+  promoForm: document.querySelector("#promo-form"),
+  promoCode: document.querySelector("#promo-code"),
+  promoStatus: document.querySelector("#promo-status"),
+  promoResult: document.querySelector("#promo-result"),
   openBot: document.querySelector("#open-bot"),
   exportFood: document.querySelector("#export-food"),
 };
@@ -84,12 +90,32 @@ document.querySelectorAll("[data-food-example]").forEach((button) => {
   });
 });
 
+state.selectedMeal = mealIdForNow();
+setSelectedMeal(state.selectedMeal);
+
+document.querySelectorAll("[data-meal]").forEach((button) => {
+  button.addEventListener("click", () => setSelectedMeal(button.dataset.meal));
+});
+
 nodes.refresh.addEventListener("click", loadAll);
 document.querySelector("#refresh-hero")?.addEventListener("click", loadAll);
 document.addEventListener("click", (event) => {
   const shortcut = event.target.closest("[data-view-shortcut]");
-  if (!shortcut) return;
-  switchView(shortcut.dataset.viewShortcut);
+  if (shortcut) {
+    const meal = shortcut.dataset.mealShortcut;
+    if (meal) setSelectedMeal(meal);
+    switchView(shortcut.dataset.viewShortcut);
+    return;
+  }
+  const deleteButton = event.target.closest("[data-delete-entry]");
+  if (deleteButton) {
+    deleteEntry(Number(deleteButton.dataset.deleteEntry));
+    return;
+  }
+  const favoriteButton = event.target.closest("[data-favorite-entry]");
+  if (favoriteButton) {
+    favoriteEntry(Number(favoriteButton.dataset.favoriteEntry));
+  }
 });
 nodes.repeatYesterday.addEventListener("click", repeatYesterday);
 nodes.openBot.addEventListener("click", () => tg?.close());
@@ -157,6 +183,7 @@ async function saveParsedFoods() {
           fat: food.fat ?? 0,
           carbs: food.carbs ?? 0,
           source: "manual",
+          meal_type: state.selectedMeal,
         }),
       });
     }
@@ -194,6 +221,7 @@ nodes.foodForm.addEventListener("submit", async (event) => {
     fat: parseNumber(form.get("fat")) || 0,
     carbs: parseNumber(form.get("carbs")) || 0,
     source: "manual",
+    meal_type: String(form.get("meal_type") || state.selectedMeal),
   };
   if (!payload.name || payload.kcal === null) {
     toast("Заполни название и калории");
@@ -246,6 +274,26 @@ nodes.activityForm.addEventListener("submit", async (event) => {
   nodes.activityForm.reset();
   await Promise.all([loadToday(), loadWeek()]);
   toast("Активность добавлена");
+});
+
+nodes.promoForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const code = nodes.promoCode.value.trim();
+  if (!code) {
+    toast("Введи промокод");
+    return;
+  }
+  const button = nodes.promoForm.querySelector("button[type='submit']");
+  setButtonBusy(button, "Проверяю...");
+  try {
+    const result = await api("/webapp/me/promos/validate", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+    renderPromo(result);
+  } finally {
+    restoreButton(button);
+  }
 });
 
 if (!initData) {
@@ -350,9 +398,9 @@ function renderMealDiary(entries) {
     const content = meal.items.length
       ? meal.items.map(renderFoodEntry).join("")
       : `
-        <button class="meal-empty" type="button" data-view-shortcut="food">
+        <button class="meal-empty" type="button" data-view-shortcut="food" data-meal-shortcut="${meal.id}">
           <span>Пока нет записей</span>
-          <b>＋</b>
+          <b aria-hidden="true"><svg><use href="#icon-plus"></use></svg></b>
         </button>
       `;
     return `
@@ -362,7 +410,10 @@ function renderMealDiary(entries) {
             <strong>${meal.title}</strong>
             <span>${meal.hint}</span>
           </div>
-          <b>${Math.round(kcal)} ккал</b>
+          <button class="meal-add" type="button" data-view-shortcut="food" data-meal-shortcut="${meal.id}" aria-label="Добавить в ${meal.title}">
+            <span>${Math.round(kcal)} ккал</span>
+            <svg><use href="#icon-plus"></use></svg>
+          </button>
         </div>
         <div class="meal-items">${content}</div>
       </section>
@@ -385,13 +436,28 @@ function renderFoodEntry(entry) {
           <span>${Math.round(entry.fat)}Ж</span>
           <span>${Math.round(entry.carbs)}У</span>
         </div>
+        <div class="entry-actions">
+          <button type="button" data-favorite-entry="${entry.id}">В шаблон</button>
+          <button type="button" data-delete-entry="${entry.id}">Удалить</button>
+        </div>
       </div>
     </article>
   `;
 }
 
 function mealIdForEntry(entry) {
+  if (["breakfast", "lunch", "dinner", "snack"].includes(entry.meal_type)) {
+    return entry.meal_type;
+  }
   const hour = entry.created_at ? new Date(entry.created_at).getHours() : 12;
+  if (hour < 11) return "breakfast";
+  if (hour < 16) return "lunch";
+  if (hour < 21) return "dinner";
+  return "snack";
+}
+
+function mealIdForNow() {
+  const hour = new Date().getHours();
   if (hour < 11) return "breakfast";
   if (hour < 16) return "lunch";
   if (hour < 21) return "dinner";
@@ -451,6 +517,31 @@ function renderBody(data) {
   `).join("");
 }
 
+function renderPromo(result) {
+  nodes.promoResult.classList.remove("hidden");
+  if (!result.valid) {
+    nodes.promoStatus.textContent = "Промокод не найден или уже закончился";
+    nodes.promoResult.innerHTML = "";
+    toast("Промокод не применился");
+    return;
+  }
+
+  nodes.promoStatus.textContent = `${result.code}: скидка ${result.discount_percent}%`;
+  nodes.promoResult.innerHTML = result.plans.map((plan) => {
+    const limit = plan.daily_limit ? `${plan.daily_limit} AI/день` : "без дневного лимита";
+    return `
+      <div class="promo-plan">
+        <div>
+          <strong>${escapeHtml(plan.title)}</strong>
+          <span>${escapeHtml(limit)}</span>
+        </div>
+        <b>${plan.rub} ₽ / ${plan.stars} ⭐</b>
+      </div>
+    `;
+  }).join("");
+  toast("Промокод применён");
+}
+
 function renderReusableFood(container, items) {
   if (!items.length) {
     container.innerHTML = '<div class="empty-state">Пока пусто.</div>';
@@ -500,6 +591,29 @@ function renderParsedFoods(result) {
       </div>
     </article>
   `).join("");
+}
+
+function setSelectedMeal(meal) {
+  if (!["breakfast", "lunch", "dinner", "snack"].includes(meal)) return;
+  state.selectedMeal = meal;
+  document.querySelectorAll("[data-meal]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.meal === meal);
+  });
+  if (nodes.foodMeal) nodes.foodMeal.value = meal;
+}
+
+async function deleteEntry(entryId) {
+  if (!entryId) return;
+  await api(`/webapp/me/entries/${entryId}`, { method: "DELETE" });
+  await Promise.all([loadToday(), loadWeek(), loadFrequent()]);
+  toast("Запись удалена");
+}
+
+async function favoriteEntry(entryId) {
+  if (!entryId) return;
+  await api(`/webapp/me/entries/${entryId}/favorite`, { method: "POST" });
+  await loadFavorites();
+  toast("Добавлено в шаблоны");
 }
 
 function updateParsedFoodField(event) {
