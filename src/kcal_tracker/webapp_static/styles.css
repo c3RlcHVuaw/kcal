@@ -56,6 +56,13 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+.svg-sprite {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
 button,
 input,
 select,
@@ -1128,58 +1135,78 @@ textarea:focus {
 .tab-bar {
   position: fixed;
   left: 50%;
-  bottom: calc(8px + env(safe-area-inset-bottom));
+  bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 10;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  width: min(390px, calc(100% - 24px));
-  height: 62px;
-  padding: 4px;
+  align-items: center;
+  width: min(396px, calc(100% - 24px));
+  height: 64px;
+  padding: 6px;
   border: 1px solid var(--glass-line);
-  border-radius: 24px;
+  border-radius: 28px;
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--glass-strong) 82%, transparent), var(--glass));
+    linear-gradient(135deg, color-mix(in srgb, var(--glass-strong) 76%, transparent), color-mix(in srgb, var(--glass) 88%, transparent));
   box-shadow:
-    0 14px 34px rgba(24, 42, 58, 0.14),
-    inset 0 1px 0 rgba(255, 255, 255, 0.38);
-  backdrop-filter: blur(34px) saturate(1.8);
-  -webkit-backdrop-filter: blur(34px) saturate(1.8);
+    0 18px 38px rgba(24, 42, 58, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.44),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(30px) saturate(1.7);
+  -webkit-backdrop-filter: blur(30px) saturate(1.7);
   transform: translateX(-50%);
 }
 
 .tab-bar button {
   position: relative;
   display: grid;
-  grid-template-rows: 22px 15px;
-  gap: 3px;
+  grid-template-rows: 24px 14px;
+  gap: 2px;
   place-items: center;
   min-width: 0;
   width: 100%;
   height: 52px;
-  border-radius: 20px;
+  border-radius: 22px;
   background: transparent;
-  color: color-mix(in srgb, var(--muted) 86%, transparent);
-  font-size: 9px;
-  font-weight: 760;
+  color: color-mix(in srgb, var(--muted) 82%, transparent);
+  font-size: 10px;
+  font-weight: 740;
   line-height: 1;
+  letter-spacing: 0;
   transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease;
 }
 
+.tab-bar svg {
+  display: block;
+  width: 23px;
+  height: 23px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+}
+
+.tab-bar [data-view="today"] svg,
+.tab-bar [data-view="body"] svg {
+  fill: color-mix(in srgb, currentColor 10%, transparent);
+}
+
 .tab-bar span {
-  display: grid;
-  width: 22px;
-  height: 22px;
-  place-items: center;
-  font-size: 17px;
-  line-height: 1;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .tab-bar button.active {
-  background: color-mix(in srgb, var(--glass-strong) 68%, transparent);
+  background:
+    radial-gradient(circle at 32% 10%, rgba(255, 255, 255, 0.62), transparent 38%),
+    color-mix(in srgb, var(--glass-strong) 54%, transparent);
   color: var(--text);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 6px 16px rgba(24, 42, 58, 0.1);
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 8px 18px rgba(24, 42, 58, 0.1);
 }
 
 .toast {
@@ -1258,14 +1285,17 @@ textarea:focus {
 
   .tab-bar {
     background:
-      linear-gradient(135deg, rgba(34, 44, 56, 0.86), rgba(19, 27, 36, 0.76));
+      linear-gradient(135deg, rgba(42, 49, 58, 0.78), rgba(17, 23, 31, 0.72));
+    border-color: rgba(255, 255, 255, 0.15);
     box-shadow:
       0 16px 38px rgba(0, 0, 0, 0.36),
       inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
   .tab-bar button.active {
-    background: rgba(255, 255, 255, 0.1);
+    background:
+      radial-gradient(circle at 32% 10%, rgba(255, 255, 255, 0.16), transparent 40%),
+      rgba(255, 255, 255, 0.1);
   }
 
   .text-button,
