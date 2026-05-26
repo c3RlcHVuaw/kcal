@@ -23,6 +23,7 @@ from kcal_tracker.schemas import (
     DiarySummary,
     FoodEntryCreate,
     FoodEntryRead,
+    FoodEntryUpdate,
     UserRead,
     WebAppBodySummary,
     WebAppFavoriteFood,
@@ -538,6 +539,27 @@ async def webapp_delete_entry(
     if not deleted:
         raise HTTPException(status_code=404, detail="Entry not found")
     return {"deleted": True}
+
+
+@router.put("/webapp/me/entries/{entry_id}", response_model=FoodEntryRead)
+async def webapp_update_entry(
+    entry_id: int,
+    payload: FoodEntryUpdate,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> FoodEntryRead:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    entry = await DiaryService(session).update_entry_payload(
+        user,
+        entry_id,
+        FoodEntryCreate(
+            **payload.model_dump(),
+            source="manual",
+        ),
+    )
+    if entry is None:
+        raise HTTPException(status_code=404, detail="Entry not found")
+    return FoodEntryRead.model_validate(entry)
 
 
 @router.post("/webapp/me/entries/{entry_id}/favorite", response_model=WebAppFavoriteFood)

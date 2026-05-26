@@ -371,6 +371,37 @@
       </button>
     </nav>
 
+    <div id="entry-editor" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="entry-editor-title">
+      <div class="sheet-panel component-card">
+        <form id="entry-edit-form" class="form-panel">
+          <div class="section-title">
+            <div>
+              <h2 id="entry-editor-title">Редактировать еду</h2>
+              <p class="section-subtitle">Изменения сразу обновят дневник</p>
+            </div>
+            <button id="entry-edit-close" class="icon-mini" type="button" aria-label="Закрыть">×</button>
+          </div>
+          <input id="entry-edit-name" name="name" autocomplete="off" placeholder="Название" required />
+          <div class="field-row">
+            <input id="entry-edit-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
+            <input id="entry-edit-weight" name="weight_g" inputmode="decimal" placeholder="граммы" />
+          </div>
+          <div class="field-row three">
+            <input id="entry-edit-protein" name="protein" inputmode="decimal" placeholder="белки" />
+            <input id="entry-edit-fat" name="fat" inputmode="decimal" placeholder="жиры" />
+            <input id="entry-edit-carbs" name="carbs" inputmode="decimal" placeholder="углеводы" />
+          </div>
+          <select id="entry-edit-meal" name="meal_type" aria-label="Приём пищи">
+            <option value="breakfast">Завтрак</option>
+            <option value="lunch">Обед</option>
+            <option value="dinner">Ужин</option>
+            <option value="snack">Перекус</option>
+          </select>
+          <button class="primary-button" type="submit">Сохранить</button>
+        </form>
+      </div>
+    </div>
+
     <div id="toast" class="toast hidden"></div>
     <script src="/app/static/app.js" type="module"></script>
   </body>

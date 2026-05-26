@@ -200,6 +200,30 @@ class DiaryService:
         await self.session.refresh(entry)
         return entry
 
+    async def update_entry_payload(
+        self,
+        user: User,
+        entry_id: int,
+        payload: FoodEntryCreate,
+    ) -> FoodEntry | None:
+        entry = await self.get_entry(user, entry_id)
+        if entry is None:
+            return None
+        payload = enrich_food_payload(payload)
+        entry.food_name = payload.name
+        entry.kcal = round(payload.kcal, 1)
+        entry.protein = round(payload.protein, 1)
+        entry.fat = round(payload.fat, 1)
+        entry.carbs = round(payload.carbs, 1)
+        entry.weight_g = round(payload.weight_g, 1) if payload.weight_g is not None else None
+        entry.emoji = payload.emoji
+        entry.advice = payload.advice
+        entry.meal_type = payload.meal_type
+        entry.confidence = payload.confidence
+        await self.session.commit()
+        await self.session.refresh(entry)
+        return entry
+
     async def update_entry_name(
         self,
         user: User,

@@ -7,6 +7,7 @@ const state = {
   body: null,
   activeView: "today",
   selectedMeal: "lunch",
+  editingEntryId: null,
   parsedFoods: [],
   parsedFoodSource: "ai",
 };
@@ -61,6 +62,16 @@ const nodes = {
   promoCode: document.querySelector("#promo-code"),
   promoStatus: document.querySelector("#promo-status"),
   promoResult: document.querySelector("#promo-result"),
+  entryEditor: document.querySelector("#entry-editor"),
+  entryEditForm: document.querySelector("#entry-edit-form"),
+  entryEditClose: document.querySelector("#entry-edit-close"),
+  entryEditName: document.querySelector("#entry-edit-name"),
+  entryEditKcal: document.querySelector("#entry-edit-kcal"),
+  entryEditWeight: document.querySelector("#entry-edit-weight"),
+  entryEditProtein: document.querySelector("#entry-edit-protein"),
+  entryEditFat: document.querySelector("#entry-edit-fat"),
+  entryEditCarbs: document.querySelector("#entry-edit-carbs"),
+  entryEditMeal: document.querySelector("#entry-edit-meal"),
   openBot: document.querySelector("#open-bot"),
   exportFood: document.querySelector("#export-food"),
 };
@@ -115,6 +126,16 @@ document.addEventListener("click", (event) => {
   const favoriteButton = event.target.closest("[data-favorite-entry]");
   if (favoriteButton) {
     favoriteEntry(Number(favoriteButton.dataset.favoriteEntry));
+    return;
+  }
+  const editButton = event.target.closest("[data-edit-entry]");
+  if (editButton) {
+    openEntryEditor(Number(editButton.dataset.editEntry));
+    return;
+  }
+  const scaleButton = event.target.closest("[data-scale-parsed]");
+  if (scaleButton) {
+    scaleParsedFood(Number(scaleButton.dataset.index), Number(scaleButton.dataset.scaleParsed));
   }
 });
 nodes.repeatYesterday.addEventListener("click", repeatYesterday);
@@ -124,6 +145,10 @@ nodes.foodTextForm.addEventListener("submit", parseFoodText);
 nodes.saveParsedFood.addEventListener("click", saveParsedFoods);
 nodes.foodPreviewList.addEventListener("input", updateParsedFoodField);
 nodes.foodPreviewList.addEventListener("click", removeParsedFood);
+nodes.entryEditClose.addEventListener("click", closeEntryEditor);
+nodes.entryEditor.addEventListener("click", (event) => {
+  if (event.target === nodes.entryEditor) closeEntryEditor();
+});
 
 document.querySelectorAll("[data-water]").forEach((button) => {
   button.addEventListener("click", async () => {
@@ -296,6 +321,38 @@ nodes.promoForm.addEventListener("submit", async (event) => {
   }
 });
 
+nodes.entryEditForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!state.editingEntryId) return;
+  const form = new FormData(nodes.entryEditForm);
+  const payload = {
+    name: String(form.get("name") || "").trim(),
+    kcal: parseNumber(form.get("kcal")),
+    weight_g: parseNumber(form.get("weight_g")),
+    protein: parseNumber(form.get("protein")) || 0,
+    fat: parseNumber(form.get("fat")) || 0,
+    carbs: parseNumber(form.get("carbs")) || 0,
+    meal_type: String(form.get("meal_type") || mealIdForNow()),
+  };
+  if (!payload.name || payload.kcal === null) {
+    toast("Заполни название и калории");
+    return;
+  }
+  const button = nodes.entryEditForm.querySelector("button[type='submit']");
+  setButtonBusy(button, "Сохраняю...");
+  try {
+    await api(`/webapp/me/entries/${state.editingEntryId}`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+    closeEntryEditor();
+    await Promise.all([loadToday(), loadWeek(), loadFrequent(), loadFavorites()]);
+    toast("Запись обновлена");
+  } finally {
+    restoreButton(button);
+  }
+});
+
 if (!initData) {
   nodes.authWarning.classList.remove("hidden");
   renderEmptyApp();
@@ -437,6 +494,7 @@ function renderFoodEntry(entry) {
           <span>${Math.round(entry.carbs)}У</span>
         </div>
         <div class="entry-actions">
+          <button type="button" data-edit-entry="${entry.id}">Изменить</button>
           <button type="button" data-favorite-entry="${entry.id}">В шаблон</button>
           <button type="button" data-delete-entry="${entry.id}">Удалить</button>
         </div>
@@ -575,10 +633,17 @@ function renderParsedFoods(result) {
   nodes.foodPreview.classList.toggle("hidden", !state.parsedFoods.length);
   nodes.foodPreviewList.innerHTML = state.parsedFoods.map((food, index) => `
     <article class="parsed-food-card" data-index="${index}">
-      <div class="parsed-food-head">
+      <div class="parsed-food-head preview-head">
         <div class="food-thumb small">${escapeHtml(food.emoji || foodInitial(food.name))}</div>
-        <input data-field="name" value="${escapeHtml(food.name)}" aria-label="Название" />
+        <div class="preview-title">
+          <input data-field="name" value="${escapeHtml(food.name)}" aria-label="Название" />
+          <span>${mealLabel(state.selectedMeal)} · ${sourceLabel(result.source)}</span>
+        </div>
         <button class="icon-mini" type="button" data-remove-parsed="${index}" aria-label="Удалить">×</button>
+      </div>
+      <div class="preview-summary">
+        <strong>${Math.round(food.kcal || 0)} ккал</strong>
+        <span>${food.weight_g ? `${formatNumber(food.weight_g)} г` : "граммы не указаны"}</span>
       </div>
       <div class="field-row compact-fields">
         <label><span>ккал</span><input data-field="kcal" inputmode="decimal" value="${formatInput(food.kcal)}" /></label>
@@ -588,6 +653,11 @@ function renderParsedFoods(result) {
         <label><span>Б</span><input data-field="protein" inputmode="decimal" value="${formatInput(food.protein)}" /></label>
         <label><span>Ж</span><input data-field="fat" inputmode="decimal" value="${formatInput(food.fat)}" /></label>
         <label><span>У</span><input data-field="carbs" inputmode="decimal" value="${formatInput(food.carbs)}" /></label>
+      </div>
+      <div class="portion-actions">
+        <button type="button" data-index="${index}" data-scale-parsed="0.5">1/2</button>
+        <button type="button" data-index="${index}" data-scale-parsed="1.25">+ порция</button>
+        <button type="button" data-index="${index}" data-scale-parsed="2">x2</button>
       </div>
     </article>
   `).join("");
@@ -600,6 +670,40 @@ function setSelectedMeal(meal) {
     button.classList.toggle("active", button.dataset.meal === meal);
   });
   if (nodes.foodMeal) nodes.foodMeal.value = meal;
+}
+
+function openEntryEditor(entryId) {
+  const entry = state.today?.diary?.entries?.find((item) => Number(item.id) === entryId);
+  if (!entry) {
+    toast("Запись не найдена");
+    return;
+  }
+  state.editingEntryId = entryId;
+  nodes.entryEditName.value = entry.name || "";
+  nodes.entryEditKcal.value = formatInput(entry.kcal);
+  nodes.entryEditWeight.value = formatInput(entry.weight_g);
+  nodes.entryEditProtein.value = formatInput(entry.protein);
+  nodes.entryEditFat.value = formatInput(entry.fat);
+  nodes.entryEditCarbs.value = formatInput(entry.carbs);
+  nodes.entryEditMeal.value = mealIdForEntry(entry);
+  nodes.entryEditor.classList.remove("hidden");
+  nodes.entryEditName.focus();
+}
+
+function closeEntryEditor() {
+  state.editingEntryId = null;
+  nodes.entryEditor.classList.add("hidden");
+  nodes.entryEditForm.reset();
+}
+
+function scaleParsedFood(index, multiplier) {
+  const food = state.parsedFoods[index];
+  if (!food || !Number.isFinite(multiplier) || multiplier <= 0) return;
+  ["weight_g", "kcal", "protein", "fat", "carbs"].forEach((field) => {
+    if (food[field] === null || food[field] === undefined) return;
+    food[field] = Math.max(0, Math.round(Number(food[field]) * multiplier * 10) / 10);
+  });
+  renderParsedFoods({ source: state.parsedFoodSource });
 }
 
 async function deleteEntry(entryId) {
@@ -740,6 +844,23 @@ function formatNumber(value) {
 
 function formatInput(value) {
   return value === null || value === undefined ? "" : String(formatNumber(value)).replace(/\s/g, "");
+}
+
+function mealLabel(meal) {
+  return {
+    breakfast: "Завтрак",
+    lunch: "Обед",
+    dinner: "Ужин",
+    snack: "Перекус",
+  }[meal] || "Приём пищи";
+}
+
+function sourceLabel(source) {
+  return {
+    ai: "AI",
+    common: "База",
+    history: "История",
+  }[source] || "Оценка";
 }
 
 function normalizeParsedFood(food) {

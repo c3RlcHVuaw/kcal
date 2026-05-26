@@ -36,6 +36,13 @@ class FoodEntryRead(FoodEntryCreate):
     model_config = {"from_attributes": True}
 
 
+class FoodEntryUpdate(FoodEstimate):
+    meal_type: str | None = Field(
+        default=None,
+        pattern="^(breakfast|lunch|dinner|snack)$",
+    )
+
+
 class WebAppFoodTextParse(BaseModel):
     text: str = Field(min_length=3, max_length=500)
 
