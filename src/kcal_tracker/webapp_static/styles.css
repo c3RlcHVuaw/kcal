@@ -58,7 +58,8 @@ body {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
 }
 
@@ -154,7 +155,7 @@ h2 {
 
 .view.active {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .component-card,
@@ -484,6 +485,7 @@ h2 {
 
 .section-title {
   min-height: 32px;
+  align-items: flex-start;
 }
 
 .section-subtitle {
@@ -494,7 +496,10 @@ h2 {
 }
 
 .text-button {
-  background: transparent;
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--surface-soft);
   color: var(--accent-strong);
   font-weight: 720;
 }
@@ -504,7 +509,10 @@ h2 {
 }
 
 .summary-panel.compact {
-  min-height: 122px;
+  min-height: 114px;
+  display: grid;
+  align-content: center;
+  gap: 4px;
 }
 
 .summary-head strong,
@@ -594,12 +602,30 @@ h2 {
 }
 
 .meal-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   min-height: 54px;
   padding: 0 14px;
   background: transparent;
-  color: var(--accent-strong);
+  color: var(--muted);
   text-align: left;
   font-weight: 720;
+}
+
+.meal-empty b,
+.row-action {
+  display: grid;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-strong);
+  font-size: 17px;
+  line-height: 1;
 }
 
 .entry,
@@ -612,6 +638,18 @@ h2 {
   background: transparent;
   color: var(--text);
   text-align: left;
+}
+
+.list-item,
+.action-list button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.list-content {
+  min-width: 0;
 }
 
 .entry:first-child,
@@ -744,8 +782,13 @@ h2 {
 }
 
 .empty-state {
-  padding: 20px 14px;
+  display: grid;
+  min-height: 70px;
+  place-items: center;
+  padding: 18px 14px;
   color: var(--muted);
+  text-align: center;
+  font-size: 14px;
 }
 
 .glass-control,
@@ -790,8 +833,8 @@ h2 {
 
 .form-panel {
   display: grid;
-  gap: 11px;
-  padding: 14px;
+  gap: 12px;
+  padding: 15px;
 }
 
 .field-row {
@@ -823,7 +866,7 @@ textarea {
 textarea {
   min-height: 96px;
   padding: 13px;
-  resize: vertical;
+  resize: none;
   line-height: 1.35;
 }
 
@@ -838,6 +881,10 @@ textarea:focus {
   color: var(--text);
   font-size: 14px;
   font-weight: 760;
+}
+
+.food-text-panel {
+  gap: 12px;
 }
 
 .food-preview {
@@ -858,6 +905,52 @@ textarea:focus {
   border-radius: 18px;
   background: var(--surface-solid);
   box-shadow: var(--shadow-tight);
+}
+
+.details-card {
+  overflow: hidden;
+  padding: 0;
+}
+
+.details-card summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 34px;
+  gap: 12px;
+  align-items: center;
+  min-height: 68px;
+  padding: 14px 15px;
+  list-style: none;
+  cursor: pointer;
+}
+
+.details-card summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 19px;
+  transition: transform 160ms ease;
+}
+
+.details-card[open] .disclosure {
+  transform: rotate(180deg);
+}
+
+.nested-form {
+  padding-top: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .parsed-food-head {
@@ -935,6 +1028,19 @@ textarea:focus {
 .action-list span,
 .action-list b {
   display: block;
+}
+
+.action-list button::after {
+  content: "›";
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 22px;
+  line-height: 1;
 }
 
 .action-list b {
@@ -1077,6 +1183,7 @@ textarea:focus {
   .component-card,
   .summary-panel,
   .form-panel,
+  .details-card,
   .grouped-list,
   .action-list,
   .metric-grid article,
@@ -1133,6 +1240,13 @@ textarea:focus {
   .tab-bar button.active {
     background: rgba(255, 255, 255, 0.1);
   }
+
+  .text-button,
+  .disclosure,
+  .icon-mini,
+  .action-list button::after {
+    background: rgba(255, 255, 255, 0.07);
+  }
 }
 
 .hidden {
@@ -1151,5 +1265,19 @@ textarea:focus {
 
   .field-row.three {
     grid-template-columns: 1fr;
+  }
+
+  .metric-grid,
+  .component-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .parsed-food-head {
+    grid-template-columns: 40px minmax(0, 1fr) 32px;
+  }
+
+  .food-thumb.small {
+    width: 40px;
+    height: 40px;
   }
 }

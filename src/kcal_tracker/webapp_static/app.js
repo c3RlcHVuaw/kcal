@@ -342,7 +342,12 @@ function renderMealDiary(entries) {
     const kcal = meal.items.reduce((total, entry) => total + Number(entry.kcal || 0), 0);
     const content = meal.items.length
       ? meal.items.map(renderFoodEntry).join("")
-      : `<button class="meal-empty" type="button" data-view-shortcut="food">Добавить еду</button>`;
+      : `
+        <button class="meal-empty" type="button" data-view-shortcut="food">
+          <span>Пока нет записей</span>
+          <b>＋</b>
+        </button>
+      `;
     return `
       <section class="meal-section">
         <div class="meal-header">
@@ -408,7 +413,7 @@ function renderBody(data) {
     ? `${formatNumber(data.latest_weight_kg)} кг, ${data.trend_label}`
     : "нет данных";
   if (!data.weight_logs.length) {
-    nodes.weightChart.innerHTML = '<p class="empty-state">Запиши вес, чтобы увидеть тренд.</p>';
+    nodes.weightChart.innerHTML = '<div class="empty-state">Запиши вес, чтобы увидеть тренд.</div>';
   } else {
     const weights = data.weight_logs.map((item) => item.weight_kg);
     const min = Math.min(...weights);
@@ -436,16 +441,19 @@ function renderBody(data) {
 
 function renderReusableFood(container, items) {
   if (!items.length) {
-    container.innerHTML = '<p class="empty-state">Пока пусто.</p>';
+    container.innerHTML = '<div class="empty-state">Пока пусто.</div>';
     return;
   }
   container.innerHTML = items.map((item) => `
     <button class="list-item" type="button" data-reuse-id="${item.id}">
-      <div class="entry-main">
-        <strong>${escapeHtml(item.name)}</strong>
-        <b>${Math.round(item.kcal)} ккал</b>
+      <div class="list-content">
+        <div class="entry-main">
+          <strong>${escapeHtml(item.name)}</strong>
+          <b>${Math.round(item.kcal)} ккал</b>
+        </div>
+        <div class="entry-meta"><span>${escapeHtml(item.meta)}</span></div>
       </div>
-      <div class="entry-meta"><span>${escapeHtml(item.meta)}</span></div>
+      <span class="row-action">＋</span>
     </button>
   `).join("");
   container.querySelectorAll("[data-reuse-id]").forEach((button) => {
@@ -586,9 +594,9 @@ async function api(path, options = {}) {
 }
 
 function renderEmptyApp() {
-  nodes.entries.innerHTML = '<p class="empty-state">Нет данных без Telegram-авторизации.</p>';
-  nodes.frequentList.innerHTML = '<p class="empty-state">Открой из Telegram.</p>';
-  nodes.favoritesList.innerHTML = '<p class="empty-state">Открой из Telegram.</p>';
+  nodes.entries.innerHTML = '<div class="empty-state">Нет данных без Telegram-авторизации.</div>';
+  nodes.frequentList.innerHTML = '<div class="empty-state">Открой из Telegram.</div>';
+  nodes.favoritesList.innerHTML = '<div class="empty-state">Открой из Telegram.</div>';
   nodes.weekChart.innerHTML = "";
   nodes.weightChart.innerHTML = "";
 }

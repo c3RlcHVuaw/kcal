@@ -124,25 +124,28 @@
             <button id="save-parsed-food" class="primary-button" type="button">Добавить в дневник</button>
           </section>
 
-          <form id="food-form" class="form-panel component-card">
-            <div class="section-title compact-title">
+          <details class="details-card component-card">
+            <summary>
               <div>
                 <h2>Точные значения</h2>
                 <p class="section-subtitle">Если уже знаешь калории и БЖУ</p>
               </div>
-            </div>
-            <input id="food-name" name="name" autocomplete="off" placeholder="Название" required />
-            <div class="field-row">
-              <input id="food-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
-              <input id="food-weight" name="weight" inputmode="decimal" placeholder="граммы" />
-            </div>
-            <div class="field-row three">
-              <input id="food-protein" name="protein" inputmode="decimal" placeholder="белки" />
-              <input id="food-fat" name="fat" inputmode="decimal" placeholder="жиры" />
-              <input id="food-carbs" name="carbs" inputmode="decimal" placeholder="углеводы" />
-            </div>
-            <button class="primary-button" type="submit">Добавить</button>
-          </form>
+              <span class="disclosure">⌄</span>
+            </summary>
+            <form id="food-form" class="form-panel nested-form">
+              <input id="food-name" name="name" autocomplete="off" placeholder="Название" required />
+              <div class="field-row">
+                <input id="food-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
+                <input id="food-weight" name="weight" inputmode="decimal" placeholder="граммы" />
+              </div>
+              <div class="field-row three">
+                <input id="food-protein" name="protein" inputmode="decimal" placeholder="белки" />
+                <input id="food-fat" name="fat" inputmode="decimal" placeholder="жиры" />
+                <input id="food-carbs" name="carbs" inputmode="decimal" placeholder="углеводы" />
+              </div>
+              <button class="primary-button" type="submit">Добавить</button>
+            </form>
+          </details>
           <div class="action-list component-card">
             <button id="repeat-yesterday" type="button">
               <span>Как вчера</span>
