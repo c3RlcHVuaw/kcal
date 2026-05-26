@@ -515,6 +515,10 @@ h2 {
   gap: 4px;
 }
 
+.summary-panel .muted {
+  line-height: 1.35;
+}
+
 .summary-head strong,
 .summary-panel > strong {
   display: block;
@@ -646,6 +650,10 @@ h2 {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
+}
+
+.habit-row {
+  grid-template-columns: 1fr;
 }
 
 .list-content {
@@ -845,6 +853,14 @@ h2 {
 
 .field-row.three {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.edit-card {
+  gap: 13px;
+}
+
+.edit-card .section-title {
+  padding-bottom: 2px;
 }
 
 input,
@@ -1052,7 +1068,7 @@ textarea:focus {
 .week-chart {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 8px;
+  gap: 7px;
   align-items: end;
   min-height: 184px;
   padding: 14px;
@@ -1060,11 +1076,22 @@ textarea:focus {
 
 .week-bar {
   display: grid;
-  gap: 8px;
+  grid-template-rows: 18px 1fr 16px;
+  gap: 7px;
   align-items: end;
   min-width: 0;
   height: 150px;
   text-align: center;
+}
+
+.week-bar strong {
+  min-height: 18px;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 720;
 }
 
 .week-bar i {

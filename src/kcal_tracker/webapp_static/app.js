@@ -401,6 +401,7 @@ function renderWeek(data) {
     const color = day.kcal > data.target_kcal + 150 ? "var(--danger)" : day.entries_count ? "var(--accent)" : "rgba(120,120,128,.28)";
     return `
       <div class="week-bar">
+        <strong>${day.entries_count ? Math.round(day.kcal) : ""}</strong>
         <i style="height:${height}px;background:${color}"></i>
         <span>${escapeHtml(day.date)}</span>
       </div>
@@ -431,10 +432,14 @@ function renderBody(data) {
     ["Вода", `${habits.water_streak_days} дней подряд`, `${habits.tracked_water_days_30}/30`],
     ["Вес", `${habits.weight_streak_days} дней подряд`, `${habits.tracked_weight_days_30}/30`],
   ].map(([title, streak, count]) => `
-    <div class="list-item entry-main">
-      <strong>${title}</strong>
-      <b>${streak}</b>
-      <span class="muted">${count}</span>
+    <div class="list-item habit-row">
+      <div class="list-content">
+        <div class="entry-main">
+          <strong>${title}</strong>
+          <b>${count}</b>
+        </div>
+        <div class="entry-meta"><span>${streak}</span></div>
+      </div>
     </div>
   `).join("");
 }

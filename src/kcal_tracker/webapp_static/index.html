@@ -186,8 +186,10 @@
         </section>
         <form id="goal-form" class="form-panel component-card edit-card">
           <div class="section-title">
-            <h2>Настроить цель</h2>
-            <span id="weight-goal" class="muted">Загрузка...</span>
+            <div>
+              <h2>Цель веса</h2>
+              <p id="weight-goal" class="section-subtitle">Загрузка...</p>
+            </div>
           </div>
           <select id="goal-kind" name="goal">
             <option value="loss">Снизить вес</option>
@@ -234,7 +236,10 @@
 
         <form id="activity-form" class="form-panel component-card edit-card">
           <div class="section-title">
-            <h2>Добавить активность</h2>
+            <div>
+              <h2>Активность</h2>
+              <p class="section-subtitle">Добавь расход, если тренировка не пришла автоматически</p>
+            </div>
           </div>
           <input id="activity-name" name="name" autocomplete="off" placeholder="Например: ходьба" required />
           <input id="activity-kcal" name="kcal" inputmode="decimal" placeholder="потрачено ккал" required />
@@ -261,18 +266,26 @@
         <section class="summary-panel compact component-card accent-card">
           <span class="caption">AI сегодня</span>
           <strong id="ai-usage">0 / 0</strong>
-          <p class="muted">Фото, штрихкод, поддержка, напоминания и оплата остаются в боте до следующего слоя Mini App.</p>
+          <p class="muted">Лимит обновляется каждый день</p>
         </section>
-        <div class="action-list component-card">
-          <button id="open-bot" type="button">
-            <span>Открыть бота</span>
-            <b>Фото еды, штрихкод, подписка, поддержка</b>
-          </button>
-          <button id="export-food" type="button">
-            <span>Экспорт питания</span>
-            <b>CSV для внешнего анализа</b>
-          </button>
-        </div>
+        <section class="list-section component-section">
+          <div class="section-title">
+            <div>
+              <h2>Действия</h2>
+              <p class="section-subtitle">Экспорт, бот и дополнительные сценарии</p>
+            </div>
+          </div>
+          <div class="action-list component-card">
+            <button id="open-bot" type="button">
+              <span>Открыть бота</span>
+              <b>Фото еды, штрихкод, подписка, поддержка</b>
+            </button>
+            <button id="export-food" type="button">
+              <span>Экспорт питания</span>
+              <b>CSV для внешнего анализа</b>
+            </button>
+          </div>
+        </section>
       </section>
     </main>
 
