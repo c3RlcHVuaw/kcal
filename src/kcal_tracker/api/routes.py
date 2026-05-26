@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
 from dataclasses import dataclass
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
 from redis.asyncio import Redis
 from sqlalchemy import text
@@ -24,7 +25,9 @@ from kcal_tracker.schemas import (
     FoodEntryCreate,
     FoodEntryRead,
     FoodEntryUpdate,
+    FoodEstimate,
     UserRead,
+    WebAppBarcodeLookup,
     WebAppBodySummary,
     WebAppFavoriteFood,
     WebAppFoodTextParse,
@@ -44,9 +47,12 @@ from kcal_tracker.schemas import (
 )
 from kcal_tracker.services.ai_food import AIFoodService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
+from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
 from kcal_tracker.services.diary import DiaryService, estimate_from_entry
 from kcal_tracker.services.export import ExportService
+from kcal_tracker.services.food_insights import enrich_food_payload
 from kcal_tracker.services.food_search import estimate_common_food
+from kcal_tracker.services.open_food_facts import OpenFoodFactsService, ProductNotFoundError
 from kcal_tracker.services.profile import (
     apply_default_macro_targets,
     calculate_daily_kcal_target,
@@ -79,6 +85,8 @@ async def get_webapp_identity(request: Request) -> WebAppIdentity:
 
 
 WebAppIdentityDep = Annotated[WebAppIdentity, Depends(get_webapp_identity)]
+ImageUploadDep = Annotated[UploadFile, File()]
+OptionalTextHintDep = Annotated[str | None, Form()]
 
 
 @router.get("/health")
@@ -287,8 +295,8 @@ async def webapp_create_entry(
     identity: WebAppIdentityDep,
     session: SessionDep,
 ) -> FoodEntryRead:
-    if payload.source != "manual":
-        raise HTTPException(status_code=400, detail="Web app supports manual entries only")
+    if payload.source not in {"manual", "ai_photo", "food_search", "barcode", "history"}:
+        raise HTTPException(status_code=400, detail="Unsupported food entry source")
     user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
     return await DiaryService(session).add_entry(user, payload)
 
@@ -345,6 +353,91 @@ async def webapp_parse_food_text(
     )
 
 
+@router.post("/webapp/me/food/parse-photo", response_model=WebAppFoodTextParseResult)
+async def webapp_parse_food_photo(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+    image: ImageUploadDep,
+    text_hint: OptionalTextHintDep = None,
+) -> WebAppFoodTextParseResult:
+    content_type = image.content_type or "image/jpeg"
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=415, detail="Upload an image")
+
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Image is empty")
+    if len(image_bytes) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image is too large")
+
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    usage = AIUsageService(session)
+    try:
+        await usage.ensure_allowed(user)
+    except AILimitReachedError as exc:
+        raise HTTPException(status_code=402, detail="AI limit reached") from exc
+
+    try:
+        estimates = await AIFoodService().recognize_photo(
+            image_bytes,
+            mime_type=content_type,
+            text_hint=text_hint,
+        )
+    except Exception as exc:
+        logger.exception("Web app AI photo food parse failed")
+        raise HTTPException(status_code=503, detail="AI photo parsing failed") from exc
+
+    await usage.record_request(user, "webapp_photo")
+    if not estimates.foods or (estimates.foods[0].confidence or 0) < 0.35:
+        raise HTTPException(status_code=422, detail="Food was not recognized")
+
+    return WebAppFoodTextParseResult(
+        foods=estimates.foods,
+        source="photo",
+        ai_used=True,
+        remaining_ai_today=await usage.remaining_today(user),
+    )
+
+
+@router.post("/webapp/me/food/scan-barcode", response_model=WebAppFoodTextParseResult)
+async def webapp_scan_barcode(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+    image: ImageUploadDep,
+) -> WebAppFoodTextParseResult:
+    content_type = image.content_type or "image/jpeg"
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=415, detail="Upload an image")
+
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Image is empty")
+    if len(image_bytes) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image is too large")
+
+    try:
+        barcode = await asyncio.wait_for(
+            asyncio.to_thread(BarcodeService().decode_image, image_bytes),
+            timeout=8,
+        )
+    except (TimeoutError, BarcodeNotFoundError) as exc:
+        raise HTTPException(status_code=422, detail="Barcode was not recognized") from exc
+
+    return await _webapp_barcode_result(barcode, identity, session)
+
+
+@router.post("/webapp/me/food/barcode", response_model=WebAppFoodTextParseResult)
+async def webapp_lookup_barcode(
+    payload: WebAppBarcodeLookup,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WebAppFoodTextParseResult:
+    barcode = normalize_barcode(payload.code)
+    if barcode is None:
+        raise HTTPException(status_code=422, detail="Barcode is invalid")
+    return await _webapp_barcode_result(barcode, identity, session)
+
+
 @router.post("/webapp/me/promos/validate", response_model=WebAppPromoValidateResult)
 async def webapp_validate_promo(
     payload: WebAppPromoValidate,
@@ -379,6 +472,40 @@ def _should_parse_food_text_with_ai(text: str) -> bool:
     if len(tokens) >= 4:
         return True
     return any(separator in normalized for separator in (" и ", ",", "+", " плюс ", " с "))
+
+
+async def _webapp_barcode_result(
+    barcode: str,
+    identity: WebAppIdentity,
+    session: AsyncSession,
+) -> WebAppFoodTextParseResult:
+    await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    try:
+        product = await OpenFoodFactsService(session).get_product(barcode)
+    except ProductNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Product was not found") from exc
+
+    return WebAppFoodTextParseResult(
+        foods=[_estimate_from_product_cache(product)],
+        source="barcode",
+        ai_used=False,
+        remaining_ai_today=None,
+        barcode=barcode,
+    )
+
+
+def _estimate_from_product_cache(product: Any) -> FoodEstimate:
+    return enrich_food_payload(
+        FoodEstimate(
+            name=product.product_name,
+            weight_g=100,
+            kcal=product.kcal_100g or 0,
+            protein=product.protein_100g or 0,
+            fat=product.fat_100g or 0,
+            carbs=product.carbs_100g or 0,
+            confidence=0.9,
+        )
+    )
 
 
 @router.post("/webapp/me/water")

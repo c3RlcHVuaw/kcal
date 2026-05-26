@@ -36,6 +36,12 @@ const nodes = {
   foodPreviewSource: document.querySelector("#food-preview-source"),
   foodPreviewList: document.querySelector("#food-preview-list"),
   saveParsedFood: document.querySelector("#save-parsed-food"),
+  foodPhotoButton: document.querySelector("#food-photo-button"),
+  foodPhotoInput: document.querySelector("#food-photo-input"),
+  barcodePhotoButton: document.querySelector("#barcode-photo-button"),
+  barcodePhotoInput: document.querySelector("#barcode-photo-input"),
+  barcodeCode: document.querySelector("#barcode-code"),
+  barcodeCodeButton: document.querySelector("#barcode-code-button"),
   foodForm: document.querySelector("#food-form"),
   foodMeal: document.querySelector("#food-meal"),
   toast: document.querySelector("#toast"),
@@ -145,6 +151,17 @@ nodes.foodTextForm.addEventListener("submit", parseFoodText);
 nodes.saveParsedFood.addEventListener("click", saveParsedFoods);
 nodes.foodPreviewList.addEventListener("input", updateParsedFoodField);
 nodes.foodPreviewList.addEventListener("click", removeParsedFood);
+nodes.foodPhotoButton.addEventListener("click", () => nodes.foodPhotoInput.click());
+nodes.foodPhotoInput.addEventListener("change", parseFoodPhoto);
+nodes.barcodePhotoButton.addEventListener("click", () => nodes.barcodePhotoInput.click());
+nodes.barcodePhotoInput.addEventListener("change", scanBarcodePhoto);
+nodes.barcodeCodeButton.addEventListener("click", lookupBarcodeCode);
+nodes.barcodeCode.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    lookupBarcodeCode();
+  }
+});
 nodes.entryEditClose.addEventListener("click", closeEntryEditor);
 nodes.entryEditor.addEventListener("click", (event) => {
   if (event.target === nodes.entryEditor) closeEntryEditor();
@@ -176,9 +193,7 @@ async function parseFoodText(event) {
       method: "POST",
       body: JSON.stringify({ text }),
     });
-    state.parsedFoods = result.foods.map(normalizeParsedFood);
-    state.parsedFoodSource = result.source;
-    renderParsedFoods(result);
+    setParsedFoods(result);
     toast(result.ai_used ? "AI разобрал еду" : "Нашёл похожее");
   } catch (error) {
     const message = error.status === 402
@@ -188,6 +203,84 @@ async function parseFoodText(event) {
   } finally {
     restoreButton(submit);
   }
+}
+
+async function parseFoodPhoto() {
+  const file = nodes.foodPhotoInput.files?.[0];
+  if (!file) return;
+  const hint = nodes.foodText.value.trim();
+  const form = new FormData();
+  form.append("image", file);
+  if (hint) form.append("text_hint", hint);
+
+  setButtonBusy(nodes.foodPhotoButton, "Распознаю...");
+  try {
+    const result = await apiForm("/webapp/me/food/parse-photo", form);
+    setParsedFoods(result);
+    toast("Фото распознано");
+  } catch (error) {
+    const message = error.status === 402
+      ? "Лимит AI на сегодня закончился"
+      : "Не получилось распознать фото";
+    toast(message);
+  } finally {
+    nodes.foodPhotoInput.value = "";
+    restoreButton(nodes.foodPhotoButton);
+  }
+}
+
+async function scanBarcodePhoto() {
+  const file = nodes.barcodePhotoInput.files?.[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append("image", file);
+
+  setButtonBusy(nodes.barcodePhotoButton, "Сканирую...");
+  try {
+    const result = await apiForm("/webapp/me/food/scan-barcode", form);
+    setParsedFoods(result);
+    if (result.barcode) nodes.barcodeCode.value = result.barcode;
+    toast("Штрихкод найден");
+  } catch (error) {
+    const message = error.status === 404
+      ? "Продукта нет в базе"
+      : "Штрихкод не считался";
+    toast(message);
+  } finally {
+    nodes.barcodePhotoInput.value = "";
+    restoreButton(nodes.barcodePhotoButton);
+  }
+}
+
+async function lookupBarcodeCode() {
+  const code = nodes.barcodeCode.value.trim();
+  if (code.length < 8) {
+    toast("Введи цифры штрихкода");
+    return;
+  }
+  setButtonBusy(nodes.barcodeCodeButton, "Ищу...");
+  try {
+    const result = await api("/webapp/me/food/barcode", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+    setParsedFoods(result);
+    if (result.barcode) nodes.barcodeCode.value = result.barcode;
+    toast("Продукт найден");
+  } catch (error) {
+    const message = error.status === 404
+      ? "Продукта нет в базе"
+      : "Штрихкод не подходит";
+    toast(message);
+  } finally {
+    restoreButton(nodes.barcodeCodeButton);
+  }
+}
+
+function setParsedFoods(result) {
+  state.parsedFoods = result.foods.map(normalizeParsedFood);
+  state.parsedFoodSource = result.source;
+  renderParsedFoods(result);
 }
 
 async function saveParsedFoods() {
@@ -207,13 +300,14 @@ async function saveParsedFoods() {
           protein: food.protein ?? 0,
           fat: food.fat ?? 0,
           carbs: food.carbs ?? 0,
-          source: "manual",
+          source: entrySourceForParsed(state.parsedFoodSource),
           meal_type: state.selectedMeal,
         }),
       });
     }
     state.parsedFoods = [];
     nodes.foodTextForm.reset();
+    nodes.barcodeCode.value = "";
     nodes.foodPreview.classList.add("hidden");
     await Promise.all([loadToday(), loadWeek(), loadFrequent()]);
     switchView("today");
@@ -626,6 +720,8 @@ function renderReusableFood(container, items) {
 function renderParsedFoods(result) {
   const sourceText = {
     ai: "AI-оценка. Проверь граммы и калории перед сохранением.",
+    photo: "Распознано по фото. Проверь состав, граммы и БЖУ.",
+    barcode: "Продукт найден по штрихкоду. Значения указаны на 100 г.",
     common: "Оценка из базовых продуктов. Можно поправить значения.",
     history: "Похоже на то, что ты уже добавлял раньше.",
   };
@@ -823,6 +919,23 @@ async function api(path, options = {}) {
   return response.json();
 }
 
+async function apiForm(path, form) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: {
+      "X-Telegram-Init-Data": initData,
+    },
+    body: form,
+  });
+  if (!response.ok) {
+    const message = await response.text();
+    const error = new Error(message || `Ошибка ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
+  return response.json();
+}
+
 function renderEmptyApp() {
   nodes.entries.innerHTML = '<div class="empty-state">Нет данных без Telegram-авторизации.</div>';
   nodes.frequentList.innerHTML = '<div class="empty-state">Открой из Telegram.</div>';
@@ -858,9 +971,21 @@ function mealLabel(meal) {
 function sourceLabel(source) {
   return {
     ai: "AI",
+    photo: "Фото",
+    barcode: "Штрихкод",
     common: "База",
     history: "История",
   }[source] || "Оценка";
+}
+
+function entrySourceForParsed(source) {
+  return {
+    ai: "manual",
+    photo: "ai_photo",
+    barcode: "barcode",
+    common: "food_search",
+    history: "history",
+  }[source] || "manual";
 }
 
 function normalizeParsedFood(food) {
@@ -905,14 +1030,14 @@ function toast(message) {
 
 function setButtonBusy(button, label) {
   if (!button) return;
-  button.dataset.idleText = button.textContent;
+  button.dataset.idleHtml = button.innerHTML;
   button.textContent = label;
   button.disabled = true;
 }
 
 function restoreButton(button) {
   if (!button) return;
-  button.textContent = button.dataset.idleText || button.textContent;
+  button.innerHTML = button.dataset.idleHtml || button.textContent;
   button.disabled = false;
-  delete button.dataset.idleText;
+  delete button.dataset.idleHtml;
 }

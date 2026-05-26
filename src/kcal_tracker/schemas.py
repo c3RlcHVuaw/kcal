@@ -47,11 +47,16 @@ class WebAppFoodTextParse(BaseModel):
     text: str = Field(min_length=3, max_length=500)
 
 
+class WebAppBarcodeLookup(BaseModel):
+    code: str = Field(min_length=8, max_length=64)
+
+
 class WebAppFoodTextParseResult(BaseModel):
     foods: list[FoodEstimate]
-    source: str = Field(pattern="^(history|common|ai)$")
+    source: str = Field(pattern="^(history|common|ai|photo|barcode)$")
     ai_used: bool = False
     remaining_ai_today: int | None = None
+    barcode: str | None = None
 
 
 class WebAppPromoValidate(BaseModel):

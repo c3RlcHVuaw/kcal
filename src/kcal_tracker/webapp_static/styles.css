@@ -1066,6 +1066,69 @@ textarea:focus {
   font-weight: 720;
 }
 
+.media-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.media-action {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  min-height: 70px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background:
+    var(--control-gradient),
+    var(--glass);
+  color: var(--text);
+  text-align: left;
+  backdrop-filter: var(--control-blur);
+  -webkit-backdrop-filter: var(--control-blur);
+}
+
+.media-action span,
+.media-action b {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.media-action span {
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 760;
+}
+
+.media-action b {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 620;
+}
+
+.barcode-inline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px;
+  gap: var(--space-2);
+}
+
+.barcode-inline .secondary-button {
+  min-height: 48px;
+  border-radius: var(--radius-md);
+}
+
+.hidden-file {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .food-preview {
   display: grid;
   gap: 10px;
@@ -1620,6 +1683,11 @@ textarea:focus {
   }
 
   .field-row {
+    grid-template-columns: 1fr;
+  }
+
+  .media-actions,
+  .barcode-inline {
     grid-template-columns: 1fr;
   }
 

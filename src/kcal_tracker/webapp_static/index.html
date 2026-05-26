@@ -150,6 +150,22 @@
               <button type="button" data-food-example="куриная грудка, рис и овощи">Курица с рисом</button>
               <button type="button" data-food-example="творог 5%, ягоды и чай">Творог</button>
             </div>
+            <div class="media-actions" aria-label="Фото и штрихкод">
+              <button id="food-photo-button" class="media-action" type="button">
+                <span>Фото</span>
+                <b>Распознать блюдо</b>
+              </button>
+              <button id="barcode-photo-button" class="media-action" type="button">
+                <span>Штрихкод</span>
+                <b>Скан с камеры</b>
+              </button>
+            </div>
+            <input id="food-photo-input" class="hidden-file" type="file" accept="image/*" capture="environment" />
+            <input id="barcode-photo-input" class="hidden-file" type="file" accept="image/*" capture="environment" />
+            <div class="barcode-inline">
+              <input id="barcode-code" inputmode="numeric" autocomplete="off" placeholder="или цифры штрихкода" />
+              <button id="barcode-code-button" class="secondary-button" type="button">Найти</button>
+            </div>
             <button class="primary-button" type="submit">Разобрать</button>
           </form>
 
