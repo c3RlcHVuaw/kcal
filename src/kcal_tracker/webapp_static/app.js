@@ -77,6 +77,13 @@ document.querySelectorAll("[data-food-tab]").forEach((button) => {
   button.addEventListener("click", () => switchFoodTab(button.dataset.foodTab));
 });
 
+document.querySelectorAll("[data-food-example]").forEach((button) => {
+  button.addEventListener("click", () => {
+    nodes.foodText.value = button.dataset.foodExample || "";
+    nodes.foodText.focus();
+  });
+});
+
 nodes.refresh.addEventListener("click", loadAll);
 document.querySelector("#refresh-hero")?.addEventListener("click", loadAll);
 document.addEventListener("click", (event) => {
@@ -456,9 +463,9 @@ function renderReusableFood(container, items) {
           <strong>${escapeHtml(item.name)}</strong>
           <b>${Math.round(item.kcal)} ккал</b>
         </div>
-        <div class="entry-meta"><span>${escapeHtml(item.meta)}</span></div>
+      <div class="entry-meta"><span>${escapeHtml(item.meta)}</span></div>
       </div>
-      <span class="row-action">＋</span>
+      <span class="row-action" aria-hidden="true"><svg><use href="#icon-plus"></use></svg></span>
     </button>
   `).join("");
   container.querySelectorAll("[data-reuse-id]").forEach((button) => {

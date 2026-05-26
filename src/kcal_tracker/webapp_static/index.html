@@ -25,6 +25,13 @@
       <symbol id="icon-more" viewBox="0 0 24 24">
         <path d="M5.5 12h.01M12 12h.01M18.5 12h.01" />
       </symbol>
+      <symbol id="icon-refresh" viewBox="0 0 24 24">
+        <path d="M20 12a8 8 0 1 1-2.35-5.65" />
+        <path d="M20 4.75v5h-5" />
+      </symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24">
+        <path d="m7 10 5 5 5-5" />
+      </symbol>
     </svg>
     <main class="app-shell">
       <header class="app-header">
@@ -32,7 +39,9 @@
           <p id="hello" class="caption">Kcal Tracker</p>
           <h1 id="screen-title">Сегодня</h1>
         </div>
-        <button id="refresh" class="icon-button" type="button" aria-label="Обновить">↻</button>
+        <button id="refresh" class="icon-button" type="button" aria-label="Обновить">
+          <svg><use href="#icon-refresh"></use></svg>
+        </button>
       </header>
 
       <section id="auth-warning" class="notice hidden">
@@ -46,7 +55,9 @@
               <p id="today-hello" class="caption">Kcal Flow</p>
               <h1>Сегодня</h1>
             </div>
-            <button id="refresh-hero" class="icon-button" type="button" aria-label="Обновить">↻</button>
+            <button id="refresh-hero" class="icon-button" type="button" aria-label="Обновить">
+              <svg><use href="#icon-refresh"></use></svg>
+            </button>
           </div>
 
           <div class="calorie-card component-card">
@@ -128,6 +139,11 @@
               placeholder="Например: омлет из 2 яиц, тост с сыром и латте"
               required
             ></textarea>
+            <div class="quick-prompts" aria-label="Быстрые примеры">
+              <button type="button" data-food-example="овсянка на молоке, банан и кофе">Овсянка</button>
+              <button type="button" data-food-example="куриная грудка, рис и овощи">Курица с рисом</button>
+              <button type="button" data-food-example="творог 5%, ягоды и чай">Творог</button>
+            </div>
             <button class="primary-button" type="submit">Разобрать</button>
           </form>
 
@@ -148,7 +164,7 @@
                 <h2>Точные значения</h2>
                 <p class="section-subtitle">Если уже знаешь калории и БЖУ</p>
               </div>
-              <span class="disclosure">⌄</span>
+              <span class="disclosure"><svg><use href="#icon-chevron"></use></svg></span>
             </summary>
             <form id="food-form" class="form-panel nested-form">
               <input id="food-name" name="name" autocomplete="off" placeholder="Название" required />

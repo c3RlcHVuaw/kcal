@@ -242,6 +242,24 @@ h2 {
   font-size: 21px;
 }
 
+.icon-button svg,
+.disclosure svg,
+.row-action svg {
+  display: block;
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.25;
+}
+
+.icon-button svg {
+  width: 21px;
+  height: 21px;
+}
+
 .notice {
   padding: 12px 14px;
   border: 1px solid var(--line);
@@ -639,6 +657,12 @@ h2 {
   line-height: 1;
 }
 
+.row-action svg {
+  width: 17px;
+  height: 17px;
+  stroke-width: 2.8;
+}
+
 .entry,
 .list-item,
 .action-list button {
@@ -907,7 +931,32 @@ textarea:focus {
 }
 
 .food-text-panel {
-  gap: 12px;
+  gap: 13px;
+  padding: 16px;
+}
+
+.quick-prompts {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 1px;
+  scrollbar-width: none;
+}
+
+.quick-prompts::-webkit-scrollbar {
+  display: none;
+}
+
+.quick-prompts button {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-soft) 78%, transparent);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 720;
 }
 
 .food-preview {
@@ -958,7 +1007,6 @@ textarea:focus {
   border-radius: 50%;
   background: var(--surface-soft);
   color: var(--muted);
-  font-size: 19px;
   transition: transform 160ms ease;
 }
 
