@@ -26,6 +26,8 @@ from kcal_tracker.schemas import (
     UserRead,
     WebAppBodySummary,
     WebAppFavoriteFood,
+    WebAppFoodTextParse,
+    WebAppFoodTextParseResult,
     WebAppFrequentFood,
     WebAppHabitSummary,
     WebAppToday,
@@ -36,9 +38,11 @@ from kcal_tracker.schemas import (
     WeightGoalRead,
     WeightGoalUpdate,
 )
-from kcal_tracker.services.ai_usage import AIUsageService
-from kcal_tracker.services.diary import DiaryService
+from kcal_tracker.services.ai_food import AIFoodService
+from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
+from kcal_tracker.services.diary import DiaryService, estimate_from_entry
 from kcal_tracker.services.export import ExportService
+from kcal_tracker.services.food_search import estimate_common_food
 from kcal_tracker.services.profile import (
     apply_default_macro_targets,
     calculate_daily_kcal_target,
@@ -279,6 +283,66 @@ async def webapp_create_entry(
         raise HTTPException(status_code=400, detail="Web app supports manual entries only")
     user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
     return await DiaryService(session).add_entry(user, payload)
+
+
+@router.post("/webapp/me/food/parse-text", response_model=WebAppFoodTextParseResult)
+async def webapp_parse_food_text(
+    payload: WebAppFoodTextParse,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WebAppFoodTextParseResult:
+    text = " ".join(payload.text.split())
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    diary = DiaryService(session)
+
+    history_entry = await diary.recent_matching_entry(user, text)
+    if history_entry is not None:
+        return WebAppFoodTextParseResult(
+            foods=[estimate_from_entry(history_entry)],
+            source="history",
+            ai_used=False,
+            remaining_ai_today=await AIUsageService(session).remaining_today(user),
+        )
+
+    common_estimate = None if _should_parse_food_text_with_ai(text) else estimate_common_food(text)
+    if common_estimate is not None:
+        return WebAppFoodTextParseResult(
+            foods=[common_estimate],
+            source="common",
+            ai_used=False,
+            remaining_ai_today=await AIUsageService(session).remaining_today(user),
+        )
+
+    usage = AIUsageService(session)
+    try:
+        await usage.ensure_allowed(user)
+    except AILimitReachedError as exc:
+        raise HTTPException(status_code=402, detail="AI limit reached") from exc
+
+    try:
+        estimates = await AIFoodService().parse_text(text)
+    except Exception as exc:
+        logger.exception("Web app AI text food parse failed")
+        raise HTTPException(status_code=503, detail="AI food parsing failed") from exc
+
+    await usage.record_request(user, "webapp_manual_text")
+    if not estimates.foods:
+        raise HTTPException(status_code=422, detail="Food was not recognized")
+
+    return WebAppFoodTextParseResult(
+        foods=estimates.foods,
+        source="ai",
+        ai_used=True,
+        remaining_ai_today=await usage.remaining_today(user),
+    )
+
+
+def _should_parse_food_text_with_ai(text: str) -> bool:
+    normalized = text.casefold()
+    tokens = re.findall(r"[0-9a-zа-яё]+", normalized)
+    if len(tokens) >= 4:
+        return True
+    return any(separator in normalized for separator in (" и ", ",", "+", " плюс ", " с "))
 
 
 @router.post("/webapp/me/water")

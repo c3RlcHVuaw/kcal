@@ -100,7 +100,37 @@
         </div>
 
         <section id="food-tab-manual" class="food-tab active">
+          <form id="food-text-form" class="form-panel component-card food-text-panel">
+            <label class="input-label" for="food-text">Что съел?</label>
+            <textarea
+              id="food-text"
+              name="text"
+              autocomplete="off"
+              rows="3"
+              placeholder="Например: омлет из 2 яиц, тост с сыром и латте"
+              required
+            ></textarea>
+            <button class="primary-button" type="submit">Разобрать</button>
+          </form>
+
+          <section id="food-preview" class="food-preview hidden" aria-live="polite">
+            <div class="section-title">
+              <div>
+                <h2>Проверь перед сохранением</h2>
+                <p id="food-preview-source" class="section-subtitle">Можно поправить значения</p>
+              </div>
+            </div>
+            <div id="food-preview-list" class="parsed-food-list"></div>
+            <button id="save-parsed-food" class="primary-button" type="button">Добавить в дневник</button>
+          </section>
+
           <form id="food-form" class="form-panel component-card">
+            <div class="section-title compact-title">
+              <div>
+                <h2>Точные значения</h2>
+                <p class="section-subtitle">Если уже знаешь калории и БЖУ</p>
+              </div>
+            </div>
             <input id="food-name" name="name" autocomplete="off" placeholder="Название" required />
             <div class="field-row">
               <input id="food-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />

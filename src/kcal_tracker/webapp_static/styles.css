@@ -67,6 +67,11 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: progress;
+  opacity: 0.72;
+}
+
 .app-shell {
   width: min(100%, 560px);
   margin: 0 auto;
@@ -800,7 +805,8 @@ h2 {
 }
 
 input,
-select {
+select,
+textarea {
   min-width: 0;
   width: 100%;
   min-height: 48px;
@@ -814,10 +820,92 @@ select {
   outline: none;
 }
 
+textarea {
+  min-height: 96px;
+  padding: 13px;
+  resize: vertical;
+  line-height: 1.35;
+}
+
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: color-mix(in srgb, var(--accent-strong) 52%, var(--line));
   box-shadow: 0 0 0 4px rgba(70, 211, 124, 0.12);
+}
+
+.input-label {
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 760;
+}
+
+.food-preview {
+  display: grid;
+  gap: 10px;
+}
+
+.parsed-food-list {
+  display: grid;
+  gap: 10px;
+}
+
+.parsed-food-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow-tight);
+}
+
+.parsed-food-head {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 34px;
+  gap: 9px;
+  align-items: center;
+}
+
+.food-thumb.small {
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  font-size: 20px;
+}
+
+.icon-mini {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 21px;
+  line-height: 1;
+}
+
+.compact-title {
+  min-height: 0;
+  padding-bottom: 2px;
+}
+
+.compact-fields label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.compact-fields span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.compact-fields input {
+  min-height: 42px;
+  padding: 0 10px;
 }
 
 .primary-button,
@@ -1017,12 +1105,14 @@ select:focus {
 
   input,
   select,
+  textarea,
   .secondary-button {
     background: rgba(255, 255, 255, 0.06);
     color: var(--text);
   }
 
-  input::placeholder {
+  input::placeholder,
+  textarea::placeholder {
     color: color-mix(in srgb, var(--muted) 72%, transparent);
   }
 

@@ -32,6 +32,17 @@ class FoodEntryRead(FoodEntryCreate):
     model_config = {"from_attributes": True}
 
 
+class WebAppFoodTextParse(BaseModel):
+    text: str = Field(min_length=3, max_length=500)
+
+
+class WebAppFoodTextParseResult(BaseModel):
+    foods: list[FoodEstimate]
+    source: str = Field(pattern="^(history|common|ai)$")
+    ai_used: bool = False
+    remaining_ai_today: int | None = None
+
+
 class ActivityEstimate(BaseModel):
     name: str
     kcal: float = Field(ge=0)
