@@ -1294,6 +1294,33 @@ textarea:focus {
   font-weight: 760;
 }
 
+.preview-advice {
+  margin: -2px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--activity) 10%, transparent);
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.refine-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: var(--space-2);
+}
+
+.refine-form input,
+.refine-form .secondary-button {
+  min-height: 44px;
+  border-radius: var(--radius-md);
+}
+
+.refine-form .secondary-button {
+  padding: 0 10px;
+  font-size: 13px;
+}
+
 .primary-button,
 .secondary-button {
   min-height: var(--control-lg);
@@ -1687,7 +1714,8 @@ textarea:focus {
   }
 
   .media-actions,
-  .barcode-inline {
+  .barcode-inline,
+  .refine-form {
     grid-template-columns: 1fr;
   }
 

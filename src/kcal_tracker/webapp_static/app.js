@@ -151,6 +151,7 @@ nodes.foodTextForm.addEventListener("submit", parseFoodText);
 nodes.saveParsedFood.addEventListener("click", saveParsedFoods);
 nodes.foodPreviewList.addEventListener("input", updateParsedFoodField);
 nodes.foodPreviewList.addEventListener("click", removeParsedFood);
+nodes.foodPreviewList.addEventListener("submit", refineParsedFood);
 nodes.foodPhotoButton.addEventListener("click", () => nodes.foodPhotoInput.click());
 nodes.foodPhotoInput.addEventListener("change", parseFoodPhoto);
 nodes.barcodePhotoButton.addEventListener("click", () => nodes.barcodePhotoInput.click());
@@ -733,7 +734,7 @@ function renderParsedFoods(result) {
         <div class="food-thumb small">${escapeHtml(food.emoji || foodInitial(food.name))}</div>
         <div class="preview-title">
           <input data-field="name" value="${escapeHtml(food.name)}" aria-label="Название" />
-          <span>${mealLabel(state.selectedMeal)} · ${sourceLabel(result.source)}</span>
+          <span>${mealLabel(state.selectedMeal)} · ${sourceLabel(result.source)}${confidenceLabel(food.confidence)}</span>
         </div>
         <button class="icon-mini" type="button" data-remove-parsed="${index}" aria-label="Удалить">×</button>
       </div>
@@ -755,6 +756,11 @@ function renderParsedFoods(result) {
         <button type="button" data-index="${index}" data-scale-parsed="1.25">+ порция</button>
         <button type="button" data-index="${index}" data-scale-parsed="2">x2</button>
       </div>
+      ${food.advice ? `<p class="preview-advice">${escapeHtml(food.advice)}</p>` : ""}
+      <form class="refine-form" data-refine-index="${index}">
+        <input name="refinement" autocomplete="off" placeholder="Уточнить: без хлеба, половина, ещё соус..." />
+        <button class="secondary-button" type="submit">Уточнить</button>
+      </form>
     </article>
   `).join("");
 }
@@ -837,6 +843,45 @@ function removeParsedFood(event) {
     return;
   }
   renderParsedFoods({ source: state.parsedFoodSource });
+}
+
+async function refineParsedFood(event) {
+  event.preventDefault();
+  const form = event.target.closest("[data-refine-index]");
+  if (!form) return;
+  const index = Number(form.dataset.refineIndex);
+  const food = state.parsedFoods[index];
+  const input = form.querySelector("input[name='refinement']");
+  const text = input?.value.trim() || "";
+  if (!food || text.length < 2) {
+    toast("Напиши, что уточнить");
+    return;
+  }
+  const button = form.querySelector("button[type='submit']");
+  setButtonBusy(button, "Считаю...");
+  try {
+    const result = await api("/webapp/me/food/refine", {
+      method: "POST",
+      body: JSON.stringify({
+        estimate: food,
+        text,
+        source: state.parsedFoodSource,
+      }),
+    });
+    if (result.foods.length) {
+      state.parsedFoods[index] = normalizeParsedFood(result.foods[0]);
+      state.parsedFoodSource = result.source;
+      renderParsedFoods(result);
+      toast("Оценка уточнена");
+    }
+  } catch (error) {
+    const message = error.status === 402
+      ? "Лимит AI на сегодня закончился"
+      : "Не получилось уточнить";
+    toast(message);
+  } finally {
+    restoreButton(button);
+  }
 }
 
 async function repeatEntry(entryId) {
@@ -976,6 +1021,12 @@ function sourceLabel(source) {
     common: "База",
     history: "История",
   }[source] || "Оценка";
+}
+
+function confidenceLabel(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "";
+  return ` · ${Math.round(number * 100)}%`;
 }
 
 function entrySourceForParsed(source) {

@@ -30,6 +30,7 @@ from kcal_tracker.schemas import (
     WebAppBarcodeLookup,
     WebAppBodySummary,
     WebAppFavoriteFood,
+    WebAppFoodRefine,
     WebAppFoodTextParse,
     WebAppFoodTextParseResult,
     WebAppFrequentFood,
@@ -436,6 +437,37 @@ async def webapp_lookup_barcode(
     if barcode is None:
         raise HTTPException(status_code=422, detail="Barcode is invalid")
     return await _webapp_barcode_result(barcode, identity, session)
+
+
+@router.post("/webapp/me/food/refine", response_model=WebAppFoodTextParseResult)
+async def webapp_refine_food(
+    payload: WebAppFoodRefine,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WebAppFoodTextParseResult:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    usage = AIUsageService(session)
+    try:
+        await usage.ensure_allowed(user)
+    except AILimitReachedError as exc:
+        raise HTTPException(status_code=402, detail="AI limit reached") from exc
+
+    try:
+        estimates = await AIFoodService().refine_estimate(payload.estimate, payload.text)
+    except Exception as exc:
+        logger.exception("Web app AI food refinement failed")
+        raise HTTPException(status_code=503, detail="AI food refinement failed") from exc
+
+    await usage.record_request(user, "webapp_food_refine")
+    if not estimates.foods:
+        raise HTTPException(status_code=422, detail="Food was not recognized")
+
+    return WebAppFoodTextParseResult(
+        foods=[estimates.foods[0]],
+        source=payload.source,
+        ai_used=True,
+        remaining_ai_today=await usage.remaining_today(user),
+    )
 
 
 @router.post("/webapp/me/promos/validate", response_model=WebAppPromoValidateResult)
