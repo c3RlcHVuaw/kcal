@@ -547,6 +547,10 @@ h2 {
   align-items: flex-start;
 }
 
+.section-title > div {
+  min-width: 0;
+}
+
 .section-subtitle {
   margin-top: 3px;
   color: var(--muted);
@@ -649,6 +653,10 @@ h2 {
   border-bottom: 1px solid var(--line);
 }
 
+.meal-header > div {
+  min-width: 0;
+}
+
 .meal-header strong,
 .meal-header b,
 .meal-add span {
@@ -660,7 +668,10 @@ h2 {
 .meal-header span {
   display: block;
   margin-top: 3px;
+  overflow: hidden;
   color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
 }
 
@@ -818,11 +829,16 @@ h2 {
 }
 
 .food-card .entry-main strong {
+  min-width: 0;
   white-space: normal;
+  overflow-wrap: anywhere;
   line-height: 1.25;
 }
 
 .food-card .entry-main b {
+  flex: 0 0 auto;
+  max-width: 94px;
+  text-align: right;
   color: var(--text);
   font-size: 13px;
 }
@@ -857,12 +873,15 @@ h2 {
 
 .entry-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin-top: 10px;
 }
 
 .food-card .entry-actions {
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  justify-content: stretch;
 }
 
 .entry-actions button {
@@ -873,11 +892,16 @@ h2 {
   color: var(--accent-strong);
   font-size: 13px;
   font-weight: 720;
+  white-space: nowrap;
 }
 
 .food-card .entry-actions button {
+  min-width: 0;
+  padding: 0 7px;
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.44);
   color: #496272;
+  text-overflow: ellipsis;
   backdrop-filter: blur(14px) saturate(1.25);
   -webkit-backdrop-filter: blur(14px) saturate(1.25);
 }
@@ -1234,6 +1258,8 @@ textarea:focus {
 .action-list span,
 .action-list b {
   display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .action-list button::after {
@@ -1253,6 +1279,7 @@ textarea:focus {
   margin-top: 5px;
   font-size: 13px;
   font-weight: 520;
+  line-height: 1.25;
 }
 
 .inline-form {
@@ -1565,7 +1592,11 @@ textarea:focus {
   display: none;
 }
 
-@media (max-width: 380px) {
+@media (max-width: 430px) {
+  :root {
+    --space-page-x: 12px;
+  }
+
   .calorie-card {
     grid-template-columns: 1fr;
   }
@@ -1576,6 +1607,10 @@ textarea:focus {
   }
 
   .field-row.three {
+    grid-template-columns: 1fr;
+  }
+
+  .field-row {
     grid-template-columns: 1fr;
   }
 
@@ -1591,5 +1626,104 @@ textarea:focus {
   .food-thumb.small {
     width: 40px;
     height: 40px;
+  }
+
+  .section-title {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+  }
+
+  .section-title .text-button,
+  .section-title .icon-mini {
+    align-self: start;
+  }
+
+  .meal-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2);
+    padding: 11px 12px;
+  }
+
+  .meal-add {
+    width: 30px;
+    min-width: 30px;
+    padding: 0;
+    grid-template-columns: 1fr;
+  }
+
+  .meal-add span {
+    display: none;
+  }
+
+  .food-card {
+    grid-template-columns: 54px minmax(0, 1fr);
+    gap: 9px;
+    padding: 10px 11px;
+  }
+
+  .food-thumb {
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+  }
+
+  .food-card .entry-main {
+    gap: 8px;
+  }
+
+  .food-card .entry-main b {
+    max-width: 82px;
+    font-size: 12px;
+  }
+
+  .food-card .entry-meta {
+    gap: 5px;
+    margin-top: 8px;
+  }
+
+  .food-card .entry-meta span {
+    min-height: 20px;
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+
+  .food-card .entry-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .food-card .entry-actions button {
+    min-height: 31px;
+    padding: 0 5px;
+    font-size: 11px;
+  }
+
+  .action-list button,
+  .list-item {
+    grid-template-columns: minmax(0, 1fr) 30px;
+    gap: var(--space-2);
+    padding: 13px 14px;
+  }
+
+  .action-list span,
+  .list-item strong {
+    white-space: normal;
+    line-height: 1.2;
+  }
+
+  .action-list b,
+  .list-item b {
+    white-space: normal;
+  }
+
+  .details-card summary {
+    min-height: 62px;
+    padding: 13px 14px;
+  }
+
+  .edit-card .section-title {
+    grid-template-columns: 1fr;
   }
 }
