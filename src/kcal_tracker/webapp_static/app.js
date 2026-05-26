@@ -10,6 +10,7 @@ const state = {
   editingEntryId: null,
   parsedFoods: [],
   parsedFoodSource: "ai",
+  loadingAll: false,
 };
 
 const nodes = {
@@ -170,12 +171,20 @@ nodes.entryEditor.addEventListener("click", (event) => {
 
 document.querySelectorAll("[data-water]").forEach((button) => {
   button.addEventListener("click", async () => {
-    await api("/webapp/me/water", {
-      method: "POST",
-      body: JSON.stringify({ amount_ml: Number(button.dataset.water) }),
-    });
-    await loadToday();
-    toast("Вода добавлена");
+    if (isBusy(button)) return;
+    setButtonBusy(button, "...");
+    try {
+      await api("/webapp/me/water", {
+        method: "POST",
+        body: JSON.stringify({ amount_ml: Number(button.dataset.water) }),
+      });
+      await loadToday();
+      toast("Вода добавлена");
+    } catch {
+      toast("Не получилось добавить воду");
+    } finally {
+      restoreButton(button);
+    }
   });
 });
 
@@ -188,6 +197,7 @@ async function parseFoodText(event) {
   }
 
   const submit = nodes.foodTextForm.querySelector("button[type='submit']");
+  if (isBusy(submit)) return;
   setButtonBusy(submit, "Разбираю...");
   try {
     const result = await api("/webapp/me/food/parse-text", {
@@ -214,6 +224,7 @@ async function parseFoodPhoto() {
   form.append("image", file);
   if (hint) form.append("text_hint", hint);
 
+  if (isBusy(nodes.foodPhotoButton)) return;
   setButtonBusy(nodes.foodPhotoButton, "Распознаю...");
   try {
     const result = await apiForm("/webapp/me/food/parse-photo", form);
@@ -236,6 +247,7 @@ async function scanBarcodePhoto() {
   const form = new FormData();
   form.append("image", file);
 
+  if (isBusy(nodes.barcodePhotoButton)) return;
   setButtonBusy(nodes.barcodePhotoButton, "Сканирую...");
   try {
     const result = await apiForm("/webapp/me/food/scan-barcode", form);
@@ -259,6 +271,7 @@ async function lookupBarcodeCode() {
     toast("Введи цифры штрихкода");
     return;
   }
+  if (isBusy(nodes.barcodeCodeButton)) return;
   setButtonBusy(nodes.barcodeCodeButton, "Ищу...");
   try {
     const result = await api("/webapp/me/food/barcode", {
@@ -291,6 +304,7 @@ async function saveParsedFoods() {
     return;
   }
 
+  if (isBusy(nodes.saveParsedFood)) return;
   setButtonBusy(nodes.saveParsedFood, "Сохраняю...");
   try {
     for (const food of foods) {
@@ -310,24 +324,34 @@ async function saveParsedFoods() {
     nodes.foodTextForm.reset();
     nodes.barcodeCode.value = "";
     nodes.foodPreview.classList.add("hidden");
-    await Promise.all([loadToday(), loadWeek(), loadFrequent()]);
+    await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     switchView("today");
     toast(foods.length === 1 ? "Еда добавлена" : `Добавлено позиций: ${foods.length}`);
+  } catch {
+    toast("Не получилось сохранить еду");
   } finally {
     restoreButton(nodes.saveParsedFood);
   }
 }
 
 nodes.weightButton.addEventListener("click", async () => {
+  if (isBusy(nodes.weightButton)) return;
   const value = prompt("Вес в кг");
   const weight = parseNumber(value);
   if (!weight) return;
-  await api("/webapp/me/weight", {
-    method: "POST",
-    body: JSON.stringify({ weight_kg: weight }),
-  });
-  await Promise.all([loadToday(), loadBody()]);
-  toast("Вес сохранён");
+  setButtonBusy(nodes.weightButton, "...");
+  try {
+    await api("/webapp/me/weight", {
+      method: "POST",
+      body: JSON.stringify({ weight_kg: weight }),
+    });
+    await Promise.allSettled([loadToday(), loadBody()]);
+    toast("Вес сохранён");
+  } catch {
+    toast("Не получилось сохранить вес");
+  } finally {
+    restoreButton(nodes.weightButton);
+  }
 });
 
 nodes.foodForm.addEventListener("submit", async (event) => {
@@ -347,14 +371,23 @@ nodes.foodForm.addEventListener("submit", async (event) => {
     toast("Заполни название и калории");
     return;
   }
-  await api("/webapp/me/entries", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  nodes.foodForm.reset();
-  await Promise.all([loadToday(), loadWeek(), loadFrequent()]);
-  switchView("today");
-  toast("Еда добавлена");
+  const button = nodes.foodForm.querySelector("button[type='submit']");
+  if (isBusy(button)) return;
+  setButtonBusy(button, "Сохраняю...");
+  try {
+    await api("/webapp/me/entries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    nodes.foodForm.reset();
+    await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
+    switchView("today");
+    toast("Еда добавлена");
+  } catch {
+    toast("Не получилось добавить еду");
+  } finally {
+    restoreButton(button);
+  }
 });
 
 nodes.goalForm.addEventListener("submit", async (event) => {
@@ -368,12 +401,21 @@ nodes.goalForm.addEventListener("submit", async (event) => {
     payload.target_weight_kg = null;
     payload.weekly_weight_change_kg = null;
   }
-  await api("/webapp/me/goals/weight", {
-    method: "PUT",
-    body: JSON.stringify(payload),
-  });
-  await Promise.all([loadToday(), loadWeek()]);
-  toast("Цель обновлена");
+  const button = nodes.goalForm.querySelector("button[type='submit']");
+  if (isBusy(button)) return;
+  setButtonBusy(button, "Сохраняю...");
+  try {
+    await api("/webapp/me/goals/weight", {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
+    await Promise.allSettled([loadToday(), loadWeek()]);
+    toast("Цель обновлена");
+  } catch {
+    toast("Не получилось обновить цель");
+  } finally {
+    restoreButton(button);
+  }
 });
 
 nodes.activityForm.addEventListener("submit", async (event) => {
@@ -387,13 +429,22 @@ nodes.activityForm.addEventListener("submit", async (event) => {
     toast("Заполни активность и калории");
     return;
   }
-  await api("/webapp/me/activity", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-  nodes.activityForm.reset();
-  await Promise.all([loadToday(), loadWeek()]);
-  toast("Активность добавлена");
+  const button = nodes.activityForm.querySelector("button[type='submit']");
+  if (isBusy(button)) return;
+  setButtonBusy(button, "Сохраняю...");
+  try {
+    await api("/webapp/me/activity", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    nodes.activityForm.reset();
+    await Promise.allSettled([loadToday(), loadWeek()]);
+    toast("Активность добавлена");
+  } catch {
+    toast("Не получилось добавить активность");
+  } finally {
+    restoreButton(button);
+  }
 });
 
 nodes.promoForm.addEventListener("submit", async (event) => {
@@ -404,6 +455,7 @@ nodes.promoForm.addEventListener("submit", async (event) => {
     return;
   }
   const button = nodes.promoForm.querySelector("button[type='submit']");
+  if (isBusy(button)) return;
   setButtonBusy(button, "Проверяю...");
   try {
     const result = await api("/webapp/me/promos/validate", {
@@ -411,6 +463,8 @@ nodes.promoForm.addEventListener("submit", async (event) => {
       body: JSON.stringify({ code }),
     });
     renderPromo(result);
+  } catch {
+    toast("Не получилось проверить промокод");
   } finally {
     restoreButton(button);
   }
@@ -434,6 +488,7 @@ nodes.entryEditForm.addEventListener("submit", async (event) => {
     return;
   }
   const button = nodes.entryEditForm.querySelector("button[type='submit']");
+  if (isBusy(button)) return;
   setButtonBusy(button, "Сохраняю...");
   try {
     await api(`/webapp/me/entries/${state.editingEntryId}`, {
@@ -441,8 +496,10 @@ nodes.entryEditForm.addEventListener("submit", async (event) => {
       body: JSON.stringify(payload),
     });
     closeEntryEditor();
-    await Promise.all([loadToday(), loadWeek(), loadFrequent(), loadFavorites()]);
+    await Promise.allSettled([loadToday(), loadWeek(), loadFrequent(), loadFavorites()]);
     toast("Запись обновлена");
+  } catch {
+    toast("Не получилось обновить запись");
   } finally {
     restoreButton(button);
   }
@@ -456,18 +513,26 @@ if (!initData) {
 }
 
 window.addEventListener("unhandledrejection", (event) => {
+  event.preventDefault();
   toast(event.reason?.message || "Что-то пошло не так");
 });
 
 async function loadAll() {
-  if (!initData) return;
-  await Promise.all([
+  if (!initData || state.loadingAll) return;
+  state.loadingAll = true;
+  setButtonBusy(nodes.refresh, "...");
+  const results = await Promise.allSettled([
     loadToday(),
     loadWeek(),
     loadBody(),
     loadFrequent(),
     loadFavorites(),
   ]);
+  state.loadingAll = false;
+  restoreButton(nodes.refresh);
+  if (results.some((result) => result.status === "rejected")) {
+    toast("Часть данных не загрузилась");
+  }
 }
 
 async function loadToday() {
@@ -810,16 +875,24 @@ function scaleParsedFood(index, multiplier) {
 
 async function deleteEntry(entryId) {
   if (!entryId) return;
-  await api(`/webapp/me/entries/${entryId}`, { method: "DELETE" });
-  await Promise.all([loadToday(), loadWeek(), loadFrequent()]);
-  toast("Запись удалена");
+  try {
+    await api(`/webapp/me/entries/${entryId}`, { method: "DELETE" });
+    await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
+    toast("Запись удалена");
+  } catch {
+    toast("Не получилось удалить запись");
+  }
 }
 
 async function favoriteEntry(entryId) {
   if (!entryId) return;
-  await api(`/webapp/me/entries/${entryId}/favorite`, { method: "POST" });
-  await loadFavorites();
-  toast("Добавлено в шаблоны");
+  try {
+    await api(`/webapp/me/entries/${entryId}/favorite`, { method: "POST" });
+    await loadFavorites();
+    toast("Добавлено в шаблоны");
+  } catch {
+    toast("Не получилось добавить шаблон");
+  }
 }
 
 function updateParsedFoodField(event) {
@@ -858,6 +931,7 @@ async function refineParsedFood(event) {
     return;
   }
   const button = form.querySelector("button[type='submit']");
+  if (isBusy(button)) return;
   setButtonBusy(button, "Считаю...");
   try {
     const result = await api("/webapp/me/food/refine", {
@@ -885,42 +959,66 @@ async function refineParsedFood(event) {
 }
 
 async function repeatEntry(entryId) {
-  await api(`/webapp/me/repeat-entry/${entryId}`, { method: "POST" });
-  await Promise.all([loadToday(), loadWeek()]);
-  switchView("today");
-  toast("Добавлено");
+  try {
+    await api(`/webapp/me/repeat-entry/${entryId}`, { method: "POST" });
+    await Promise.allSettled([loadToday(), loadWeek()]);
+    switchView("today");
+    toast("Добавлено");
+  } catch {
+    toast("Не получилось повторить запись");
+  }
 }
 
 async function addFavorite(favoriteId) {
-  await api(`/webapp/me/favorites/${favoriteId}`, { method: "POST" });
-  await Promise.all([loadToday(), loadWeek()]);
-  switchView("today");
-  toast("Шаблон добавлен");
+  try {
+    await api(`/webapp/me/favorites/${favoriteId}`, { method: "POST" });
+    await Promise.allSettled([loadToday(), loadWeek()]);
+    switchView("today");
+    toast("Шаблон добавлен");
+  } catch {
+    toast("Не получилось добавить шаблон");
+  }
 }
 
 async function repeatYesterday() {
-  const entries = await api("/webapp/me/repeat-yesterday", { method: "POST" });
-  await Promise.all([loadToday(), loadWeek()]);
-  switchView("today");
-  toast(entries.length ? "Вчерашний день добавлен" : "Вчера нечего повторять");
+  if (isBusy(nodes.repeatYesterday)) return;
+  setButtonBusy(nodes.repeatYesterday, "Повторяю...");
+  try {
+    const entries = await api("/webapp/me/repeat-yesterday", { method: "POST" });
+    await Promise.allSettled([loadToday(), loadWeek()]);
+    switchView("today");
+    toast(entries.length ? "Вчерашний день добавлен" : "Вчера нечего повторять");
+  } catch {
+    toast("Не получилось повторить вчера");
+  } finally {
+    restoreButton(nodes.repeatYesterday);
+  }
 }
 
 async function exportFood() {
-  const response = await fetch("/webapp/me/exports/food.csv", {
-    headers: { "X-Telegram-Init-Data": initData },
-  });
-  if (!response.ok) {
+  if (isBusy(nodes.exportFood)) return;
+  setButtonBusy(nodes.exportFood, "Готовлю...");
+  try {
+    const response = await fetch("/webapp/me/exports/food.csv", {
+      headers: { "X-Telegram-Init-Data": initData },
+    });
+    if (!response.ok) {
+      toast("Не получилось подготовить экспорт");
+      return;
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "kcal_food.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+    toast("Экспорт готов");
+  } catch {
     toast("Не получилось подготовить экспорт");
-    return;
+  } finally {
+    restoreButton(nodes.exportFood);
   }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "kcal_food.csv";
-  link.click();
-  URL.revokeObjectURL(url);
-  toast("Экспорт готов");
 }
 
 function switchView(view) {
@@ -1084,6 +1182,10 @@ function setButtonBusy(button, label) {
   button.dataset.idleHtml = button.innerHTML;
   button.textContent = label;
   button.disabled = true;
+}
+
+function isBusy(button) {
+  return Boolean(button?.disabled);
 }
 
 function restoreButton(button) {
