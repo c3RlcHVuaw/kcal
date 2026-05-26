@@ -1258,12 +1258,17 @@ textarea:focus {
 .action-list span,
 .action-list b {
   display: block;
+  grid-column: 1;
   min-width: 0;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .action-list button::after {
   content: "›";
+  grid-column: 2;
+  grid-row: 1 / 3;
+  align-self: center;
   display: grid;
   width: 30px;
   height: 30px;
@@ -1323,17 +1328,17 @@ textarea:focus {
 .week-chart {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 7px;
+  gap: 6px;
   align-items: end;
   min-height: 184px;
-  padding: 14px;
+  padding: 14px 12px;
 }
 
 .week-bar {
   display: grid;
-  grid-template-rows: 18px 1fr 16px;
-  gap: 7px;
-  align-items: end;
+  grid-template-rows: 18px minmax(76px, 1fr) 18px;
+  gap: 6px;
+  align-items: stretch;
   min-width: 0;
   height: 150px;
   text-align: center;
@@ -1350,6 +1355,7 @@ textarea:focus {
 }
 
 .week-bar i {
+  align-self: end;
   display: block;
   width: 100%;
   min-height: 6px;
@@ -1358,11 +1364,14 @@ textarea:focus {
 }
 
 .week-bar span {
+  display: block;
+  min-width: 0;
   overflow: hidden;
   color: var(--muted);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 11px;
+  font-size: 10px;
+  line-height: 1.15;
 }
 
 .weight-chart {
@@ -1619,6 +1628,20 @@ textarea:focus {
     grid-template-columns: 1fr;
   }
 
+  .body-actions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .body-actions button {
+    min-height: 76px;
+    padding: 12px 10px;
+  }
+
+  .body-actions button b {
+    font-size: 14px;
+  }
+
   .parsed-food-head {
     grid-template-columns: 40px minmax(0, 1fr) 32px;
   }
@@ -1705,6 +1728,11 @@ textarea:focus {
     grid-template-columns: minmax(0, 1fr) 30px;
     gap: var(--space-2);
     padding: 13px 14px;
+  }
+
+  .action-list button {
+    grid-template-rows: auto auto;
+    align-content: center;
   }
 
   .action-list span,
