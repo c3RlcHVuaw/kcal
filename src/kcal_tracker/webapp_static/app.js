@@ -617,7 +617,7 @@ function renderNutritionOverview(diary) {
     ratioScore(Number(diary.kcal || 0) / kcalTarget),
   ];
   const score = Math.round(macroFit.reduce((sum, item) => sum + item, 0) / macroFit.length);
-  const status = score >= 72 ? "Great balance" : score >= 45 ? "Normal range" : "Needs food";
+  const status = score >= 72 ? "Отличный баланс" : score >= 45 ? "В норме" : "Нужно поесть";
 
   nodes.nutritionScore.textContent = String(score);
   nodes.nutritionStatus.textContent = status;
