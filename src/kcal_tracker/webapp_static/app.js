@@ -9,6 +9,7 @@ const state = {
   selectedMeal: "lunch",
   editingEntryId: null,
   editingEntryBase: null,
+  editorScrollY: 0,
   parsedFoods: [],
   parsedFoodSource: "ai",
   loadingAll: false,
@@ -913,6 +914,7 @@ function openEntryEditor(entryId) {
     fat: numberOrNull(entry.fat) ?? 0,
     carbs: numberOrNull(entry.carbs) ?? 0,
   };
+  lockPageScroll();
   nodes.entryEditor.classList.remove("hidden");
 }
 
@@ -921,6 +923,20 @@ function closeEntryEditor() {
   state.editingEntryBase = null;
   nodes.entryEditor.classList.add("hidden");
   nodes.entryEditForm.reset();
+  unlockPageScroll();
+}
+
+function lockPageScroll() {
+  state.editorScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  document.body.style.top = `-${state.editorScrollY}px`;
+  document.body.classList.add("sheet-open");
+}
+
+function unlockPageScroll() {
+  document.body.classList.remove("sheet-open");
+  document.body.style.top = "";
+  window.scrollTo(0, state.editorScrollY || 0);
+  state.editorScrollY = 0;
 }
 
 function recalculateEntryByWeight() {
