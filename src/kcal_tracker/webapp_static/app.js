@@ -8,6 +8,7 @@ const state = {
   activeView: "today",
   selectedMeal: "lunch",
   editingEntryId: null,
+  editingEntryBase: null,
   parsedFoods: [],
   parsedFoodSource: "ai",
   loadingAll: false,
@@ -169,6 +170,7 @@ nodes.barcodeCode.addEventListener("keydown", (event) => {
   }
 });
 nodes.entryEditClose.addEventListener("click", closeEntryEditor);
+nodes.entryEditWeight.addEventListener("input", recalculateEntryByWeight);
 nodes.entryEditor.addEventListener("click", (event) => {
   if (event.target === nodes.entryEditor) closeEntryEditor();
 });
@@ -888,14 +890,37 @@ function openEntryEditor(entryId) {
   nodes.entryEditFat.value = formatInput(entry.fat);
   nodes.entryEditCarbs.value = formatInput(entry.carbs);
   nodes.entryEditMeal.value = mealIdForEntry(entry);
+  state.editingEntryBase = {
+    weight_g: numberOrNull(entry.weight_g),
+    kcal: numberOrNull(entry.kcal) ?? 0,
+    protein: numberOrNull(entry.protein) ?? 0,
+    fat: numberOrNull(entry.fat) ?? 0,
+    carbs: numberOrNull(entry.carbs) ?? 0,
+  };
   nodes.entryEditor.classList.remove("hidden");
-  nodes.entryEditName.focus();
 }
 
 function closeEntryEditor() {
   state.editingEntryId = null;
+  state.editingEntryBase = null;
   nodes.entryEditor.classList.add("hidden");
   nodes.entryEditForm.reset();
+}
+
+function recalculateEntryByWeight() {
+  const base = state.editingEntryBase;
+  if (!base?.weight_g || base.weight_g <= 0) return;
+  const nextWeight = parseNumber(nodes.entryEditWeight.value);
+  if (!nextWeight || nextWeight <= 0) return;
+  const scale = nextWeight / base.weight_g;
+  nodes.entryEditKcal.value = formatInput(scaledValue(base.kcal, scale));
+  nodes.entryEditProtein.value = formatInput(scaledValue(base.protein, scale));
+  nodes.entryEditFat.value = formatInput(scaledValue(base.fat, scale));
+  nodes.entryEditCarbs.value = formatInput(scaledValue(base.carbs, scale));
+}
+
+function scaledValue(value, scale) {
+  return Math.round(Number(value || 0) * scale * 10) / 10;
 }
 
 function scaleParsedFood(index, multiplier) {

@@ -424,31 +424,59 @@
 
     <div id="entry-editor" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="entry-editor-title">
       <div class="sheet-panel component-card">
-        <form id="entry-edit-form" class="form-panel">
-          <div class="section-title">
+        <form id="entry-edit-form" class="form-panel entry-edit-panel">
+          <div class="section-title sheet-title">
             <div>
               <h2 id="entry-editor-title">Редактировать еду</h2>
-              <p class="section-subtitle">Изменения сразу обновят дневник</p>
+              <p class="section-subtitle">Поправь только нужные значения</p>
             </div>
             <button id="entry-edit-close" class="icon-mini" type="button" aria-label="Закрыть">×</button>
           </div>
-          <input id="entry-edit-name" name="name" autocomplete="off" placeholder="Название" required />
-          <div class="field-row">
-            <input id="entry-edit-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
-            <input id="entry-edit-weight" name="weight_g" inputmode="decimal" placeholder="граммы" />
+
+          <label class="edit-field wide-field" for="entry-edit-name">
+            <span>Название</span>
+            <input id="entry-edit-name" name="name" autocomplete="off" placeholder="Например: сырники со сметаной" required />
+          </label>
+
+          <div class="field-row edit-row">
+            <label class="edit-field" for="entry-edit-kcal">
+              <span>Калории</span>
+              <input id="entry-edit-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
+            </label>
+            <label class="edit-field" for="entry-edit-weight">
+              <span>Вес</span>
+              <input id="entry-edit-weight" name="weight_g" inputmode="decimal" placeholder="граммы" />
+            </label>
           </div>
-          <div class="field-row three">
-            <input id="entry-edit-protein" name="protein" inputmode="decimal" placeholder="белки" />
-            <input id="entry-edit-fat" name="fat" inputmode="decimal" placeholder="жиры" />
-            <input id="entry-edit-carbs" name="carbs" inputmode="decimal" placeholder="углеводы" />
+
+          <div class="macro-edit-grid" aria-label="БЖУ">
+            <label class="edit-field macro-protein" for="entry-edit-protein">
+              <span>Белки</span>
+              <input id="entry-edit-protein" name="protein" inputmode="decimal" placeholder="г" />
+            </label>
+            <label class="edit-field macro-fat" for="entry-edit-fat">
+              <span>Жиры</span>
+              <input id="entry-edit-fat" name="fat" inputmode="decimal" placeholder="г" />
+            </label>
+            <label class="edit-field macro-carbs" for="entry-edit-carbs">
+              <span>Углеводы</span>
+              <input id="entry-edit-carbs" name="carbs" inputmode="decimal" placeholder="г" />
+            </label>
           </div>
-          <select id="entry-edit-meal" name="meal_type" aria-label="Приём пищи">
-            <option value="breakfast">Завтрак</option>
-            <option value="lunch">Обед</option>
-            <option value="dinner">Ужин</option>
-            <option value="snack">Перекус</option>
-          </select>
-          <button class="primary-button" type="submit">Сохранить</button>
+
+          <label class="edit-field wide-field" for="entry-edit-meal">
+            <span>Приём пищи</span>
+            <select id="entry-edit-meal" name="meal_type" aria-label="Приём пищи">
+              <option value="breakfast">Завтрак</option>
+              <option value="lunch">Обед</option>
+              <option value="dinner">Ужин</option>
+              <option value="snack">Перекус</option>
+            </select>
+          </label>
+
+          <div class="sheet-actions">
+            <button class="primary-button" type="submit">Сохранить</button>
+          </div>
         </form>
       </div>
     </div>

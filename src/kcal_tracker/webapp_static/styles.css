@@ -2448,6 +2448,95 @@ textarea {
   border-radius: 24px 24px 18px 18px;
 }
 
+.entry-edit-panel {
+  max-height: min(76dvh, 620px);
+  overflow: auto;
+  padding: 22px 14px 0;
+  scrollbar-width: none;
+}
+
+.entry-edit-panel::-webkit-scrollbar {
+  display: none;
+}
+
+.entry-edit-panel .sheet-title {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin: -22px -14px 2px;
+  padding: 22px 14px 10px;
+  border-bottom: 1px solid rgba(60, 60, 67, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(20px) saturate(1.2);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+}
+
+.edit-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.edit-field span {
+  color: #8a8f98;
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.edit-field input,
+.edit-field select {
+  min-height: 52px;
+  font-size: 17px;
+}
+
+.edit-row {
+  grid-template-columns: 1fr 1fr;
+}
+
+.macro-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.macro-edit-grid .edit-field {
+  padding: 10px;
+  border-radius: 15px;
+  background: #f7f7f9;
+}
+
+.macro-edit-grid .edit-field input {
+  min-height: 42px;
+  padding: 0 8px;
+  background: #fff;
+  text-align: center;
+}
+
+.macro-protein span {
+  color: var(--protein);
+}
+
+.macro-fat span {
+  color: var(--fat);
+}
+
+.macro-carbs span {
+  color: var(--carbs);
+}
+
+.sheet-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 2px -14px 0;
+  padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), #fff 34%);
+}
+
+.sheet-actions .primary-button {
+  width: 100%;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
@@ -2543,5 +2632,22 @@ textarea {
   .primary-button {
     background: #f5f5f7;
     color: #111217;
+  }
+
+  .entry-edit-panel .sheet-title {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background: rgba(30, 32, 38, 0.94);
+  }
+
+  .macro-edit-grid .edit-field {
+    background: rgba(255, 255, 255, 0.07);
+  }
+
+  .macro-edit-grid .edit-field input {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .sheet-actions {
+    background: linear-gradient(180deg, rgba(30, 32, 38, 0.72), #1e2026 34%);
   }
 }
