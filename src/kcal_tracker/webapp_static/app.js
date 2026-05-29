@@ -92,6 +92,7 @@ tg?.ready();
 tg?.expand();
 tg?.setHeaderColor?.("secondary_bg_color");
 tg?.setBackgroundColor?.(window.matchMedia("(prefers-color-scheme: dark)").matches ? "#0d1117" : "#f3f6f8");
+lockViewportZoom();
 
 if (tg?.initDataUnsafe?.user?.first_name) {
   nodes.hello.textContent = `Привет, ${tg.initDataUnsafe.user.first_name}`;
@@ -522,6 +523,21 @@ window.addEventListener("unhandledrejection", (event) => {
   event.preventDefault();
   toast(event.reason?.message || "Что-то пошло не так");
 });
+
+function lockViewportZoom() {
+  let lastTouchEnd = 0;
+  document.addEventListener("gesturestart", (event) => event.preventDefault(), { passive: false });
+  document.addEventListener("gesturechange", (event) => event.preventDefault(), { passive: false });
+  document.addEventListener("gestureend", (event) => event.preventDefault(), { passive: false });
+  document.addEventListener("touchmove", (event) => {
+    if (event.touches.length > 1) event.preventDefault();
+  }, { passive: false });
+  document.addEventListener("touchend", (event) => {
+    const now = Date.now();
+    if (now - lastTouchEnd <= 320) event.preventDefault();
+    lastTouchEnd = now;
+  }, { passive: false });
+}
 
 async function loadAll() {
   if (!initData || state.loadingAll) return;
