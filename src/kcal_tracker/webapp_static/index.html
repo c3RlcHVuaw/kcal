@@ -32,6 +32,18 @@
       <symbol id="icon-chevron" viewBox="0 0 24 24">
         <path d="m7 10 5 5 5-5" />
       </symbol>
+      <symbol id="icon-camera" viewBox="0 0 24 24">
+        <path d="M8.25 7.25 9.55 5.5h4.9l1.3 1.75H19a1.75 1.75 0 0 1 1.75 1.75v8A1.75 1.75 0 0 1 19 18.75H5A1.75 1.75 0 0 1 3.25 17V9A1.75 1.75 0 0 1 5 7.25z" />
+        <path d="M9 12.75a3 3 0 1 0 6 0 3 3 0 0 0-6 0z" />
+      </symbol>
+      <symbol id="icon-scan" viewBox="0 0 24 24">
+        <path d="M7 4.75H5.75a1 1 0 0 0-1 1V7M17 4.75h1.25a1 1 0 0 1 1 1V7M7 19.25H5.75a1 1 0 0 1-1-1V17M17 19.25h1.25a1 1 0 0 0 1-1V17" />
+        <path d="M8 12h8M9.5 8.5v7M12 8.5v7M14.5 8.5v7" />
+      </symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24">
+        <path d="m16.5 16.5 3.25 3.25" />
+        <path d="M4.75 11.25a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0z" />
+      </symbol>
     </svg>
     <main class="app-shell">
       <header class="app-header">
@@ -81,6 +93,26 @@
               <b id="kcal-percent">0%</b>
             </button>
           </div>
+
+          <section class="nutrition-overview" aria-label="Сводка питания">
+            <article class="nutrition-score-card component-card">
+              <div>
+                <span class="caption">Nutrition Score</span>
+                <strong id="nutrition-score">0</strong>
+                <p id="nutrition-status" class="good-status">Normal range</p>
+              </div>
+              <div class="score-sparkline" aria-hidden="true">
+                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              </div>
+            </article>
+            <article class="macro-balance-card component-card">
+              <div>
+                <span class="caption">Macro Balance</span>
+                <strong id="macro-total">0 грамм</strong>
+              </div>
+              <div id="macro-bars" class="macro-bars" aria-hidden="true"></div>
+            </article>
+          </section>
         </section>
 
         <section class="macro-card component-card" aria-label="БЖУ">
@@ -114,11 +146,12 @@
       </section>
 
       <section id="view-food" class="view" data-title="Еда">
-        <section class="plain-section">
+        <section class="food-sheet-head component-card">
           <div class="section-title">
             <div>
-              <h2>Добавить еду</h2>
-              <p class="section-subtitle">Ввод, частое и шаблоны отдельно от дневника</p>
+              <p class="caption">Preview</p>
+              <h2>What are you eating?</h2>
+              <p class="section-subtitle">Текст, фото, штрихкод или любимые продукты</p>
             </div>
           </div>
         </section>
@@ -142,7 +175,7 @@
               name="text"
               autocomplete="off"
               rows="3"
-              placeholder="Например: омлет из 2 яиц, тост с сыром и латте"
+              placeholder="e.g. breakfast waffles with 2 eggs"
               required
             ></textarea>
             <div class="quick-prompts" aria-label="Быстрые примеры">
@@ -152,10 +185,12 @@
             </div>
             <div class="media-actions" aria-label="Фото и штрихкод">
               <button id="food-photo-button" class="media-action" type="button">
+                <svg aria-hidden="true"><use href="#icon-camera"></use></svg>
                 <span>Фото</span>
                 <b>Распознать блюдо</b>
               </button>
               <button id="barcode-photo-button" class="media-action" type="button">
+                <svg aria-hidden="true"><use href="#icon-scan"></use></svg>
                 <span>Штрихкод</span>
                 <b>Скан с камеры</b>
               </button>

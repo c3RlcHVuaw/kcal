@@ -25,6 +25,10 @@ const nodes = {
   kcalTarget: document.querySelector("#kcal-target"),
   kcalPercent: document.querySelector("#kcal-percent"),
   kcalProgress: document.querySelector("#kcal-progress"),
+  nutritionScore: document.querySelector("#nutrition-score"),
+  nutritionStatus: document.querySelector("#nutrition-status"),
+  macroTotal: document.querySelector("#macro-total"),
+  macroBars: document.querySelector("#macro-bars"),
   protein: document.querySelector("#protein"),
   fat: document.querySelector("#fat"),
   carbs: document.querySelector("#carbs"),
@@ -585,6 +589,7 @@ function renderToday(data) {
   nodes.protein.textContent = `${Math.round(diary.protein)}/${Math.round(diary.target_protein)} г`;
   nodes.fat.textContent = `${Math.round(diary.fat)}/${Math.round(diary.target_fat)} г`;
   nodes.carbs.textContent = `${Math.round(diary.carbs)}/${Math.round(diary.target_carbs)} г`;
+  renderNutritionOverview(diary);
   nodes.water.textContent = `${data.water_ml} мл воды`;
   nodes.activityTotal.textContent = `${Math.round(diary.activity_kcal)} ккал активности`;
   nodes.weightValue.textContent = data.latest_weight_kg ? `${formatNumber(data.latest_weight_kg)} кг` : "Записать";
@@ -597,6 +602,36 @@ function renderToday(data) {
   nodes.goalPace.value = data.weight_goal.weekly_weight_change_kg ? formatNumber(data.weight_goal.weekly_weight_change_kg) : "";
 
   nodes.entries.innerHTML = renderMealDiary(diary.entries);
+}
+
+function renderNutritionOverview(diary) {
+  const macroTotal = Math.round(Number(diary.protein || 0) + Number(diary.fat || 0) + Number(diary.carbs || 0));
+  const proteinTarget = Math.max(Number(diary.target_protein || 0), 1);
+  const fatTarget = Math.max(Number(diary.target_fat || 0), 1);
+  const carbsTarget = Math.max(Number(diary.target_carbs || 0), 1);
+  const kcalTarget = Math.max(Number(diary.target_kcal || 0), 1);
+  const macroFit = [
+    ratioScore(Number(diary.protein || 0) / proteinTarget),
+    ratioScore(Number(diary.fat || 0) / fatTarget),
+    ratioScore(Number(diary.carbs || 0) / carbsTarget),
+    ratioScore(Number(diary.kcal || 0) / kcalTarget),
+  ];
+  const score = Math.round(macroFit.reduce((sum, item) => sum + item, 0) / macroFit.length);
+  const status = score >= 72 ? "Great balance" : score >= 45 ? "Normal range" : "Needs food";
+
+  nodes.nutritionScore.textContent = String(score);
+  nodes.nutritionStatus.textContent = status;
+  nodes.nutritionStatus.classList.toggle("warn-status", score < 45);
+  nodes.macroTotal.textContent = `${macroTotal} грамм`;
+  nodes.macroBars.innerHTML = Array.from({ length: 28 }, (_, index) => {
+    const kind = index % 3 === 0 ? "protein" : index % 3 === 1 ? "carbs" : "fat";
+    return `<i class="${kind}"></i>`;
+  }).join("");
+}
+
+function ratioScore(ratio) {
+  if (!Number.isFinite(ratio) || ratio <= 0) return 0;
+  return Math.max(0, Math.min(100, 100 - Math.abs(1 - ratio) * 90));
 }
 
 function renderMealDiary(entries) {
@@ -1080,6 +1115,25 @@ async function apiForm(path, form) {
 }
 
 function renderEmptyApp() {
+  nodes.kcalEaten.textContent = "0";
+  nodes.kcalBurned.textContent = "0";
+  nodes.kcalLeft.textContent = "0";
+  nodes.kcalTarget.textContent = "0 / 0 ккал";
+  nodes.kcalPercent.textContent = "0%";
+  nodes.kcalProgress.style.width = "0%";
+  nodes.protein.textContent = "0/0 г";
+  nodes.fat.textContent = "0/0 г";
+  nodes.carbs.textContent = "0/0 г";
+  renderNutritionOverview({
+    protein: 0,
+    fat: 0,
+    carbs: 0,
+    kcal: 0,
+    target_protein: 0,
+    target_fat: 0,
+    target_carbs: 0,
+    target_kcal: 0,
+  });
   nodes.entries.innerHTML = '<div class="empty-state">Нет данных без Telegram-авторизации.</div>';
   nodes.frequentList.innerHTML = '<div class="empty-state">Открой из Telegram.</div>';
   nodes.favoritesList.innerHTML = '<div class="empty-state">Открой из Telegram.</div>';
