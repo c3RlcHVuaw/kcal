@@ -18,6 +18,7 @@ from kcal_tracker.bot.keyboards import (
     food_recovery_keyboard,
     food_search_results_keyboard,
     frequent_foods_keyboard,
+    main_menu,
     multi_food_keyboard,
     repeat_yesterday_keyboard,
     smart_after_food_save_keyboard,
@@ -87,6 +88,8 @@ FOOD_INPUT_PROMPT = (
     )
 )
 async def ask_food_input(message: Message, state: FSMContext) -> None:
+    if message.text in {"➕ Еда", "✍️ Записать еду", "🍔 Добавить еду", "✍️ Еда"}:
+        await message.answer("Обновил кнопки снизу.", reply_markup=main_menu())
     await state.set_state(FoodFlow.waiting_barcode_photo)
     await message.answer(FOOD_INPUT_PROMPT)
 
