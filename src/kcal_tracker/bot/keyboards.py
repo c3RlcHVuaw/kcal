@@ -178,6 +178,26 @@ BUTTON_CUSTOM_EMOJI_IDS: dict[str, str] = {
     "поделиться": "5271604874419647061",
 }
 
+CALLBACK_CUSTOM_EMOJI_IDS: tuple[tuple[str, str], ...] = (
+    ("subscription:trial", "5406756500108501710"),
+    ("subscription:winback", "4972453139463537420"),
+    ("subscription:refund:confirm", "5206607081334906820"),
+    ("subscription:refund", "5233326571099534068"),
+    ("subscription:bonuses", "5461151367559141950"),
+    ("subscription:referral-dashboard", "5231200819986047254"),
+    ("subscription:referral", "5337080053119336309"),
+    ("subscription:promo", "5222444124698853913"),
+    ("subscription:yookassa", "4967518033061872209"),
+    ("subscription:check", "5206607081334906820"),
+    ("subscription:stars", "5438496463044752972"),
+    ("subscription:plan:basic", "5382357040008021292"),
+    ("subscription:plan:unlimited", "5341498088408234504"),
+    ("subscription:subscribe", "5217822164362739968"),
+    ("subscription:open", "5427168083074628963"),
+    ("nav:service-tools", "5334544901428229844"),
+    ("settings:open", "5341715473882955310"),
+)
+
 PLAIN_BUTTON_ICON_CHARS = set(
     " \t\n"
     "➕➖✅❌✏🗑📊📈📅💧🍽🏃⚖⏰⚙💎🆘☰🏠🔥⚡⭐↩←→➡⬅"
@@ -246,6 +266,7 @@ def _button_style(text: str, callback_data: str | None = None) -> str:
             ":all",
             ":done",
             ":start",
+            "subscription:open",
             ":subscribe",
             ":trial",
             ":claim",
@@ -259,6 +280,7 @@ def _button_style(text: str, callback_data: str | None = None) -> str:
             "оплат",
             "отправить",
             "подтверд",
+            "подпис",
             "продл",
             "забрать",
             "собрать",
@@ -270,6 +292,10 @@ def _button_style(text: str, callback_data: str | None = None) -> str:
 
 
 def _custom_emoji_id(text: str, callback_data: str | None = None) -> str | None:
+    if callback_data:
+        for callback_prefix, emoji_id in CALLBACK_CUSTOM_EMOJI_IDS:
+            if callback_data.startswith(callback_prefix):
+                return emoji_id
     source = f"{text} {callback_data or ''}".lower()
     for key, emoji_id in BUTTON_CUSTOM_EMOJI_IDS.items():
         if key in source:
@@ -882,13 +908,13 @@ def subscription_keyboard(
         [
             InlineKeyboardButton(text="🤝 Пригласить друга", callback_data="subscription:referral"),
             InlineKeyboardButton(
-                text="📊 Реферальный кабинет",
+                text="📊 Кабинет",
                 callback_data="subscription:referral-dashboard",
             ),
         ],
     ]
     if bonuses_available:
-        rows.append([InlineKeyboardButton(text="🎁 Бонусы", callback_data="subscription:bonuses")])
+        rows.append([InlineKeyboardButton(text="🎁 Бонусы и возврат", callback_data="subscription:bonuses")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
