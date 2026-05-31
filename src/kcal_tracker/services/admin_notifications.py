@@ -3,8 +3,9 @@ from __future__ import annotations
 import logging
 
 from aiogram import Bot
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup
 
+from kcal_tracker.bot.keyboards import InlineKeyboardButton
 from kcal_tracker.config import settings
 
 logger = logging.getLogger(__name__)

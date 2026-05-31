@@ -3,8 +3,9 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup
 
+from kcal_tracker.bot.keyboards import InlineKeyboardButton
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.models import QualityEvent, User
 from kcal_tracker.services.admin_notifications import notify_admins

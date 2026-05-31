@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from typing import Any
+
 from aiogram.types import (
-    InlineKeyboardButton,
+    InlineKeyboardButton as _InlineKeyboardButton,
+)
+from aiogram.types import (
     InlineKeyboardMarkup,
-    KeyboardButton,
     ReplyKeyboardMarkup,
+)
+from aiogram.types import (
+    KeyboardButton as _KeyboardButton,
 )
 
 from kcal_tracker.config import settings
@@ -45,6 +51,93 @@ MAIN_MENU_TEXTS = {
     "🏠 Меню",
     "❌ Отмена",
 }
+
+BUTTON_CUSTOM_EMOJI_IDS: dict[str, str] = {
+    # Fill with real custom emoji IDs when the bot owner account can use them.
+    # Example: "subscription": "5373141891321699086"
+}
+
+
+def InlineKeyboardButton(text: str, **kwargs: Any) -> _InlineKeyboardButton:
+    return _button(_InlineKeyboardButton, text=text, **kwargs)
+
+
+def KeyboardButton(text: str, **kwargs: Any) -> _KeyboardButton:
+    return _button(_KeyboardButton, text=text, **kwargs)
+
+
+def _button(button_type, *, text: str, **kwargs: Any):
+    styled_kwargs = {
+        **kwargs,
+        "style": kwargs.get("style") or _button_style(text, kwargs.get("callback_data")),
+    }
+    icon_id = kwargs.get("icon_custom_emoji_id") or _custom_emoji_id(text, kwargs.get("callback_data"))
+    if icon_id:
+        styled_kwargs["icon_custom_emoji_id"] = icon_id
+    try:
+        return button_type(text=text, **styled_kwargs)
+    except Exception:
+        # Older aiogram/Bot API versions may not know style/icon_custom_emoji_id yet.
+        styled_kwargs.pop("style", None)
+        styled_kwargs.pop("icon_custom_emoji_id", None)
+        return button_type(text=text, **styled_kwargs)
+
+
+def _button_style(text: str, callback_data: str | None = None) -> str:
+    source = f"{text} {callback_data or ''}".lower()
+    if any(
+        token in source
+        for token in (
+            "cancel",
+            "delete",
+            ":del",
+            ":wrong",
+            ":off",
+            "возврат",
+            "отмена",
+            "удал",
+            "не то",
+            "выключ",
+        )
+    ):
+        return "danger"
+    if any(
+        token in source
+        for token in (
+            "confirm",
+            ":add",
+            ":all",
+            ":done",
+            ":start",
+            ":subscribe",
+            ":trial",
+            ":claim",
+            "✅",
+            "➕",
+            "добав",
+            "сохран",
+            "готов",
+            "создать",
+            "оформ",
+            "оплат",
+            "отправить",
+            "подтверд",
+            "продл",
+            "забрать",
+            "собрать",
+            "включ",
+        )
+    ):
+        return "success"
+    return "primary"
+
+
+def _custom_emoji_id(text: str, callback_data: str | None = None) -> str | None:
+    source = f"{text} {callback_data or ''}".lower()
+    for key, emoji_id in BUTTON_CUSTOM_EMOJI_IDS.items():
+        if key in source:
+            return emoji_id
+    return None
 
 
 def main_menu() -> ReplyKeyboardMarkup:

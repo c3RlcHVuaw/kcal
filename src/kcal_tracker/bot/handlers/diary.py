@@ -11,12 +11,12 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     BufferedInputFile,
     CallbackQuery,
-    InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
 )
 
 from kcal_tracker.bot.keyboards import (
+    InlineKeyboardButton,
     activity_logs_keyboard,
     activity_menu_keyboard,
     after_activity_save_keyboard,

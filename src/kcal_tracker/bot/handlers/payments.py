@@ -10,7 +10,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     CallbackQuery,
-    InlineKeyboardButton,
     InlineKeyboardMarkup,
     LabeledPrice,
     Message,
@@ -18,6 +17,7 @@ from aiogram.types import (
 )
 
 from kcal_tracker.bot.keyboards import (
+    InlineKeyboardButton,
     subscription_bonuses_keyboard,
     subscription_keyboard,
     subscription_payment_method_keyboard,

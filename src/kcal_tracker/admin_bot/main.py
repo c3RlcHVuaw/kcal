@@ -18,7 +18,6 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
     CallbackQuery,
-    InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
     TelegramObject,
@@ -26,6 +25,7 @@ from aiogram.types import (
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
+from kcal_tracker.bot.keyboards import InlineKeyboardButton
 from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.logging import configure_logging
