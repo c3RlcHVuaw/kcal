@@ -39,13 +39,13 @@ class MenuStateResetMiddleware(BaseMiddleware):
 
 
 @router.message(Command("cancel"))
-@router.message(F.text.in_({"🏠 Меню", "❌ Отмена"}))
+@router.message(F.text.in_({"🏠 Меню", "Меню", "❌ Отмена", "Отмена"}))
 async def back_to_menu(message: Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer("Вернулись в меню. Выбирай, что сделать дальше.", reply_markup=main_menu())
 
 
-@router.message(F.text == "☰ Ещё")
+@router.message(F.text.in_({"☰ Ещё", "Ещё"}))
 async def more_menu(message: Message, state: FSMContext) -> None:
     await state.clear()
     reply_markup = await _more_menu_markup(message.from_user.id, message.from_user.username)

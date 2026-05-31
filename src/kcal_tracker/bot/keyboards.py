@@ -17,39 +17,72 @@ from kcal_tracker.config import settings
 
 MAIN_MENU_TEXTS = {
     "➕ Еда",
+    "Еда",
     "📷 Фото/штрихкод",
+    "Фото/штрихкод",
     "📷 Сканировать продукт",
+    "Сканировать продукт",
     "📷 Фото",
+    "Фото",
     "✍️ Записать еду",
+    "Записать еду",
     "🍔 Добавить еду",
+    "Добавить еду",
     "✍️ Еда",
     "📊 Сегодня",
+    "Сегодня",
     "📊 Мой день",
+    "Мой день",
     "🔥 Остаток",
+    "Остаток",
     "🔥 Калории",
+    "Калории",
     "⚡ Частое",
+    "Частое",
     "⭐ Частые продукты",
+    "Частые продукты",
     "↩️ Как вчера",
+    "Как вчера",
     "↩️ Повторить вчера",
+    "Повторить вчера",
     "⭐ Любимое",
+    "Любимое",
     "⭐ Избранное",
+    "Избранное",
     "⚡ Шаблоны",
+    "Шаблоны",
     "📅 Месяц",
+    "Месяц",
     "📈 7 дней",
+    "7 дней",
     "📈 Неделя",
+    "Неделя",
     "💧 Вода",
+    "Вода",
     "🍽 Что съесть?",
+    "Что съесть?",
     "🍽 Что съесть",
+    "Что съесть",
     "🏃 Активность",
+    "Активность",
     "⚖️ Вес",
+    "Вес",
     "⏰ Напомнить",
+    "Напомнить",
     "⏰ Напоминания",
+    "Напоминания",
     "⚙️ Настройки",
+    "Настройки",
     "💎 Подписка",
+    "Подписка",
     "🆘 Поддержка",
+    "Поддержка",
     "☰ Ещё",
+    "Ещё",
     "🏠 Меню",
+    "Меню",
     "❌ Отмена",
+    "Отмена",
 }
 
 BUTTON_CUSTOM_EMOJI_IDS: dict[str, str] = {
@@ -134,13 +167,20 @@ BUTTON_CUSTOM_EMOJI_IDS: dict[str, str] = {
     "поделиться": "5271604874419647061",
 }
 
+PLAIN_BUTTON_ICON_CHARS = set(
+    " \t\n"
+    "➕➖✅❌✏🗑📊📈📅💧🍽🏃⚖⏰⚙💎🆘☰🏠🔥⚡⭐↩←→➡⬅"
+    "📷🍔✍🤖🔎✨🧩🙅½¼🧈🥤📉🚨🔄🖥🧠👥💰🎟📣👤🎁🤝💳"
+    "\ufe0f"
+)
+
 
 def InlineKeyboardButton(text: str, **kwargs: Any) -> _InlineKeyboardButton:
     return _button(_InlineKeyboardButton, text=text, **kwargs)
 
 
 def KeyboardButton(text: str, **kwargs: Any) -> _KeyboardButton:
-    return _button(_KeyboardButton, text=text, **kwargs)
+    return _KeyboardButton(text=text, **kwargs)
 
 
 def _button(button_type, *, text: str, **kwargs: Any):
@@ -151,13 +191,22 @@ def _button(button_type, *, text: str, **kwargs: Any):
     icon_id = kwargs.get("icon_custom_emoji_id") or _custom_emoji_id(text, kwargs.get("callback_data"))
     if icon_id:
         styled_kwargs["icon_custom_emoji_id"] = icon_id
+        styled_kwargs["text"] = _button_text_without_plain_icon(text)
     try:
-        return button_type(text=text, **styled_kwargs)
+        return button_type(**styled_kwargs)
     except Exception:
         # Older aiogram/Bot API versions may not know style/icon_custom_emoji_id yet.
+        styled_kwargs.pop("text", None)
         styled_kwargs.pop("style", None)
         styled_kwargs.pop("icon_custom_emoji_id", None)
         return button_type(text=text, **styled_kwargs)
+
+
+def _button_text_without_plain_icon(text: str) -> str:
+    stripped = text.strip()
+    while stripped and stripped[0] in PLAIN_BUTTON_ICON_CHARS:
+        stripped = stripped[1:].strip()
+    return stripped or text
 
 
 def _button_style(text: str, callback_data: str | None = None) -> str:
@@ -220,8 +269,8 @@ def _custom_emoji_id(text: str, callback_data: str | None = None) -> str | None:
 def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="➕ Еда"), KeyboardButton(text="📊 Сегодня")],
-            [KeyboardButton(text="💧 Вода"), KeyboardButton(text="☰ Ещё")],
+            [KeyboardButton(text="Еда"), KeyboardButton(text="Сегодня")],
+            [KeyboardButton(text="Вода"), KeyboardButton(text="Ещё")],
         ],
         resize_keyboard=True,
         input_field_placeholder="Напиши еду или пришли фото",
