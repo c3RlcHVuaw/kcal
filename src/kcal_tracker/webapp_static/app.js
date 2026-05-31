@@ -34,6 +34,15 @@ const nodes = {
   protein: document.querySelector("#protein"),
   fat: document.querySelector("#fat"),
   carbs: document.querySelector("#carbs"),
+  proteinRing: document.querySelector("#protein-ring"),
+  fatRing: document.querySelector("#fat-ring"),
+  carbsRing: document.querySelector("#carbs-ring"),
+  proteinPercent: document.querySelector("#protein-percent"),
+  fatPercent: document.querySelector("#fat-percent"),
+  carbsPercent: document.querySelector("#carbs-percent"),
+  proteinOverflow: document.querySelector("#protein-overflow"),
+  fatOverflow: document.querySelector("#fat-overflow"),
+  carbsOverflow: document.querySelector("#carbs-overflow"),
   water: document.querySelector("#water"),
   activityTotal: document.querySelector("#activity-total"),
   entries: document.querySelector("#entries"),
@@ -605,9 +614,9 @@ function renderToday(data) {
   nodes.kcalBurned.textContent = Math.round(diary.activity_kcal);
   nodes.kcalLeft.textContent = left >= 0 ? String(left) : `+${Math.abs(left)}`;
   nodes.kcalTarget.textContent = `${Math.round(diary.kcal)} / ${diary.target_kcal} ккал`;
-  nodes.protein.textContent = `${Math.round(diary.protein)}/${Math.round(diary.target_protein)} г`;
-  nodes.fat.textContent = `${Math.round(diary.fat)}/${Math.round(diary.target_fat)} г`;
-  nodes.carbs.textContent = `${Math.round(diary.carbs)}/${Math.round(diary.target_carbs)} г`;
+  renderMacroRing("protein", diary.protein, diary.target_protein);
+  renderMacroRing("fat", diary.fat, diary.target_fat);
+  renderMacroRing("carbs", diary.carbs, diary.target_carbs);
   renderNutritionOverview(diary);
   nodes.water.textContent = `${data.water_ml} мл воды`;
   nodes.activityTotal.textContent = `${Math.round(diary.activity_kcal)} ккал активности`;
@@ -646,6 +655,42 @@ function renderNutritionOverview(diary) {
     const kind = index % 3 === 0 ? "protein" : index % 3 === 1 ? "carbs" : "fat";
     return `<i class="${kind}"></i>`;
   }).join("");
+}
+
+function renderMacroRing(kind, rawValue, rawTarget) {
+  const metric = macroMetric(rawValue, rawTarget);
+  const valueNode = nodes[kind];
+  const ringNode = nodes[`${kind}Ring`];
+  const percentNode = nodes[`${kind}Percent`];
+  const overflowNode = nodes[`${kind}Overflow`];
+
+  valueNode.textContent = `${metric.value}/${metric.target} г`;
+  percentNode.textContent = `${metric.percent}%`;
+  overflowNode.textContent = metric.overflowGrams > 0 ? `+${metric.overflowGrams} г` : "";
+  overflowNode.classList.toggle("visible", metric.overflowGrams > 0);
+  ringNode.style.setProperty("--macro-base-end", `${metric.baseEndPercent}%`);
+  ringNode.style.setProperty("--macro-overflow-start", `${metric.baseEndPercent}%`);
+  ringNode.style.setProperty("--macro-overflow-end", `${metric.overflowEndPercent}%`);
+}
+
+function macroMetric(rawValue, rawTarget) {
+  const value = Math.max(Number(rawValue || 0), 0);
+  const target = Math.max(Number(rawTarget || 0), 0);
+  const ratio = target > 0 ? value / target : 0;
+  const baseRatio = Math.min(ratio, 1);
+  const overflowRatio = Math.min(Math.max(ratio - 1, 0), 0.35);
+  const baseEndPercent = Math.round((overflowRatio > 0 ? 1 - overflowRatio : baseRatio) * 100);
+  return {
+    value: Math.round(value),
+    target: Math.round(target),
+    ratio,
+    percent: target > 0 ? Math.round(ratio * 100) : 0,
+    baseRatio,
+    overflowRatio,
+    baseEndPercent,
+    overflowEndPercent: overflowRatio > 0 ? 100 : baseEndPercent,
+    overflowGrams: target > 0 ? Math.max(Math.round(value - target), 0) : 0,
+  };
 }
 
 function ratioScore(ratio) {
@@ -1178,9 +1223,9 @@ function renderEmptyApp() {
   nodes.kcalTarget.textContent = "0 / 0 ккал";
   nodes.kcalPercent.textContent = "0%";
   nodes.kcalProgress.style.width = "0%";
-  nodes.protein.textContent = "0/0 г";
-  nodes.fat.textContent = "0/0 г";
-  nodes.carbs.textContent = "0/0 г";
+  renderMacroRing("protein", 0, 0);
+  renderMacroRing("fat", 0, 0);
+  renderMacroRing("carbs", 0, 0);
   renderNutritionOverview({
     protein: 0,
     fat: 0,
