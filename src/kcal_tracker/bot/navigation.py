@@ -48,7 +48,7 @@ async def back_to_menu(message: Message, state: FSMContext) -> None:
 @router.message(F.text.in_({"☰ Ещё", "Ещё"}))
 async def more_menu(message: Message, state: FSMContext) -> None:
     await state.clear()
-    if message.text == "☰ Ещё":
+    if message.text == "Ещё":
         await message.answer("Обновил кнопки снизу.", reply_markup=main_menu())
     reply_markup = await _more_menu_markup(message.from_user.id, message.from_user.username)
     await message.answer("Что открыть?", reply_markup=reply_markup)

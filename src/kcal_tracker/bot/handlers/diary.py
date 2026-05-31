@@ -102,7 +102,7 @@ class DiaryFlow(StatesGroup):
     }
 )
 async def show_today(message: Message) -> None:
-    if message.text in {"📊 Сегодня", "📊 Мой день", "🔥 Остаток", "🔥 Калории"}:
+    if message.text in {"Сегодня", "Мой день", "Остаток", "Калории"}:
         await message.answer("Обновил кнопки снизу.", reply_markup=main_menu())
     text, reply_markup = await _day_view_for_user(
         message.from_user.id,
@@ -533,7 +533,7 @@ async def save_saved_entry_refinement(message: Message, state: FSMContext) -> No
 
 @router.message(F.text.in_({"💧 Вода", "Вода"}))
 async def show_water(message: Message) -> None:
-    if message.text == "💧 Вода":
+    if message.text == "Вода":
         await message.answer("Обновил кнопки снизу.", reply_markup=main_menu())
     text, reply_markup = await _water_view(message.from_user.id, message.from_user.username)
     await message.answer(text, reply_markup=reply_markup)

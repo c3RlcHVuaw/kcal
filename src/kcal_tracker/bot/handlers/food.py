@@ -88,7 +88,7 @@ FOOD_INPUT_PROMPT = (
     )
 )
 async def ask_food_input(message: Message, state: FSMContext) -> None:
-    if message.text in {"➕ Еда", "✍️ Записать еду", "🍔 Добавить еду", "✍️ Еда"}:
+    if message.text in {"Еда", "Записать еду", "Добавить еду"}:
         await message.answer("Обновил кнопки снизу.", reply_markup=main_menu())
     await state.set_state(FoodFlow.waiting_barcode_photo)
     await message.answer(FOOD_INPUT_PROMPT)

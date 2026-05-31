@@ -280,8 +280,8 @@ def _custom_emoji_id(text: str, callback_data: str | None = None) -> str | None:
 def main_menu() -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="Еда"), KeyboardButton(text="Сегодня")],
-            [KeyboardButton(text="Вода"), KeyboardButton(text="Ещё")],
+            [KeyboardButton(text="➕ Еда"), KeyboardButton(text="📊 Сегодня")],
+            [KeyboardButton(text="💧 Вода"), KeyboardButton(text="☰ Ещё")],
         ],
         resize_keyboard=True,
         input_field_placeholder="Напиши еду или пришли фото",
