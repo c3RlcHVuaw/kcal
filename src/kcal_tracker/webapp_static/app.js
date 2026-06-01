@@ -18,6 +18,7 @@ const state = {
   frequentFoods: [],
   favoriteFoods: [],
   searchTimer: null,
+  searchRequestId: 0,
   loadingAll: false,
 };
 
@@ -413,9 +414,12 @@ async function searchFood(event) {
     nodes.foodSearchResults.innerHTML = '<div class="empty-state">Поиск по базе работает внутри Telegram mini-app. В локальном браузере нет авторизации Telegram.</div>';
     return;
   }
-  nodes.foodSearchResults.innerHTML = '<div class="empty-state">Ищу продукты...</div>';
+  const requestId = ++state.searchRequestId;
+  renderFoodPickLoading(nodes.foodSearchResults);
+  nodes.foodSearchResults.setAttribute("aria-busy", "true");
   try {
     const result = await api(`/webapp/me/food/search?query=${encodeURIComponent(query)}`);
+    if (requestId !== state.searchRequestId) return;
     state.foodSearchResults = result.foods.map(normalizeParsedFood);
     renderFoodPickList(nodes.foodSearchResults, state.foodSearchResults, {
       source: result.source,
@@ -423,19 +427,26 @@ async function searchFood(event) {
     });
     switchAddMode("browse");
   } catch (error) {
+    if (requestId !== state.searchRequestId) return;
     state.foodSearchResults = [];
     const text = error.status === 401
       ? "Открой mini-app из Telegram, чтобы поиск получил доступ к дневнику."
       : "Поиск не сработал. Попробуй AI или штрихкод.";
     nodes.foodSearchResults.innerHTML = `<div class="empty-state">${escapeHtml(text)}</div>`;
+  } finally {
+    if (requestId === state.searchRequestId) {
+      nodes.foodSearchResults.removeAttribute("aria-busy");
+    }
   }
 }
 
 function clearFoodSearch(clearInput = true) {
   if (clearInput) nodes.foodSearch.value = "";
+  state.searchRequestId += 1;
   state.foodSearchResults = [];
   nodes.foodSearchSection.classList.add("hidden");
   nodes.foodSearchResults.innerHTML = "";
+  nodes.foodSearchResults.removeAttribute("aria-busy");
 }
 
 function handleFoodPick(event) {
@@ -456,6 +467,7 @@ function handleFoodPick(event) {
 async function addFoodEstimateToDiary(food, source, button) {
   if (button && isBusy(button)) return;
   if (button) setButtonBusy(button, "...");
+  let added = false;
   try {
     await api("/webapp/me/entries", {
       method: "POST",
@@ -466,11 +478,13 @@ async function addFoodEstimateToDiary(food, source, button) {
       }),
     });
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
+    added = true;
     toast(`${food.name} добавлено`);
   } catch {
     toast("Не получилось добавить");
   } finally {
     if (button) restoreButton(button);
+    if (added) flashFoodPickAdded(button);
   }
 }
 
@@ -1116,6 +1130,19 @@ function renderFoodPickList(container, foods, options = {}) {
   `).join("");
 }
 
+function renderFoodPickLoading(container, count = 4) {
+  container.innerHTML = Array.from({ length: count }, () => `
+    <article class="food-pick-card food-pick-skeleton" aria-hidden="true">
+      <div>
+        <i class="skeleton-line title"></i>
+        <i class="skeleton-line medium"></i>
+        <i class="skeleton-line short"></i>
+      </div>
+      <i class="skeleton-add"></i>
+    </article>
+  `).join("");
+}
+
 function foodPickSource(source) {
   if (source === "frequent") return state.frequentFoods;
   if (source === "favorites") return state.favoriteFoods;
@@ -1628,10 +1655,31 @@ function toast(message) {
   toast.timer = window.setTimeout(() => nodes.toast.classList.add("hidden"), 2200);
 }
 
+function flashFoodPickAdded(button) {
+  if (!button) return;
+  const card = button.closest(".food-pick-card");
+  card?.classList.add("is-added");
+  button.classList.add("is-added");
+  button.innerHTML = '<svg aria-hidden="true"><use href="#icon-check"></use></svg>';
+  window.setTimeout(() => {
+    card?.classList.remove("is-added");
+    button.classList.remove("is-added");
+    if (!button.disabled) {
+      button.innerHTML = '<svg aria-hidden="true"><use href="#icon-plus"></use></svg>';
+    }
+  }, 1400);
+}
+
 function setButtonBusy(button, label) {
   if (!button) return;
   button.dataset.idleHtml = button.innerHTML;
-  button.textContent = label;
+  button.dataset.idleLabel = button.getAttribute("aria-label") || "";
+  if (button.classList.contains("food-pick-add")) {
+    button.classList.add("is-loading");
+    button.setAttribute("aria-label", "Добавляю");
+  } else {
+    button.textContent = label;
+  }
   button.disabled = true;
 }
 
@@ -1642,6 +1690,13 @@ function isBusy(button) {
 function restoreButton(button) {
   if (!button) return;
   button.innerHTML = button.dataset.idleHtml || button.textContent;
+  button.classList.remove("is-loading");
+  if (button.dataset.idleLabel) {
+    button.setAttribute("aria-label", button.dataset.idleLabel);
+  } else {
+    button.removeAttribute("aria-label");
+  }
   button.disabled = false;
   delete button.dataset.idleHtml;
+  delete button.dataset.idleLabel;
 }

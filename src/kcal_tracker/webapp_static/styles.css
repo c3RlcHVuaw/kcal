@@ -353,6 +353,15 @@ h2 {
   }
 }
 
+@keyframes skeletonFlow {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -140% 0;
+  }
+}
+
 .icon-button {
   position: relative;
   display: grid;
@@ -3240,6 +3249,22 @@ textarea {
   box-shadow: var(--shadow-tight);
   backdrop-filter: var(--panel-blur);
   -webkit-backdrop-filter: var(--panel-blur);
+  transition:
+    border-color var(--motion-soft),
+    background var(--motion-soft),
+    box-shadow var(--motion-soft),
+    transform var(--motion-fast);
+}
+
+.food-pick-card.is-added {
+  border-color: color-mix(in srgb, var(--accent) 48%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, transparent), transparent 54%),
+    var(--panel-gradient),
+    var(--surface);
+  box-shadow:
+    var(--shadow-tight),
+    inset 0 1px 0 color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .food-pick-card:nth-child(2) {
@@ -3296,13 +3321,32 @@ textarea {
   transition:
     transform var(--motion-fast),
     background var(--motion-soft),
-    box-shadow var(--motion-soft);
+    box-shadow var(--motion-soft),
+    color var(--motion-soft);
 }
 
 .food-pick-card:active .food-pick-add,
 .food-pick-add:active {
   transform: scale(0.9);
   box-shadow: inset 0 2px 8px color-mix(in srgb, var(--text) 9%, transparent);
+}
+
+.food-pick-add.is-loading {
+  color: var(--muted);
+}
+
+.food-pick-add.is-loading svg {
+  animation: softPulse 820ms ease-in-out infinite;
+}
+
+.food-pick-add.is-added {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--accent) 28%, white), var(--accent));
+  color: #fff;
+  box-shadow:
+    0 10px 22px color-mix(in srgb, var(--accent) 26%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38);
+  transform: scale(1.04);
 }
 
 .food-pick-add svg {
@@ -3313,6 +3357,48 @@ textarea {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.25;
+}
+
+.food-pick-skeleton {
+  pointer-events: none;
+}
+
+.food-pick-skeleton > div {
+  display: grid;
+  gap: 10px;
+}
+
+.skeleton-line,
+.skeleton-add {
+  display: block;
+  border-radius: 999px;
+  background:
+    linear-gradient(90deg, transparent, color-mix(in srgb, var(--surface) 70%, white), transparent),
+    color-mix(in srgb, var(--muted) 12%, transparent);
+  background-size: 220% 100%, 100% 100%;
+  animation: skeletonFlow 1.15s ease-in-out infinite;
+}
+
+.skeleton-line {
+  height: 12px;
+}
+
+.skeleton-line.title {
+  width: 62%;
+  height: 18px;
+}
+
+.skeleton-line.medium {
+  width: 44%;
+}
+
+.skeleton-line.short {
+  width: 56%;
+}
+
+.skeleton-add {
+  width: 50px;
+  height: 50px;
 }
 
 #food-add-sheet .add-mode-panel {
