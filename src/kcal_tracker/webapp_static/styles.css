@@ -1645,6 +1645,50 @@ textarea:focus {
   padding: var(--space-4);
 }
 
+.food-add-panel {
+  max-height: min(86dvh, 720px);
+}
+
+.food-add-scroll {
+  max-height: min(86dvh, 720px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.food-add-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.food-add-scroll > .sheet-title {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--line);
+  background:
+    var(--panel-gradient),
+    var(--surface-solid);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+}
+
+.food-save-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 0 calc(var(--space-page-x) * -1) calc(var(--space-3) * -1);
+  padding: var(--space-3) var(--space-page-x) calc(var(--space-3) + env(safe-area-inset-bottom));
+  background:
+    linear-gradient(180deg, transparent, var(--surface-solid) 28%),
+    var(--surface-solid);
+}
+
+.food-save-bar .primary-button {
+  width: 100%;
+}
+
 @media (prefers-color-scheme: dark) {
   body {
     background:
@@ -2504,6 +2548,35 @@ textarea {
   touch-action: pan-y;
 }
 
+.food-add-panel {
+  max-height: min(86dvh, 720px);
+}
+
+.food-add-scroll {
+  max-height: min(86dvh, 720px);
+  padding: 0 14px 14px;
+  touch-action: pan-y;
+}
+
+.food-add-scroll > .sheet-title {
+  margin: 0 -14px 10px;
+  padding: 22px 14px 10px;
+  border-bottom-color: rgba(60, 60, 67, 0.08);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.food-add-scroll .food-text-panel,
+.food-add-scroll .details-card,
+.food-add-scroll .food-preview {
+  margin-bottom: 10px;
+}
+
+.food-save-bar {
+  margin: 0 -14px -14px;
+  padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), #fff 34%);
+}
+
 .entry-edit-panel {
   max-height: min(82dvh, 680px);
   overflow: auto;
@@ -2698,6 +2771,11 @@ textarea {
     background: rgba(30, 32, 38, 0.94);
   }
 
+  .food-add-scroll > .sheet-title {
+    border-bottom-color: rgba(255, 255, 255, 0.08);
+    background: rgba(30, 32, 38, 0.94);
+  }
+
   .macro-edit-grid .edit-field {
     background: rgba(255, 255, 255, 0.07);
   }
@@ -2707,6 +2785,10 @@ textarea {
   }
 
   .sheet-actions {
+    background: linear-gradient(180deg, rgba(30, 32, 38, 0.72), #1e2026 34%);
+  }
+
+  .food-save-bar {
     background: linear-gradient(180deg, rgba(30, 32, 38, 0.72), #1e2026 34%);
   }
 }

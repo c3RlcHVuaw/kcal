@@ -161,109 +161,28 @@
         <section class="food-sheet-head component-card">
           <div class="section-title">
             <div>
-              <p class="caption">Предпросмотр</p>
-              <h2>Что ты ешь?</h2>
-              <p class="section-subtitle">Текст, фото, штрихкод или любимые продукты</p>
+              <p class="caption">Быстрое добавление</p>
+              <h2>Еда</h2>
+              <p class="section-subtitle">Частое, шаблоны и вчерашний день</p>
             </div>
           </div>
         </section>
         <div class="segmented glass-control" role="tablist" aria-label="Добавление еды">
-          <button class="active" type="button" data-food-tab="manual">Вручную</button>
-          <button type="button" data-food-tab="frequent">Частое</button>
+          <button class="active" type="button" data-food-tab="frequent">Частое</button>
           <button type="button" data-food-tab="templates">Шаблоны</button>
         </div>
 
-        <section id="food-tab-manual" class="food-tab active">
-          <form id="food-text-form" class="form-panel component-card food-text-panel">
-            <label class="input-label" for="food-text">Что съел?</label>
-            <div class="meal-picker" role="radiogroup" aria-label="Приём пищи">
-              <button class="active" type="button" data-meal="breakfast">Завтрак</button>
-              <button type="button" data-meal="lunch">Обед</button>
-              <button type="button" data-meal="dinner">Ужин</button>
-              <button type="button" data-meal="snack">Перекус</button>
-            </div>
-            <textarea
-              id="food-text"
-              name="text"
-              autocomplete="off"
-              rows="3"
-              placeholder="Например: вафли на завтрак и 2 яйца"
-              required
-            ></textarea>
-            <div class="quick-prompts" aria-label="Быстрые примеры">
-              <button type="button" data-food-example="овсянка на молоке, банан и кофе">Овсянка</button>
-              <button type="button" data-food-example="куриная грудка, рис и овощи">Курица с рисом</button>
-              <button type="button" data-food-example="творог 5%, ягоды и чай">Творог</button>
-            </div>
-            <div class="media-actions" aria-label="Фото и штрихкод">
-              <button id="food-photo-button" class="media-action" type="button">
-                <svg aria-hidden="true"><use href="#icon-camera"></use></svg>
-                <span>Фото</span>
-                <b>Камера или галерея</b>
-              </button>
-              <button id="barcode-photo-button" class="media-action" type="button">
-                <svg aria-hidden="true"><use href="#icon-scan"></use></svg>
-                <span>Штрихкод</span>
-                <b>Фото или камера</b>
-              </button>
-            </div>
-            <input id="food-photo-input" class="hidden-file" type="file" accept="image/*" />
-            <input id="barcode-photo-input" class="hidden-file" type="file" accept="image/*" />
-            <div class="barcode-inline">
-              <input id="barcode-code" inputmode="numeric" autocomplete="off" placeholder="или цифры штрихкода" />
-              <button id="barcode-code-button" class="secondary-button" type="button">Найти</button>
-            </div>
-            <button class="primary-button" type="submit">Разобрать</button>
-          </form>
-
-          <section id="food-preview" class="food-preview hidden" aria-live="polite">
-            <div class="section-title">
-              <div>
-                <h2>Проверь перед сохранением</h2>
-                <p id="food-preview-source" class="section-subtitle">Можно поправить значения</p>
-              </div>
-            </div>
-            <div id="food-preview-list" class="parsed-food-list"></div>
-            <button id="save-parsed-food" class="primary-button" type="button">Добавить в дневник</button>
-          </section>
-
-          <details class="details-card component-card">
-            <summary>
-              <div>
-                <h2>Точные значения</h2>
-                <p class="section-subtitle">Если уже знаешь калории и БЖУ</p>
-              </div>
-              <span class="disclosure"><svg><use href="#icon-chevron"></use></svg></span>
-            </summary>
-            <form id="food-form" class="form-panel nested-form">
-              <input id="food-name" name="name" autocomplete="off" placeholder="Название" required />
-              <div class="field-row">
-                <input id="food-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
-                <input id="food-weight" name="weight" inputmode="decimal" placeholder="граммы" />
-              </div>
-              <div class="field-row three">
-                <input id="food-protein" name="protein" inputmode="decimal" placeholder="белки" />
-                <input id="food-fat" name="fat" inputmode="decimal" placeholder="жиры" />
-                <input id="food-carbs" name="carbs" inputmode="decimal" placeholder="углеводы" />
-              </div>
-              <select id="food-meal" name="meal_type" aria-label="Приём пищи">
-                <option value="breakfast">Завтрак</option>
-                <option value="lunch">Обед</option>
-                <option value="dinner">Ужин</option>
-                <option value="snack">Перекус</option>
-              </select>
-              <button class="primary-button" type="submit">Добавить</button>
-            </form>
-          </details>
+        <section id="food-tab-frequent" class="food-tab active">
           <div class="action-list component-card">
+            <button type="button" data-open-food-sheet>
+              <span>Добавить еду</span>
+              <b>Текст, фото, штрихкод или точные значения</b>
+            </button>
             <button id="repeat-yesterday" type="button">
               <span>Как вчера</span>
               <b>Повторить весь вчерашний дневник</b>
             </button>
           </div>
-        </section>
-
-        <section id="food-tab-frequent" class="food-tab">
           <div id="frequent-list" class="grouped-list component-card"></div>
         </section>
 
@@ -433,6 +352,104 @@
         <span>Ещё</span>
       </button>
     </nav>
+
+    <div id="food-add-sheet" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="food-add-title">
+      <div class="sheet-panel component-card food-add-panel">
+        <div class="food-add-scroll">
+          <div class="section-title sheet-title">
+            <div>
+              <h2 id="food-add-title">Добавить еду</h2>
+              <p class="section-subtitle">Текст, фото, штрихкод или точные значения</p>
+            </div>
+            <button id="food-add-close" class="icon-mini" type="button" aria-label="Закрыть">×</button>
+          </div>
+
+          <form id="food-text-form" class="form-panel component-card food-text-panel">
+            <label class="input-label" for="food-text">Что съел?</label>
+            <div class="meal-picker" role="radiogroup" aria-label="Приём пищи">
+              <button class="active" type="button" data-meal="breakfast">Завтрак</button>
+              <button type="button" data-meal="lunch">Обед</button>
+              <button type="button" data-meal="dinner">Ужин</button>
+              <button type="button" data-meal="snack">Перекус</button>
+            </div>
+            <textarea
+              id="food-text"
+              name="text"
+              autocomplete="off"
+              rows="3"
+              placeholder="Например: вафли на завтрак и 2 яйца"
+              required
+            ></textarea>
+            <div class="quick-prompts" aria-label="Быстрые примеры">
+              <button type="button" data-food-example="овсянка на молоке, банан и кофе">Овсянка</button>
+              <button type="button" data-food-example="куриная грудка, рис и овощи">Курица с рисом</button>
+              <button type="button" data-food-example="творог 5%, ягоды и чай">Творог</button>
+            </div>
+            <div class="media-actions" aria-label="Фото и штрихкод">
+              <button id="food-photo-button" class="media-action" type="button">
+                <svg aria-hidden="true"><use href="#icon-camera"></use></svg>
+                <span>Фото</span>
+                <b>Камера или галерея</b>
+              </button>
+              <button id="barcode-photo-button" class="media-action" type="button">
+                <svg aria-hidden="true"><use href="#icon-scan"></use></svg>
+                <span>Штрихкод</span>
+                <b>Фото или камера</b>
+              </button>
+            </div>
+            <input id="food-photo-input" class="hidden-file" type="file" accept="image/*" />
+            <input id="barcode-photo-input" class="hidden-file" type="file" accept="image/*" />
+            <div class="barcode-inline">
+              <input id="barcode-code" inputmode="numeric" autocomplete="off" placeholder="или цифры штрихкода" />
+              <button id="barcode-code-button" class="secondary-button" type="button">Найти</button>
+            </div>
+            <button class="primary-button" type="submit">Разобрать</button>
+          </form>
+
+          <section id="food-preview" class="food-preview hidden" aria-live="polite">
+            <div class="section-title">
+              <div>
+                <h2>Проверь перед сохранением</h2>
+                <p id="food-preview-source" class="section-subtitle">Можно поправить значения</p>
+              </div>
+            </div>
+            <div id="food-preview-list" class="parsed-food-list"></div>
+            <div class="food-save-bar">
+              <button id="save-parsed-food" class="primary-button" type="button">Добавить в дневник</button>
+            </div>
+          </section>
+
+          <details class="details-card component-card">
+            <summary>
+              <div>
+                <h2>Точные значения</h2>
+                <p class="section-subtitle">Если уже знаешь калории и БЖУ</p>
+              </div>
+              <span class="disclosure"><svg><use href="#icon-chevron"></use></svg></span>
+            </summary>
+            <form id="food-form" class="form-panel nested-form">
+              <input id="food-name" name="name" autocomplete="off" placeholder="Название" required />
+              <div class="field-row">
+                <input id="food-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
+                <input id="food-weight" name="weight" inputmode="decimal" placeholder="граммы" />
+              </div>
+              <div class="field-row three">
+                <input id="food-protein" name="protein" inputmode="decimal" placeholder="белки" />
+                <input id="food-fat" name="fat" inputmode="decimal" placeholder="жиры" />
+                <input id="food-carbs" name="carbs" inputmode="decimal" placeholder="углеводы" />
+              </div>
+              <select id="food-meal" name="meal_type" aria-label="Приём пищи">
+                <option value="breakfast">Завтрак</option>
+                <option value="lunch">Обед</option>
+                <option value="dinner">Ужин</option>
+                <option value="snack">Перекус</option>
+              </select>
+              <button class="primary-button" type="submit">Добавить</button>
+            </form>
+          </details>
+        </div>
+      </div>
+    </div>
 
     <div id="entry-editor" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="entry-editor-title">
       <div class="sheet-panel component-card">

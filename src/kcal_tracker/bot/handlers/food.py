@@ -1748,22 +1748,41 @@ def _format_search_results(estimates: list[FoodEstimate], *, query: str) -> str:
     return "\n".join(lines)
 
 
+def plural_ru(value: int, one: str, few: str, many: str) -> str:
+    value = abs(value) % 100
+    if 11 <= value <= 14:
+        return many
+    last = value % 10
+    if last == 1:
+        return one
+    if 2 <= last <= 4:
+        return few
+    return many
+
+
 def _format_multi_foods(
     estimates: FoodEstimateList,
     added_indices: set[int] | None = None,
 ) -> str:
     added_indices = added_indices or set()
-    lines = ["Я нашёл несколько позиций:", ""]
+    total = len(estimates.foods)
+    added_count = len(added_indices)
+    lines = [f"Нашёл {total} {plural_ru(total, 'позицию', 'позиции', 'позиций')}"]
+    if added_count:
+        lines.append(f"Добавлено: {added_count}/{total}")
+    lines.append("")
     for index, estimate in enumerate(estimates.foods, start=1):
-        marker = "✓" if index - 1 in added_indices else "#"
+        is_added = index - 1 in added_indices
+        marker = "✓ Добавлено" if is_added else f"#{index}"
         weight = f", {estimate.weight_g:.0f}г" if estimate.weight_g else ""
         lines.append(
-            f"{marker}{index} {food_label(estimate)}{weight} — {estimate.kcal:.0f} ккал, "
-            f"Б {estimate.protein:.0f} / Ж {estimate.fat:.0f} / У {estimate.carbs:.0f}"
+            f"{marker} {food_label(estimate)}{weight} — {estimate.kcal:.0f} ккал"
         )
+        lines.append(f"Б {estimate.protein:.0f} / Ж {estimate.fat:.0f} / У {estimate.carbs:.0f} г")
         if estimate.advice:
-            lines.append(f"   💡 {estimate.advice}")
-    lines.extend(["", "Добавь нужные позиции или всё сразу."])
+            lines.append(f"Совет: {estimate.advice}")
+        lines.append("")
+    lines.append("Добавь нужные позиции или всё сразу.")
     return "\n".join(lines)
 
 

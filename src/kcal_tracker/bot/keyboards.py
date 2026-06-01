@@ -707,11 +707,11 @@ def favorites_keyboard(favorite_ids: list[int]) -> InlineKeyboardMarkup:
 
 def multi_food_keyboard(count: int, added_indices: set[int] | None = None) -> InlineKeyboardMarkup:
     added_indices = added_indices or set()
-    rows = [[InlineKeyboardButton(text="✅ Добавить всё", callback_data="foodmulti:all")]]
+    rows = [[InlineKeyboardButton(text="Добавить всё", callback_data="foodmulti:all")]]
     rows.extend(
         [
             InlineKeyboardButton(
-                text=f"✓ #{index}" if index - 1 in added_indices else f"➕ #{index}",
+                text=f"✓ #{index}" if index - 1 in added_indices else f"#{index} Добавить",
                 callback_data=(
                     "foodmulti:noop"
                     if index - 1 in added_indices
@@ -722,9 +722,9 @@ def multi_food_keyboard(count: int, added_indices: set[int] | None = None) -> In
         for index in range(1, count + 1)
     )
     if added_indices:
-        rows.append([InlineKeyboardButton(text="✅ Готово", callback_data="foodmulti:done")])
+        rows.append([InlineKeyboardButton(text="Готово", callback_data="foodmulti:done")])
     else:
-        rows.append([InlineKeyboardButton(text="❌ Отмена", callback_data="foodmulti:cancel")])
+        rows.append([InlineKeyboardButton(text="Отмена", callback_data="foodmulti:cancel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

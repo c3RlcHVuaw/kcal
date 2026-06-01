@@ -9,7 +9,8 @@ const state = {
   selectedMeal: "lunch",
   editingEntryId: null,
   editingEntryBase: null,
-  editorScrollY: 0,
+  lockedScrollY: 0,
+  activeSheet: null,
   parsedFoods: [],
   parsedFoodSource: "ai",
   loadingAll: false,
@@ -60,6 +61,8 @@ const nodes = {
   barcodeCodeButton: document.querySelector("#barcode-code-button"),
   foodForm: document.querySelector("#food-form"),
   foodMeal: document.querySelector("#food-meal"),
+  foodAddSheet: document.querySelector("#food-add-sheet"),
+  foodAddClose: document.querySelector("#food-add-close"),
   toast: document.querySelector("#toast"),
   weightButton: document.querySelector("#weight-button"),
   weightValue: document.querySelector("#weight-value"),
@@ -110,7 +113,13 @@ if (tg?.initDataUnsafe?.user?.first_name) {
 }
 
 document.querySelectorAll("[data-view]").forEach((button) => {
-  button.addEventListener("click", () => switchView(button.dataset.view));
+  button.addEventListener("click", () => {
+    if (button.dataset.view === "food") {
+      openFoodAddSheet();
+      return;
+    }
+    switchView(button.dataset.view);
+  });
 });
 
 document.querySelectorAll("[data-food-tab]").forEach((button) => {
@@ -138,7 +147,16 @@ document.addEventListener("click", (event) => {
   if (shortcut) {
     const meal = shortcut.dataset.mealShortcut;
     if (meal) setSelectedMeal(meal);
+    if (shortcut.dataset.viewShortcut === "food") {
+      openFoodAddSheet();
+      return;
+    }
     switchView(shortcut.dataset.viewShortcut);
+    return;
+  }
+  const foodSheetButton = event.target.closest("[data-open-food-sheet]");
+  if (foodSheetButton) {
+    openFoodAddSheet();
     return;
   }
   const deleteButton = event.target.closest("[data-delete-entry]");
@@ -164,6 +182,10 @@ document.addEventListener("click", (event) => {
 nodes.repeatYesterday.addEventListener("click", repeatYesterday);
 nodes.openBot.addEventListener("click", () => tg?.close());
 nodes.exportFood.addEventListener("click", exportFood);
+nodes.foodAddClose.addEventListener("click", closeFoodAddSheet);
+nodes.foodAddSheet.addEventListener("click", (event) => {
+  if (event.target === nodes.foodAddSheet) closeFoodAddSheet();
+});
 nodes.foodTextForm.addEventListener("submit", parseFoodText);
 nodes.saveParsedFood.addEventListener("click", saveParsedFoods);
 nodes.foodPreviewList.addEventListener("input", updateParsedFoodField);
@@ -312,6 +334,9 @@ function setParsedFoods(result) {
   state.parsedFoods = result.foods.map(normalizeParsedFood);
   state.parsedFoodSource = result.source;
   renderParsedFoods(result);
+  requestAnimationFrame(() => {
+    nodes.foodPreview.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 }
 
 async function saveParsedFoods() {
@@ -341,6 +366,7 @@ async function saveParsedFoods() {
     nodes.foodTextForm.reset();
     nodes.barcodeCode.value = "";
     nodes.foodPreview.classList.add("hidden");
+    closeFoodAddSheet();
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     switchView("today");
     toast(foods.length === 1 ? "Еда добавлена" : `Добавлено позиций: ${foods.length}`);
@@ -397,6 +423,7 @@ nodes.foodForm.addEventListener("submit", async (event) => {
       body: JSON.stringify(payload),
     });
     nodes.foodForm.reset();
+    closeFoodAddSheet();
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     switchView("today");
     toast("Еда добавлена");
@@ -959,7 +986,7 @@ function openEntryEditor(entryId) {
     fat: numberOrNull(entry.fat) ?? 0,
     carbs: numberOrNull(entry.carbs) ?? 0,
   };
-  lockPageScroll();
+  lockPageScroll("entry-editor");
   nodes.entryEditor.classList.remove("hidden");
 }
 
@@ -968,20 +995,37 @@ function closeEntryEditor() {
   state.editingEntryBase = null;
   nodes.entryEditor.classList.add("hidden");
   nodes.entryEditForm.reset();
-  unlockPageScroll();
+  unlockPageScroll("entry-editor");
 }
 
-function lockPageScroll() {
-  state.editorScrollY = window.scrollY || document.documentElement.scrollTop || 0;
-  document.body.style.top = `-${state.editorScrollY}px`;
+function openFoodAddSheet() {
+  lockPageScroll("food-add");
+  nodes.foodAddSheet.classList.remove("hidden");
+}
+
+function closeFoodAddSheet() {
+  nodes.foodAddSheet.classList.add("hidden");
+  unlockPageScroll("food-add");
+}
+
+function lockPageScroll(sheetName) {
+  if (state.activeSheet) {
+    state.activeSheet = sheetName;
+    return;
+  }
+  state.lockedScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  document.body.style.top = `-${state.lockedScrollY}px`;
+  state.activeSheet = sheetName;
   document.body.classList.add("sheet-open");
 }
 
-function unlockPageScroll() {
+function unlockPageScroll(sheetName) {
+  if (state.activeSheet && state.activeSheet !== sheetName) return;
   document.body.classList.remove("sheet-open");
   document.body.style.top = "";
-  window.scrollTo(0, state.editorScrollY || 0);
-  state.editorScrollY = 0;
+  window.scrollTo(0, state.lockedScrollY || 0);
+  state.lockedScrollY = 0;
+  state.activeSheet = null;
 }
 
 function recalculateEntryByWeight() {
