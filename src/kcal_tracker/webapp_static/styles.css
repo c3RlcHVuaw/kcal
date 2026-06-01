@@ -3298,13 +3298,40 @@ textarea {
 }
 
 .food-pick-main span,
-.food-pick-main em {
+.food-pick-main em,
+.food-pick-main small {
   overflow: hidden;
-  color: var(--muted);
-  font-size: 14px;
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.food-pick-main span,
+.food-pick-main em {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.food-impact {
+  justify-self: start;
+  max-width: 100%;
+  margin-top: 3px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.food-impact.near {
+  background: color-mix(in srgb, var(--carbs) 18%, transparent);
+  color: color-mix(in srgb, var(--carbs) 72%, var(--text));
+}
+
+.food-impact.over {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
 }
 
 .food-pick-add {

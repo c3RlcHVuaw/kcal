@@ -1116,18 +1116,40 @@ function renderFoodPickList(container, foods, options = {}) {
     : source === "history"
       ? "frequent"
       : "search";
-  container.innerHTML = foods.map((food, index) => `
-    <article class="food-pick-card">
-      <button class="food-pick-main" type="button" data-pick-edit="${index}" data-pick-index="${index}" data-pick-source="${listName}" data-entry-source="${source}">
-        <strong>${escapeHtml(food.name)}</strong>
-        <span>${Math.round(food.kcal || 0)} ккал${food.weight_g ? ` · ${formatNumber(food.weight_g)} г` : ""}</span>
-        <em>Б ${formatNumber(food.protein || 0)} · Ж ${formatNumber(food.fat || 0)} · У ${formatNumber(food.carbs || 0)}</em>
-      </button>
-      <button class="food-pick-add" type="button" data-pick-add="${index}" data-pick-index="${index}" data-pick-source="${listName}" data-entry-source="${source}" aria-label="Добавить ${escapeHtml(food.name)}">
-        <svg aria-hidden="true"><use href="#icon-plus"></use></svg>
-      </button>
-    </article>
-  `).join("");
+  container.innerHTML = foods.map((food, index) => {
+    const impact = foodPickImpact(food);
+    return `
+      <article class="food-pick-card">
+        <button class="food-pick-main" type="button" data-pick-edit="${index}" data-pick-index="${index}" data-pick-source="${listName}" data-entry-source="${source}">
+          <strong>${escapeHtml(food.name)}</strong>
+          <span>${Math.round(food.kcal || 0)} ккал${food.weight_g ? ` · ${formatNumber(food.weight_g)} г` : ""}</span>
+          <em>Б ${formatNumber(food.protein || 0)} · Ж ${formatNumber(food.fat || 0)} · У ${formatNumber(food.carbs || 0)}</em>
+          ${impact ? `<small class="food-impact ${impact.kind}">${escapeHtml(impact.text)}</small>` : ""}
+        </button>
+        <button class="food-pick-add" type="button" data-pick-add="${index}" data-pick-index="${index}" data-pick-source="${listName}" data-entry-source="${source}" aria-label="Добавить ${escapeHtml(food.name)}">
+          <svg aria-hidden="true"><use href="#icon-plus"></use></svg>
+        </button>
+      </article>
+    `;
+  }).join("");
+}
+
+function foodPickImpact(food) {
+  const diary = state.today?.diary;
+  const target = Number(diary?.target_kcal || 0);
+  const current = Number(diary?.kcal || 0);
+  const kcal = Number(food?.kcal || 0);
+  if (!target || !Number.isFinite(target) || !Number.isFinite(kcal) || kcal <= 0) return null;
+  const after = current + kcal;
+  const leftAfter = Math.round(target - after);
+  if (leftAfter < 0) {
+    return { kind: "over", text: `перебор +${Math.abs(leftAfter)} ккал` };
+  }
+  if (leftAfter <= 250) {
+    return { kind: "near", text: `почти цель: останется ${leftAfter} ккал` };
+  }
+  const percent = Math.min(Math.round((kcal / target) * 100), 100);
+  return { kind: "ok", text: `останется ${leftAfter} ккал · ${percent}% дня` };
 }
 
 function renderFoodPickLoading(container, count = 4) {
