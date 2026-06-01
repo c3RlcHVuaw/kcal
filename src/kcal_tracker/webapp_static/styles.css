@@ -1145,6 +1145,14 @@ h2 {
   -webkit-backdrop-filter: blur(14px) saturate(1.25);
 }
 
+.food-card .entry-actions button.confirm-delete {
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
+  color: var(--danger);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--danger) 24%, transparent),
+    0 8px 18px color-mix(in srgb, var(--danger) 12%, transparent);
+}
+
 .empty-state {
   display: grid;
   min-height: 76px;
@@ -2613,6 +2621,11 @@ body::before {
   color: #6e8dff;
   font-size: 11px;
   backdrop-filter: none;
+}
+
+.food-card .entry-actions button.confirm-delete {
+  background: color-mix(in srgb, var(--danger) 13%, #fff);
+  color: var(--danger);
 }
 
 #view-food.active {

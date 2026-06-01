@@ -19,6 +19,7 @@ const state = {
   favoriteFoods: [],
   searchTimer: null,
   searchRequestId: 0,
+  deleteConfirmTimer: null,
   loadingAll: false,
 };
 
@@ -209,7 +210,7 @@ document.addEventListener("click", (event) => {
   }
   const deleteButton = event.target.closest("[data-delete-entry]");
   if (deleteButton) {
-    deleteEntry(Number(deleteButton.dataset.deleteEntry));
+    deleteEntry(Number(deleteButton.dataset.deleteEntry), deleteButton);
     return;
   }
   const favoriteButton = event.target.closest("[data-favorite-entry]");
@@ -1001,7 +1002,7 @@ function renderFoodEntry(entry) {
         <div class="entry-actions">
           <button type="button" data-edit-entry="${entry.id}">Изменить</button>
           <button type="button" data-favorite-entry="${entry.id}">В шаблон</button>
-          <button type="button" data-delete-entry="${entry.id}">Удалить</button>
+          <button type="button" data-delete-entry="${entry.id}" aria-label="Удалить ${escapeHtml(entry.name)}">Удалить</button>
         </div>
       </div>
     </article>
@@ -1356,15 +1357,59 @@ function scaleParsedFood(index, multiplier) {
   renderParsedFoods({ source: state.parsedFoodSource });
 }
 
-async function deleteEntry(entryId) {
+async function deleteEntry(entryId, button) {
   if (!entryId) return;
+  if (button && button.dataset.confirmDelete !== "true") {
+    armDeleteConfirm(button);
+    return;
+  }
+  if (button && isBusy(button)) return;
+  if (button) {
+    disarmDeleteConfirm(button);
+    setButtonBusy(button, "...");
+  }
   try {
     await api(`/webapp/me/entries/${entryId}`, { method: "DELETE" });
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     toast("Запись удалена");
   } catch {
     toast("Не получилось удалить запись");
+  } finally {
+    if (button) restoreButton(button);
   }
+}
+
+function armDeleteConfirm(button) {
+  clearDeleteConfirm();
+  button.dataset.confirmDelete = "true";
+  button.dataset.idleHtml = button.innerHTML;
+  button.dataset.idleLabel = button.getAttribute("aria-label") || "";
+  button.classList.add("confirm-delete");
+  button.textContent = "Точно удалить?";
+  button.setAttribute("aria-label", "Подтвердить удаление");
+  triggerHaptic("medium");
+  state.deleteConfirmTimer = window.setTimeout(clearDeleteConfirm, 2600);
+}
+
+function clearDeleteConfirm() {
+  window.clearTimeout(state.deleteConfirmTimer);
+  state.deleteConfirmTimer = null;
+  document.querySelectorAll("[data-confirm-delete='true']").forEach((button) => {
+    disarmDeleteConfirm(button);
+  });
+}
+
+function disarmDeleteConfirm(button) {
+  button.classList.remove("confirm-delete");
+  button.innerHTML = button.dataset.idleHtml || "Удалить";
+  if (button.dataset.idleLabel) {
+    button.setAttribute("aria-label", button.dataset.idleLabel);
+  } else {
+    button.removeAttribute("aria-label");
+  }
+  delete button.dataset.confirmDelete;
+  delete button.dataset.idleHtml;
+  delete button.dataset.idleLabel;
 }
 
 async function favoriteEntry(entryId) {
