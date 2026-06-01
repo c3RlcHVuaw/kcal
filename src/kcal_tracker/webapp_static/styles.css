@@ -2665,6 +2665,497 @@ textarea {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), #fff 34%);
 }
 
+#food-add-sheet {
+  align-items: stretch;
+  padding: 0;
+  background:
+    radial-gradient(circle at 14% -8%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 30%),
+    radial-gradient(circle at 102% 0%, color-mix(in srgb, var(--protein) 16%, transparent), transparent 28%),
+    var(--bg);
+}
+
+#food-add-sheet .food-add-panel {
+  width: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin-bottom: 0;
+  border: 0;
+  border-radius: 0;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 88%, transparent), var(--bg));
+  box-shadow: none;
+}
+
+#food-add-sheet .food-add-scroll {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: none;
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: max(18px, env(safe-area-inset-top)) 18px calc(22px + env(safe-area-inset-bottom));
+}
+
+#food-add-sheet .food-add-scroll::before {
+  content: none;
+}
+
+#food-add-sheet .food-add-scroll > .sheet-title {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  align-items: center;
+  grid-template-columns: 56px minmax(0, 1fr) 56px;
+  gap: 8px;
+  margin: calc(-1 * max(18px, env(safe-area-inset-top))) -18px 18px;
+  padding: max(18px, env(safe-area-inset-top)) 18px 12px;
+  border-bottom: 0;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 96%, transparent), color-mix(in srgb, var(--bg) 82%, transparent));
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+}
+
+#food-add-sheet .sheet-title > div {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+#food-add-sheet .sheet-title h2 {
+  font-size: 21px;
+  letter-spacing: 0;
+}
+
+#food-add-sheet .sheet-title .section-subtitle {
+  display: none;
+}
+
+#food-add-sheet #food-add-close {
+  grid-column: 1;
+  grid-row: 1;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background:
+    var(--control-gradient),
+    var(--glass);
+  color: var(--text);
+  font-size: 34px;
+  line-height: 1;
+  box-shadow: var(--shadow-tight);
+}
+
+.food-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 54px;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.food-search-field {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  min-height: 54px;
+  padding: 0 15px;
+  border-radius: 27px;
+  border: 1px solid var(--line);
+  background:
+    var(--control-gradient),
+    var(--surface-soft);
+}
+
+.food-search-field svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.25;
+  color: var(--muted);
+}
+
+#food-add-sheet .food-search-field input {
+  min-height: 54px;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font-size: 16px;
+}
+
+.scan-shortcut {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent-strong);
+}
+
+.scan-shortcut svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.1;
+}
+
+.food-add-overview {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 18px;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background:
+    var(--panel-gradient),
+    var(--surface);
+  box-shadow: var(--shadow-tight);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+}
+
+.food-add-overview > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.food-add-overview strong {
+  font-size: 16px;
+  font-weight: 840;
+}
+
+.food-add-overview span {
+  color: var(--text);
+  font-weight: 760;
+}
+
+.food-add-overview > i {
+  display: block;
+  height: 8px;
+  border-radius: 99px;
+  background:
+    linear-gradient(90deg, var(--accent), var(--activity)) 0 / var(--progress, 0%) 100% no-repeat,
+    color-mix(in srgb, var(--surface-soft) 78%, var(--line));
+}
+
+.food-add-macro-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.food-add-macro-row span {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  text-align: center;
+}
+
+.food-add-macro-row b,
+.food-add-macro-row em {
+  min-width: 0;
+  overflow: hidden;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.food-add-macro-row b {
+  font-size: 13px;
+  font-weight: 740;
+}
+
+.food-add-macro-row em {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.food-add-macro-row i {
+  height: 7px;
+  border-radius: 99px;
+}
+
+.food-add-macro-row .carbs {
+  background: color-mix(in srgb, var(--carbs) 68%, transparent);
+}
+
+.food-add-macro-row .protein {
+  background: color-mix(in srgb, var(--protein) 68%, transparent);
+}
+
+.food-add-macro-row .fat {
+  background: color-mix(in srgb, var(--fat) 62%, transparent);
+}
+
+.food-ai-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  min-height: 64px;
+  margin-bottom: 14px;
+  padding: 0 18px;
+  border: 1px solid color-mix(in srgb, var(--accent) 52%, var(--line));
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), transparent 54%),
+    var(--panel-gradient),
+    var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-tight);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+}
+
+.food-ai-cta span {
+  font-size: 17px;
+  font-weight: 840;
+}
+
+.food-ai-cta b {
+  color: var(--accent-strong);
+  font-size: 12px;
+}
+
+.food-add-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 2px 10px;
+}
+
+.food-add-section-head h3 {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 860;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.food-add-section-head span,
+.food-add-section-head button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.food-pick-list {
+  display: grid;
+  gap: 12px;
+}
+
+.food-pick-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 54px;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 14px 16px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  background:
+    var(--panel-gradient),
+    var(--surface);
+  box-shadow: var(--shadow-tight);
+  backdrop-filter: var(--panel-blur);
+  -webkit-backdrop-filter: var(--panel-blur);
+}
+
+.food-pick-main {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+  padding: 0;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+}
+
+.food-pick-main strong {
+  overflow: hidden;
+  font-size: 19px;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.food-pick-main span,
+.food-pick-main em {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 14px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.food-pick-add {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background:
+    var(--control-gradient),
+    var(--surface-soft);
+  color: var(--accent-strong);
+}
+
+.food-pick-add svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.25;
+}
+
+#food-add-sheet .add-mode-tabs,
+#food-add-sheet .meal-picker {
+  flex: 0 0 auto;
+  height: 44px;
+  margin: 0 0 12px;
+  padding: 4px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--surface-soft);
+}
+
+#food-add-sheet .add-mode-tabs button,
+#food-add-sheet .meal-picker button {
+  height: 36px;
+  min-height: 36px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 820;
+}
+
+#food-add-sheet .add-mode-tabs button.active,
+#food-add-sheet .meal-picker button.active {
+  background:
+    var(--control-gradient),
+    var(--glass-strong);
+  color: var(--text);
+  box-shadow:
+    var(--shadow-tight),
+    inset 0 1px 0 color-mix(in srgb, var(--glass-line) 70%, transparent);
+}
+
+#food-add-sheet .add-mode-panel {
+  flex: 0 0 auto;
+  gap: 14px;
+  margin: 0;
+  padding: 6px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+#food-add-sheet .add-mode-panel.active {
+  display: flex;
+  flex-direction: column;
+}
+
+#food-add-sheet .input-label {
+  color: var(--text);
+  font-size: 19px;
+  font-weight: 840;
+}
+
+#food-add-sheet textarea,
+#food-add-sheet input {
+  border-radius: 18px;
+  background: var(--surface-soft);
+  box-shadow:
+    inset 0 0 0 1px var(--line),
+    inset 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+#food-add-sheet #food-text {
+  min-height: 118px;
+  padding: 17px;
+  font-size: 18px;
+}
+
+#food-add-sheet .quick-prompts {
+  gap: 8px;
+  padding-bottom: 2px;
+}
+
+#food-add-sheet .quick-prompts button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 0;
+  background: color-mix(in srgb, var(--protein) 16%, transparent);
+  color: var(--protein);
+  font-size: 14px;
+}
+
+#food-add-sheet .primary-button {
+  min-height: 58px;
+  margin-top: auto;
+  border-radius: 20px;
+  font-size: 18px;
+}
+
+#food-add-sheet .media-action {
+  min-height: 148px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-radius: 22px;
+  background:
+    var(--panel-gradient),
+    var(--surface);
+  box-shadow: none;
+}
+
+#food-add-sheet .media-action svg {
+  width: 34px;
+  height: 34px;
+}
+
+#food-add-sheet .media-action span {
+  font-size: 18px;
+}
+
+#food-add-sheet .media-action b {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+#food-add-sheet .add-photo-panel textarea {
+  min-height: 86px;
+}
+
+#food-add-sheet #food-form .field-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#food-add-sheet #food-form .field-row.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+#food-add-sheet .barcode-inline {
+  grid-template-columns: minmax(0, 1fr) 104px;
+}
+
 .food-review-panel {
   max-height: min(88dvh, 720px);
 }

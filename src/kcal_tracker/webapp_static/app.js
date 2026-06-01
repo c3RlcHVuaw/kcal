@@ -13,7 +13,11 @@ const state = {
   activeSheet: null,
   parsedFoods: [],
   parsedFoodSource: "ai",
-  addMode: "ai",
+  addMode: "browse",
+  foodSearchResults: [],
+  frequentFoods: [],
+  favoriteFoods: [],
+  searchTimer: null,
   loadingAll: false,
 };
 
@@ -50,6 +54,22 @@ const nodes = {
   entries: document.querySelector("#entries"),
   foodTextForm: document.querySelector("#food-text-form"),
   foodText: document.querySelector("#food-text"),
+  foodSearchForm: document.querySelector("#food-search-form"),
+  foodSearch: document.querySelector("#food-search"),
+  foodSearchBarcode: document.querySelector("#food-search-barcode"),
+  foodSearchSection: document.querySelector("#food-search-section"),
+  foodSearchResults: document.querySelector("#food-search-results"),
+  foodSearchClear: document.querySelector("#food-search-clear"),
+  foodAiCta: document.querySelector("#food-ai-cta"),
+  foodAddKcalSummary: document.querySelector("#food-add-kcal-summary"),
+  foodAddKcalLine: document.querySelector("#food-add-kcal-line"),
+  foodAddProtein: document.querySelector("#food-add-protein"),
+  foodAddFat: document.querySelector("#food-add-fat"),
+  foodAddCarbs: document.querySelector("#food-add-carbs"),
+  foodAddRecent: document.querySelector("#food-add-recent"),
+  foodAddRecentList: document.querySelector("#food-add-recent-list"),
+  foodAddFavorites: document.querySelector("#food-add-favorites"),
+  foodAddFavoritesList: document.querySelector("#food-add-favorites-list"),
   foodPreview: document.querySelector("#food-preview"),
   foodPreviewSource: document.querySelector("#food-preview-source"),
   foodPreviewList: document.querySelector("#food-preview-list"),
@@ -200,6 +220,17 @@ nodes.foodReviewSheet.addEventListener("click", (event) => {
   if (event.target === nodes.foodReviewSheet) closeFoodReviewSheet();
 });
 nodes.foodTextForm.addEventListener("submit", parseFoodText);
+nodes.foodSearchForm.addEventListener("submit", searchFood);
+nodes.foodSearch.addEventListener("input", queueFoodSearch);
+nodes.foodSearchBarcode.addEventListener("click", () => {
+  switchAddMode("barcode");
+  nodes.barcodePhotoInput.click();
+});
+nodes.foodSearchClear.addEventListener("click", clearFoodSearch);
+nodes.foodAiCta.addEventListener("click", () => switchAddMode("ai"));
+nodes.foodSearchResults.addEventListener("click", handleFoodPick);
+nodes.foodAddRecentList.addEventListener("click", handleFoodPick);
+nodes.foodAddFavoritesList.addEventListener("click", handleFoodPick);
 nodes.saveParsedFood.addEventListener("click", saveParsedFoods);
 nodes.foodPreviewList.addEventListener("input", updateParsedFoodField);
 nodes.foodPreviewList.addEventListener("click", removeParsedFood);
@@ -340,6 +371,82 @@ async function lookupBarcodeCode() {
     toast(message);
   } finally {
     restoreButton(nodes.barcodeCodeButton);
+  }
+}
+
+function queueFoodSearch() {
+  const query = nodes.foodSearch.value.trim();
+  window.clearTimeout(state.searchTimer);
+  if (query.length < 2) {
+    clearFoodSearch(false);
+    return;
+  }
+  state.searchTimer = window.setTimeout(() => searchFood(), 360);
+}
+
+async function searchFood(event) {
+  event?.preventDefault();
+  const query = nodes.foodSearch.value.trim();
+  if (query.length < 2) {
+    toast("Напиши, что найти");
+    return;
+  }
+  nodes.foodSearchSection.classList.remove("hidden");
+  nodes.foodSearchResults.innerHTML = '<div class="empty-state">Ищу продукты...</div>';
+  try {
+    const result = await api(`/webapp/me/food/search?query=${encodeURIComponent(query)}`);
+    state.foodSearchResults = result.foods.map(normalizeParsedFood);
+    renderFoodPickList(nodes.foodSearchResults, state.foodSearchResults, {
+      source: result.source,
+      emptyText: "Ничего не нашлось. Можно разобрать через AI.",
+    });
+    switchAddMode("browse");
+  } catch {
+    state.foodSearchResults = [];
+    nodes.foodSearchResults.innerHTML = '<div class="empty-state">Поиск не сработал. Попробуй AI или штрихкод.</div>';
+  }
+}
+
+function clearFoodSearch(clearInput = true) {
+  if (clearInput) nodes.foodSearch.value = "";
+  state.foodSearchResults = [];
+  nodes.foodSearchSection.classList.add("hidden");
+  nodes.foodSearchResults.innerHTML = "";
+}
+
+function handleFoodPick(event) {
+  const editButton = event.target.closest("[data-pick-edit]");
+  const addButton = event.target.closest("[data-pick-add]");
+  const button = editButton || addButton;
+  if (!button) return;
+  const list = foodPickSource(button.dataset.pickSource);
+  const food = list[Number(button.dataset.pickIndex)];
+  if (!food) return;
+  if (editButton) {
+    setParsedFoods({ foods: [food], source: button.dataset.entrySource || "food_search" });
+    return;
+  }
+  addFoodEstimateToDiary(food, button.dataset.entrySource || "food_search", addButton);
+}
+
+async function addFoodEstimateToDiary(food, source, button) {
+  if (button && isBusy(button)) return;
+  if (button) setButtonBusy(button, "...");
+  try {
+    await api("/webapp/me/entries", {
+      method: "POST",
+      body: JSON.stringify({
+        ...food,
+        source: entrySourceForParsed(source),
+        meal_type: state.selectedMeal,
+      }),
+    });
+    await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
+    toast(`${food.name} добавлено`);
+  } catch {
+    toast("Не получилось добавить");
+  } finally {
+    if (button) restoreButton(button);
   }
 }
 
@@ -622,6 +729,11 @@ async function loadBody() {
 
 async function loadFrequent() {
   const items = await api("/webapp/me/frequent");
+  state.frequentFoods = items.map((item) => normalizeParsedFood(item.entry));
+  renderFoodPickList(nodes.foodAddRecentList, state.frequentFoods, {
+    source: "history",
+    emptyText: "Недавние появятся после первых записей.",
+  });
   renderReusableFood(nodes.frequentList, items.map((item) => ({
     id: item.entry.id,
     name: item.entry.name,
@@ -633,6 +745,12 @@ async function loadFrequent() {
 
 async function loadFavorites() {
   const items = await api("/webapp/me/favorites");
+  state.favoriteFoods = items.map(normalizeParsedFood);
+  nodes.foodAddFavorites.classList.toggle("hidden", !state.favoriteFoods.length);
+  renderFoodPickList(nodes.foodAddFavoritesList, state.favoriteFoods, {
+    source: "history",
+    emptyText: "Сохрани любимые продукты как шаблоны.",
+  });
   renderReusableFood(nodes.favoritesList, items.map((item) => ({
     id: item.id,
     name: item.name,
@@ -652,6 +770,7 @@ function renderToday(data) {
   nodes.kcalBurned.textContent = Math.round(diary.activity_kcal);
   nodes.kcalLeft.textContent = left >= 0 ? String(left) : `+${Math.abs(left)}`;
   nodes.kcalTarget.textContent = `${Math.round(diary.kcal)} / ${diary.target_kcal} ккал`;
+  renderFoodAddSummary(diary);
   renderMacroRing("protein", diary.protein, diary.target_protein);
   renderMacroRing("fat", diary.fat, diary.target_fat);
   renderMacroRing("carbs", diary.carbs, diary.target_carbs);
@@ -668,6 +787,18 @@ function renderToday(data) {
   nodes.goalPace.value = data.weight_goal.weekly_weight_change_kg ? formatNumber(data.weight_goal.weekly_weight_change_kg) : "";
 
   nodes.entries.innerHTML = renderMealDiary(diary.entries);
+}
+
+function renderFoodAddSummary(diary) {
+  if (!nodes.foodAddKcalSummary) return;
+  const kcalTarget = Math.max(Number(diary.target_kcal || 0), 0);
+  const kcal = Math.max(Number(diary.kcal || 0), 0);
+  const ratio = kcalTarget > 0 ? Math.min(kcal / kcalTarget, 1) : 0;
+  nodes.foodAddKcalSummary.textContent = `${Math.round(kcal)} / ${Math.round(kcalTarget)} ккал`;
+  nodes.foodAddKcalLine.style.setProperty("--progress", `${Math.round(ratio * 100)}%`);
+  nodes.foodAddProtein.textContent = `${Math.round(diary.protein || 0)} / ${Math.round(diary.target_protein || 0)} г`;
+  nodes.foodAddFat.textContent = `${Math.round(diary.fat || 0)} / ${Math.round(diary.target_fat || 0)} г`;
+  nodes.foodAddCarbs.textContent = `${Math.round(diary.carbs || 0)} / ${Math.round(diary.target_carbs || 0)} г`;
 }
 
 function renderNutritionOverview(diary) {
@@ -920,6 +1051,37 @@ function renderReusableFood(container, items) {
   });
 }
 
+function renderFoodPickList(container, foods, options = {}) {
+  const source = options.source || "food_search";
+  if (!foods.length) {
+    container.innerHTML = `<div class="empty-state">${escapeHtml(options.emptyText || "Пока пусто.")}</div>`;
+    return;
+  }
+  const listName = source === "history" && container === nodes.foodAddFavoritesList
+    ? "favorites"
+    : source === "history"
+      ? "frequent"
+      : "search";
+  container.innerHTML = foods.map((food, index) => `
+    <article class="food-pick-card">
+      <button class="food-pick-main" type="button" data-pick-edit="${index}" data-pick-index="${index}" data-pick-source="${listName}" data-entry-source="${source}">
+        <strong>${escapeHtml(food.name)}</strong>
+        <span>${Math.round(food.kcal || 0)} ккал${food.weight_g ? ` · ${formatNumber(food.weight_g)} г` : ""}</span>
+        <em>Б ${formatNumber(food.protein || 0)} · Ж ${formatNumber(food.fat || 0)} · У ${formatNumber(food.carbs || 0)}</em>
+      </button>
+      <button class="food-pick-add" type="button" data-pick-add="${index}" data-pick-index="${index}" data-pick-source="${listName}" data-entry-source="${source}" aria-label="Добавить ${escapeHtml(food.name)}">
+        <svg aria-hidden="true"><use href="#icon-plus"></use></svg>
+      </button>
+    </article>
+  `).join("");
+}
+
+function foodPickSource(source) {
+  if (source === "frequent") return state.frequentFoods;
+  if (source === "favorites") return state.favoriteFoods;
+  return state.foodSearchResults;
+}
+
 function renderParsedFoods(result) {
   const sourceText = {
     ai: "AI-оценка. Проверь граммы и калории перед сохранением.",
@@ -1010,7 +1172,7 @@ function closeEntryEditor() {
 }
 
 function openFoodAddSheet() {
-  switchAddMode(state.addMode || "ai");
+  switchAddMode(state.addMode || "browse");
   lockPageScroll("food-add");
   nodes.foodReviewSheet.classList.add("hidden");
   nodes.foodAddSheet.classList.remove("hidden");
@@ -1253,7 +1415,7 @@ function switchFoodTab(tab) {
 }
 
 function switchAddMode(mode) {
-  if (!["ai", "photo", "manual", "barcode"].includes(mode)) return;
+  if (!["browse", "ai", "photo", "manual", "barcode"].includes(mode)) return;
   state.addMode = mode;
   document.querySelectorAll("[data-add-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.addMode === mode);
@@ -1355,6 +1517,7 @@ function sourceLabel(source) {
     photo: "Фото",
     barcode: "Штрихкод",
     common: "База",
+    food_search: "База",
     history: "История",
   }[source] || "Оценка";
 }
@@ -1371,6 +1534,7 @@ function entrySourceForParsed(source) {
     photo: "ai_photo",
     barcode: "barcode",
     common: "food_search",
+    food_search: "food_search",
     history: "history",
   }[source] || "manual";
 }

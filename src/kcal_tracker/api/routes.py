@@ -7,7 +7,7 @@ import re
 from dataclasses import dataclass
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
 from redis.asyncio import Redis
 from sqlalchemy import text
@@ -51,6 +51,7 @@ from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
 from kcal_tracker.services.diary import DiaryService, estimate_from_entry
 from kcal_tracker.services.export import ExportService
+from kcal_tracker.services.fatsecret import FatSecretService
 from kcal_tracker.services.food_insights import enrich_food_payload
 from kcal_tracker.services.food_search import estimate_common_food
 from kcal_tracker.services.open_food_facts import OpenFoodFactsService, ProductNotFoundError
@@ -439,6 +440,58 @@ async def webapp_lookup_barcode(
     return await _webapp_barcode_result(barcode, identity, session)
 
 
+@router.get("/webapp/me/food/search", response_model=WebAppFoodTextParseResult)
+async def webapp_search_food(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+    query: str = Query(min_length=2, max_length=80),
+) -> WebAppFoodTextParseResult:
+    text = " ".join(query.split())
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    diary = DiaryService(session)
+    estimates: list[FoodEstimate] = []
+
+    history_entry = await diary.recent_matching_entry(user, text)
+    if history_entry is not None:
+        estimates.append(estimate_from_entry(history_entry))
+
+    common_estimate = estimate_common_food(text)
+    if common_estimate is not None:
+        estimates.append(common_estimate)
+
+    try:
+        estimates.extend(
+            await asyncio.wait_for(
+                OpenFoodFactsService(session).search_products(text, limit=8),
+                timeout=settings.food_search_openfoodfacts_timeout_seconds,
+            )
+        )
+    except TimeoutError:
+        logger.info("Web app OpenFoodFacts search timed out query=%r", text)
+    except Exception:
+        logger.debug("Web app OpenFoodFacts search failed", exc_info=True)
+
+    if len(estimates) < 4:
+        try:
+            estimates.extend(
+                await asyncio.wait_for(
+                    FatSecretService().search_products(text, limit=8),
+                    timeout=settings.food_search_fatsecret_timeout_seconds,
+                )
+            )
+        except TimeoutError:
+            logger.info("Web app FatSecret search timed out query=%r", text)
+        except Exception:
+            logger.debug("Web app FatSecret search failed", exc_info=True)
+
+    return WebAppFoodTextParseResult(
+        foods=_dedupe_food_estimates(estimates, limit=8),
+        source="food_search",
+        ai_used=False,
+        remaining_ai_today=await AIUsageService(session).remaining_today(user),
+    )
+
+
 @router.post("/webapp/me/food/refine", response_model=WebAppFoodTextParseResult)
 async def webapp_refine_food(
     payload: WebAppFoodRefine,
@@ -538,6 +591,18 @@ def _estimate_from_product_cache(product: Any) -> FoodEstimate:
             confidence=0.9,
         )
     )
+
+
+def _dedupe_food_estimates(estimates: list[FoodEstimate], *, limit: int) -> list[FoodEstimate]:
+    deduped: list[FoodEstimate] = []
+    seen: set[str] = set()
+    for estimate in estimates:
+        key = f"{estimate.name.casefold()}:{round(estimate.kcal or 0)}:{round(estimate.weight_g or 0)}"
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(enrich_food_payload(estimate))
+    return deduped[:limit]
 
 
 @router.post("/webapp/me/water")

@@ -54,12 +54,12 @@ class WebAppBarcodeLookup(BaseModel):
 class WebAppFoodRefine(BaseModel):
     estimate: FoodEstimate
     text: str = Field(min_length=2, max_length=500)
-    source: str = Field(default="ai", pattern="^(history|common|ai|photo|barcode)$")
+    source: str = Field(default="ai", pattern="^(history|common|food_search|ai|photo|barcode)$")
 
 
 class WebAppFoodTextParseResult(BaseModel):
     foods: list[FoodEstimate]
-    source: str = Field(pattern="^(history|common|ai|photo|barcode)$")
+    source: str = Field(pattern="^(history|common|food_search|ai|photo|barcode)$")
     ai_used: bool = False
     remaining_ai_today: int | None = None
     barcode: str | None = None
