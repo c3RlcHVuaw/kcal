@@ -129,6 +129,14 @@ tg?.ready();
 tg?.expand();
 tg?.setHeaderColor?.("secondary_bg_color");
 tg?.setBackgroundColor?.(window.matchMedia("(prefers-color-scheme: dark)").matches ? "#0d1117" : "#f3f6f8");
+applyTelegramSafeArea();
+["viewportChanged", "safeAreaChanged", "contentSafeAreaChanged"].forEach((eventName) => {
+  try {
+    tg?.onEvent?.(eventName, applyTelegramSafeArea);
+  } catch {
+    // Older Telegram clients can reject newer inset events.
+  }
+});
 lockViewportZoom();
 
 if (tg?.initDataUnsafe?.user?.first_name) {
@@ -702,6 +710,14 @@ function lockViewportZoom() {
     if (now - lastTouchEnd <= 320) event.preventDefault();
     lastTouchEnd = now;
   }, { passive: false });
+}
+
+function applyTelegramSafeArea() {
+  const top = Math.max(
+    Number(tg?.safeAreaInset?.top) || 0,
+    Number(tg?.contentSafeAreaInset?.top) || 0,
+  );
+  document.documentElement.style.setProperty("--telegram-top-safe-js", `${top}px`);
 }
 
 async function loadAll() {

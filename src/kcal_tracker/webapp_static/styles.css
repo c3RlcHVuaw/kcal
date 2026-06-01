@@ -40,6 +40,13 @@
   --focus-ring: 0 0 0 4px rgba(70, 211, 124, 0.12);
   --panel-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.08));
   --control-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.18));
+  --telegram-top-safe: max(
+    env(safe-area-inset-top),
+    var(--tg-safe-area-inset-top, 0px),
+    var(--tg-content-safe-area-inset-top, 0px),
+    var(--telegram-top-safe-js, 0px)
+  );
+  --app-top-pad: max(18px, calc(var(--telegram-top-safe) + 12px));
   font-family: "SF Pro Text", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
@@ -114,7 +121,7 @@ textarea:focus-visible {
 .app-shell {
   width: min(100%, 560px);
   margin: 0 auto;
-  padding: calc(var(--space-3) + env(safe-area-inset-top)) var(--space-page-x) calc(86px + env(safe-area-inset-bottom));
+  padding: var(--app-top-pad) var(--space-page-x) calc(86px + env(safe-area-inset-bottom));
 }
 
 .app-header,
@@ -138,7 +145,7 @@ textarea:focus-visible {
   top: 0;
   z-index: 3;
   margin: -12px -14px 10px;
-  padding: calc(12px + env(safe-area-inset-top)) 14px 10px;
+  padding: var(--app-top-pad) 14px 10px;
   background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 88%, transparent), transparent);
   backdrop-filter: blur(18px) saturate(1.2);
 }
@@ -2058,12 +2065,12 @@ body::before {
 
 .app-shell {
   width: min(100%, 430px);
-  padding: calc(10px + env(safe-area-inset-top)) 10px calc(92px + env(safe-area-inset-bottom));
+  padding: var(--app-top-pad) 10px calc(92px + env(safe-area-inset-bottom));
 }
 
 .app-header {
   margin: -10px -10px 8px;
-  padding: calc(10px + env(safe-area-inset-top)) 10px 8px;
+  padding: var(--app-top-pad) 10px 8px;
   background: linear-gradient(180deg, rgba(242, 242, 247, 0.9), rgba(242, 242, 247, 0.62) 72%, transparent);
 }
 
@@ -2693,7 +2700,7 @@ textarea {
   max-height: none;
   width: min(100%, 560px);
   margin: 0 auto;
-  padding: max(18px, env(safe-area-inset-top)) 18px calc(22px + env(safe-area-inset-bottom));
+  padding: var(--app-top-pad) 18px calc(22px + env(safe-area-inset-bottom));
 }
 
 #food-add-sheet .food-add-scroll::before {
@@ -2702,15 +2709,15 @@ textarea {
 
 #food-add-sheet .food-add-scroll > .sheet-title {
   position: sticky;
-  top: 0;
+  top: var(--app-top-pad);
   z-index: 3;
   display: grid;
   align-items: center;
   grid-template-columns: 56px minmax(0, 1fr) 56px;
   gap: 8px;
-  min-height: calc(76px + max(0px, env(safe-area-inset-top)));
-  margin: calc(-1 * max(18px, env(safe-area-inset-top))) -18px 20px;
-  padding: max(18px, env(safe-area-inset-top)) 18px 14px;
+  min-height: 76px;
+  margin: 0 -18px 20px;
+  padding: 0 18px 14px;
   border-bottom: 0;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--bg) 96%, transparent), color-mix(in srgb, var(--bg) 82%, transparent));
@@ -3098,7 +3105,7 @@ textarea {
 
 .mode-screen-head {
   position: sticky;
-  top: 0;
+  top: var(--app-top-pad);
   z-index: 2;
   display: grid;
   grid-template-columns: minmax(96px, auto) minmax(0, 1fr) minmax(96px, auto);
