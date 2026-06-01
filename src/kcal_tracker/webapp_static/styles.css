@@ -459,11 +459,13 @@ h2 {
   transform: translateX(-130%) rotate(8deg);
 }
 
-.calorie-card:hover::after,
-.primary-button:hover::after,
-.scan-shortcut:hover::after {
-  animation: shimmerSweep 920ms ease;
-  opacity: 1;
+@media (hover: hover) and (pointer: fine) {
+  .calorie-card:hover::after,
+  .primary-button:hover::after,
+  .scan-shortcut:hover::after {
+    animation: shimmerSweep 920ms ease;
+    opacity: 1;
+  }
 }
 
 .calorie-main span,
@@ -1777,6 +1779,10 @@ textarea:focus {
 
 .tab-bar [data-view="food"] {
   animation: softPulse 3.2s ease-in-out infinite;
+}
+
+body.sheet-open .tab-bar [data-view="food"] {
+  animation: none;
 }
 
 .tab-bar [data-view="food"]:active {
