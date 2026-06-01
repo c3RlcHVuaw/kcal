@@ -2813,15 +2813,8 @@ textarea {
   display: grid;
   gap: 14px;
   margin-bottom: 12px;
-  padding: 18px;
-  border-radius: 22px;
-  border: 1px solid var(--line);
-  background:
-    var(--panel-gradient),
-    var(--surface);
-  box-shadow: var(--shadow-tight);
-  backdrop-filter: var(--panel-blur);
-  -webkit-backdrop-filter: var(--panel-blur);
+  padding: 14px;
+  border-radius: var(--radius-lg);
 }
 
 .food-add-overview > div:first-child {
@@ -2832,8 +2825,8 @@ textarea {
 }
 
 .food-add-overview strong {
-  font-size: 16px;
-  font-weight: 840;
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .food-add-overview span {
@@ -2843,7 +2836,7 @@ textarea {
 
 .food-add-overview > i {
   display: block;
-  height: 8px;
+  height: 10px;
   border-radius: 99px;
   background:
     linear-gradient(90deg, var(--accent), var(--activity)) 0 / var(--progress, 0%) 100% no-repeat,
@@ -2853,13 +2846,18 @@ textarea {
 .food-add-macro-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .food-add-macro-row span {
   display: grid;
-  gap: 7px;
+  gap: 8px;
+  min-height: 72px;
   min-width: 0;
+  align-content: center;
+  padding: 8px 5px 7px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--glass-strong) 62%, transparent);
   text-align: center;
 }
 
@@ -2873,8 +2871,8 @@ textarea {
 }
 
 .food-add-macro-row b {
-  font-size: 13px;
-  font-weight: 740;
+  font-size: 12px;
+  font-weight: 760;
 }
 
 .food-add-macro-row em {
@@ -3027,8 +3025,7 @@ textarea {
   stroke-width: 2.25;
 }
 
-#food-add-sheet .add-mode-tabs,
-#food-add-sheet .meal-picker {
+#food-add-sheet .add-mode-tabs {
   flex: 0 0 auto;
   height: 44px;
   margin: 0 0 12px;
@@ -3038,8 +3035,7 @@ textarea {
   background: var(--surface-soft);
 }
 
-#food-add-sheet .add-mode-tabs button,
-#food-add-sheet .meal-picker button {
+#food-add-sheet .add-mode-tabs button {
   height: 36px;
   min-height: 36px;
   border-radius: 14px;
@@ -3047,8 +3043,7 @@ textarea {
   font-weight: 820;
 }
 
-#food-add-sheet .add-mode-tabs button.active,
-#food-add-sheet .meal-picker button.active {
+#food-add-sheet .add-mode-tabs button.active {
   background:
     var(--control-gradient),
     var(--glass-strong);

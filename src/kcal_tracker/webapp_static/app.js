@@ -392,6 +392,11 @@ async function searchFood(event) {
     return;
   }
   nodes.foodSearchSection.classList.remove("hidden");
+  if (!initData) {
+    state.foodSearchResults = [];
+    nodes.foodSearchResults.innerHTML = '<div class="empty-state">Поиск по базе работает внутри Telegram mini-app. В локальном браузере нет авторизации Telegram.</div>';
+    return;
+  }
   nodes.foodSearchResults.innerHTML = '<div class="empty-state">Ищу продукты...</div>';
   try {
     const result = await api(`/webapp/me/food/search?query=${encodeURIComponent(query)}`);
@@ -401,9 +406,12 @@ async function searchFood(event) {
       emptyText: "Ничего не нашлось. Можно разобрать через AI.",
     });
     switchAddMode("browse");
-  } catch {
+  } catch (error) {
     state.foodSearchResults = [];
-    nodes.foodSearchResults.innerHTML = '<div class="empty-state">Поиск не сработал. Попробуй AI или штрихкод.</div>';
+    const text = error.status === 401
+      ? "Открой mini-app из Telegram, чтобы поиск получил доступ к дневнику."
+      : "Поиск не сработал. Попробуй AI или штрихкод.";
+    nodes.foodSearchResults.innerHTML = `<div class="empty-state">${escapeHtml(text)}</div>`;
   }
 }
 
