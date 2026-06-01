@@ -1663,6 +1663,8 @@ textarea:focus {
 
 .add-mode-tabs {
   margin: 0 var(--space-4) var(--space-3);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  height: 44px;
 }
 
 .add-mode-panel {
@@ -1675,6 +1677,21 @@ textarea:focus {
 
 .barcode-wide-action {
   width: 100%;
+}
+
+.photo-primary-action {
+  min-height: 132px;
+  place-items: center;
+  text-align: center;
+}
+
+.photo-primary-action svg {
+  width: 34px;
+  height: 34px;
+}
+
+.add-photo-panel textarea {
+  min-height: 70px;
 }
 
 .food-add-scroll > .sheet-title {
@@ -2613,6 +2630,12 @@ textarea {
 
 .add-mode-tabs {
   margin: 0 0 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  height: 42px;
+}
+
+.add-mode-tabs button {
+  font-size: 11px;
 }
 
 .add-mode-panel {

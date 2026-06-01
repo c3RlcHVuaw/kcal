@@ -56,6 +56,7 @@ const nodes = {
   saveParsedFood: document.querySelector("#save-parsed-food"),
   foodPhotoButton: document.querySelector("#food-photo-button"),
   foodPhotoInput: document.querySelector("#food-photo-input"),
+  foodPhotoHint: document.querySelector("#food-photo-hint"),
   barcodePhotoButton: document.querySelector("#barcode-photo-button"),
   barcodePhotoInput: document.querySelector("#barcode-photo-input"),
   barcodeCode: document.querySelector("#barcode-code"),
@@ -270,7 +271,7 @@ async function parseFoodText(event) {
 async function parseFoodPhoto() {
   const file = nodes.foodPhotoInput.files?.[0];
   if (!file) return;
-  const hint = nodes.foodText.value.trim();
+  const hint = nodes.foodPhotoHint.value.trim() || nodes.foodText.value.trim();
   const form = new FormData();
   form.append("image", file);
   if (hint) form.append("text_hint", hint);
@@ -1252,7 +1253,7 @@ function switchFoodTab(tab) {
 }
 
 function switchAddMode(mode) {
-  if (!["ai", "manual", "barcode"].includes(mode)) return;
+  if (!["ai", "photo", "manual", "barcode"].includes(mode)) return;
   state.addMode = mode;
   document.querySelectorAll("[data-add-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.addMode === mode);
