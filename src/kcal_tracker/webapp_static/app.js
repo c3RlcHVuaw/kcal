@@ -13,6 +13,7 @@ const state = {
   activeSheet: null,
   parsedFoods: [],
   parsedFoodSource: "ai",
+  addMode: "ai",
   loadingAll: false,
 };
 
@@ -63,6 +64,8 @@ const nodes = {
   foodMeal: document.querySelector("#food-meal"),
   foodAddSheet: document.querySelector("#food-add-sheet"),
   foodAddClose: document.querySelector("#food-add-close"),
+  foodReviewSheet: document.querySelector("#food-review-sheet"),
+  foodReviewClose: document.querySelector("#food-review-close"),
   toast: document.querySelector("#toast"),
   weightButton: document.querySelector("#weight-button"),
   weightValue: document.querySelector("#weight-value"),
@@ -126,8 +129,13 @@ document.querySelectorAll("[data-food-tab]").forEach((button) => {
   button.addEventListener("click", () => switchFoodTab(button.dataset.foodTab));
 });
 
+document.querySelectorAll("[data-add-mode]").forEach((button) => {
+  button.addEventListener("click", () => switchAddMode(button.dataset.addMode));
+});
+
 document.querySelectorAll("[data-food-example]").forEach((button) => {
   button.addEventListener("click", () => {
+    switchAddMode("ai");
     nodes.foodText.value = button.dataset.foodExample || "";
     nodes.foodText.focus();
   });
@@ -185,6 +193,10 @@ nodes.exportFood.addEventListener("click", exportFood);
 nodes.foodAddClose.addEventListener("click", closeFoodAddSheet);
 nodes.foodAddSheet.addEventListener("click", (event) => {
   if (event.target === nodes.foodAddSheet) closeFoodAddSheet();
+});
+nodes.foodReviewClose.addEventListener("click", closeFoodReviewSheet);
+nodes.foodReviewSheet.addEventListener("click", (event) => {
+  if (event.target === nodes.foodReviewSheet) closeFoodReviewSheet();
 });
 nodes.foodTextForm.addEventListener("submit", parseFoodText);
 nodes.saveParsedFood.addEventListener("click", saveParsedFoods);
@@ -334,9 +346,7 @@ function setParsedFoods(result) {
   state.parsedFoods = result.foods.map(normalizeParsedFood);
   state.parsedFoodSource = result.source;
   renderParsedFoods(result);
-  requestAnimationFrame(() => {
-    nodes.foodPreview.scrollIntoView({ behavior: "smooth", block: "start" });
-  });
+  openFoodReviewSheet();
 }
 
 async function saveParsedFoods() {
@@ -366,7 +376,7 @@ async function saveParsedFoods() {
     nodes.foodTextForm.reset();
     nodes.barcodeCode.value = "";
     nodes.foodPreview.classList.add("hidden");
-    closeFoodAddSheet();
+    closeFoodReviewSheet();
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     switchView("today");
     toast(foods.length === 1 ? "Еда добавлена" : `Добавлено позиций: ${foods.length}`);
@@ -999,13 +1009,29 @@ function closeEntryEditor() {
 }
 
 function openFoodAddSheet() {
+  switchAddMode(state.addMode || "ai");
   lockPageScroll("food-add");
+  nodes.foodReviewSheet.classList.add("hidden");
   nodes.foodAddSheet.classList.remove("hidden");
 }
 
 function closeFoodAddSheet() {
   nodes.foodAddSheet.classList.add("hidden");
   unlockPageScroll("food-add");
+}
+
+function openFoodReviewSheet() {
+  lockPageScroll("food-review");
+  nodes.foodAddSheet.classList.add("hidden");
+  nodes.foodReviewSheet.classList.remove("hidden");
+  requestAnimationFrame(() => {
+    nodes.foodReviewSheet.querySelector(".food-review-scroll")?.scrollTo({ top: 0 });
+  });
+}
+
+function closeFoodReviewSheet() {
+  nodes.foodReviewSheet.classList.add("hidden");
+  unlockPageScroll("food-review");
 }
 
 function lockPageScroll(sheetName) {
@@ -1222,6 +1248,17 @@ function switchFoodTab(tab) {
   });
   document.querySelectorAll(".food-tab").forEach((section) => {
     section.classList.toggle("active", section.id === `food-tab-${tab}`);
+  });
+}
+
+function switchAddMode(mode) {
+  if (!["ai", "manual", "barcode"].includes(mode)) return;
+  state.addMode = mode;
+  document.querySelectorAll("[data-add-mode]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.addMode === mode);
+  });
+  document.querySelectorAll("[data-add-panel]").forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.addPanel === mode);
   });
 }
 

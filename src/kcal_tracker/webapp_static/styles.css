@@ -1661,6 +1661,22 @@ textarea:focus {
   display: none;
 }
 
+.add-mode-tabs {
+  margin: 0 var(--space-4) var(--space-3);
+}
+
+.add-mode-panel {
+  display: none;
+}
+
+.add-mode-panel.active {
+  display: grid;
+}
+
+.barcode-wide-action {
+  width: 100%;
+}
+
 .food-add-scroll > .sheet-title {
   position: sticky;
   top: 0;
@@ -1687,6 +1703,43 @@ textarea:focus {
 
 .food-save-bar .primary-button {
   width: 100%;
+}
+
+.food-review-panel {
+  max-height: min(88dvh, 720px);
+}
+
+.food-review-scroll {
+  max-height: min(88dvh, 720px);
+}
+
+.food-review-panel .parsed-food-list {
+  gap: 10px;
+}
+
+.food-review-panel .parsed-food-card {
+  gap: 9px;
+  padding: 10px;
+  border-radius: 18px;
+  box-shadow: none;
+}
+
+.food-review-panel .preview-summary {
+  min-height: 38px;
+  padding: 7px 10px;
+}
+
+.food-review-panel .field-row {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.food-review-panel .field-row.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.food-review-panel .compact-fields input {
+  min-height: 38px;
+  font-size: 15px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -2558,6 +2611,18 @@ textarea {
   touch-action: pan-y;
 }
 
+.add-mode-tabs {
+  margin: 0 0 10px;
+}
+
+.add-mode-panel {
+  display: none;
+}
+
+.add-mode-panel.active {
+  display: grid;
+}
+
 .food-add-scroll > .sheet-title {
   margin: 0 -14px 10px;
   padding: 22px 14px 10px;
@@ -2575,6 +2640,19 @@ textarea {
   margin: 0 -14px -14px;
   padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), #fff 34%);
+}
+
+.food-review-panel {
+  max-height: min(88dvh, 720px);
+}
+
+.food-review-scroll {
+  max-height: min(88dvh, 720px);
+}
+
+.food-review-panel .field-row,
+.food-review-panel .field-row.three {
+  gap: 7px;
 }
 
 .entry-edit-panel {
