@@ -823,25 +823,25 @@ async function loadFavorites() {
 function renderToday(data) {
   const diary = data.diary;
   const progress = diary.target_kcal > 0 ? Math.min(diary.kcal / diary.target_kcal, 1) : 0;
-  nodes.kcalProgress.style.width = `${Math.round(progress * 100)}%`;
-  nodes.kcalPercent.textContent = `${Math.round(progress * 100)}%`;
+  setProgressValue(nodes.kcalProgress, "width", `${Math.round(progress * 100)}%`);
+  setTextWithPulse(nodes.kcalPercent, `${Math.round(progress * 100)}%`);
   const left = Math.round(diary.target_kcal - diary.kcal);
-  nodes.kcalEaten.textContent = Math.round(diary.kcal);
-  nodes.kcalBurned.textContent = Math.round(diary.activity_kcal);
-  nodes.kcalLeft.textContent = left >= 0 ? String(left) : `+${Math.abs(left)}`;
-  nodes.kcalTarget.textContent = `${Math.round(diary.kcal)} / ${diary.target_kcal} ккал`;
+  setTextWithPulse(nodes.kcalEaten, Math.round(diary.kcal));
+  setTextWithPulse(nodes.kcalBurned, Math.round(diary.activity_kcal));
+  setTextWithPulse(nodes.kcalLeft, left >= 0 ? String(left) : `+${Math.abs(left)}`);
+  setTextWithPulse(nodes.kcalTarget, `${Math.round(diary.kcal)} / ${diary.target_kcal} ккал`);
   renderFoodAddSummary(diary);
   renderMacroRing("protein", diary.protein, diary.target_protein);
   renderMacroRing("fat", diary.fat, diary.target_fat);
   renderMacroRing("carbs", diary.carbs, diary.target_carbs);
   renderNutritionOverview(diary);
-  nodes.water.textContent = `${data.water_ml} мл воды`;
-  nodes.activityTotal.textContent = `${Math.round(diary.activity_kcal)} ккал активности`;
-  nodes.weightValue.textContent = data.latest_weight_kg ? `${formatNumber(data.latest_weight_kg)} кг` : "Записать";
-  nodes.weightGoal.textContent = data.weight_goal.forecast_text;
-  nodes.aiUsage.textContent = data.ai_usage.daily_limit
+  setTextWithPulse(nodes.water, `${data.water_ml} мл воды`);
+  setTextWithPulse(nodes.activityTotal, `${Math.round(diary.activity_kcal)} ккал активности`);
+  setTextWithPulse(nodes.weightValue, data.latest_weight_kg ? `${formatNumber(data.latest_weight_kg)} кг` : "Записать");
+  setTextWithPulse(nodes.weightGoal, data.weight_goal.forecast_text);
+  setTextWithPulse(nodes.aiUsage, data.ai_usage.daily_limit
     ? `${data.ai_usage.used_today} / ${data.ai_usage.daily_limit}`
-    : `${data.ai_usage.used_today} / ∞`;
+    : `${data.ai_usage.used_today} / ∞`);
   nodes.goalKind.value = data.weight_goal.goal || "maintain";
   nodes.goalWeight.value = data.weight_goal.target_weight_kg ? formatNumber(data.weight_goal.target_weight_kg) : "";
   nodes.goalPace.value = data.weight_goal.weekly_weight_change_kg ? formatNumber(data.weight_goal.weekly_weight_change_kg) : "";
@@ -854,11 +854,11 @@ function renderFoodAddSummary(diary) {
   const kcalTarget = Math.max(Number(diary.target_kcal || 0), 0);
   const kcal = Math.max(Number(diary.kcal || 0), 0);
   const ratio = kcalTarget > 0 ? Math.min(kcal / kcalTarget, 1) : 0;
-  nodes.foodAddKcalSummary.textContent = `${Math.round(kcal)} / ${Math.round(kcalTarget)} ккал`;
-  nodes.foodAddKcalLine.style.setProperty("--progress", `${Math.round(ratio * 100)}%`);
-  nodes.foodAddProtein.textContent = `${Math.round(diary.protein || 0)} / ${Math.round(diary.target_protein || 0)} г`;
-  nodes.foodAddFat.textContent = `${Math.round(diary.fat || 0)} / ${Math.round(diary.target_fat || 0)} г`;
-  nodes.foodAddCarbs.textContent = `${Math.round(diary.carbs || 0)} / ${Math.round(diary.target_carbs || 0)} г`;
+  setTextWithPulse(nodes.foodAddKcalSummary, `${Math.round(kcal)} / ${Math.round(kcalTarget)} ккал`);
+  setProgressValue(nodes.foodAddKcalLine, "--progress", `${Math.round(ratio * 100)}%`);
+  setTextWithPulse(nodes.foodAddProtein, `${Math.round(diary.protein || 0)} / ${Math.round(diary.target_protein || 0)} г`);
+  setTextWithPulse(nodes.foodAddFat, `${Math.round(diary.fat || 0)} / ${Math.round(diary.target_fat || 0)} г`);
+  setTextWithPulse(nodes.foodAddCarbs, `${Math.round(diary.carbs || 0)} / ${Math.round(diary.target_carbs || 0)} г`);
 }
 
 function renderNutritionOverview(diary) {
@@ -876,10 +876,10 @@ function renderNutritionOverview(diary) {
   const score = Math.round(macroFit.reduce((sum, item) => sum + item, 0) / macroFit.length);
   const status = score >= 72 ? "Отличный баланс" : score >= 45 ? "В норме" : "Нужно поесть";
 
-  nodes.nutritionScore.textContent = String(score);
-  nodes.nutritionStatus.textContent = status;
+  setTextWithPulse(nodes.nutritionScore, String(score));
+  setTextWithPulse(nodes.nutritionStatus, status);
   nodes.nutritionStatus.classList.toggle("warn-status", score < 45);
-  nodes.macroTotal.textContent = `${macroTotal} грамм`;
+  setTextWithPulse(nodes.macroTotal, `${macroTotal} грамм`);
   nodes.macroBars.innerHTML = Array.from({ length: 28 }, (_, index) => {
     const kind = index % 3 === 0 ? "protein" : index % 3 === 1 ? "carbs" : "fat";
     return `<i class="${kind}"></i>`;
@@ -893,11 +893,11 @@ function renderMacroRing(kind, rawValue, rawTarget) {
   const percentNode = nodes[`${kind}Percent`];
   const overflowNode = nodes[`${kind}Overflow`];
 
-  valueNode.textContent = `${metric.value}/${metric.target} г`;
-  percentNode.textContent = `${metric.percent}%`;
-  overflowNode.textContent = metric.overflowGrams > 0 ? `+${metric.overflowGrams} г` : "";
+  setTextWithPulse(valueNode, `${metric.value}/${metric.target} г`);
+  setTextWithPulse(percentNode, `${metric.percent}%`);
+  setTextWithPulse(overflowNode, metric.overflowGrams > 0 ? `+${metric.overflowGrams} г` : "");
   overflowNode.classList.toggle("visible", metric.overflowGrams > 0);
-  ringNode.style.setProperty("--macro-base-end", `${metric.baseEndPercent}%`);
+  setProgressValue(ringNode, "--macro-base-end", `${metric.baseEndPercent}%`);
   ringNode.style.setProperty("--macro-overflow-start", `${metric.baseEndPercent}%`);
   ringNode.style.setProperty("--macro-overflow-end", `${metric.overflowEndPercent}%`);
 }
@@ -1060,9 +1060,9 @@ function mealIdForNow() {
 }
 
 function renderWeek(data) {
-  nodes.weekAverage.textContent = `${Math.round(data.average_kcal)} ккал`;
-  nodes.weekTarget.textContent = `Цель: ${data.target_kcal} ккал`;
-  nodes.weekInTarget.textContent = `${data.days_in_target} дней в цели`;
+  setTextWithPulse(nodes.weekAverage, `${Math.round(data.average_kcal)} ккал`);
+  setTextWithPulse(nodes.weekTarget, `Цель: ${data.target_kcal} ккал`);
+  setTextWithPulse(nodes.weekInTarget, `${data.days_in_target} дней в цели`);
   const max = Math.max(data.target_kcal, ...data.days.map((day) => day.kcal), 1);
   nodes.weekChart.innerHTML = data.days.map((day) => {
     const height = Math.max(5, Math.round((day.kcal / max) * 116));
@@ -1078,9 +1078,9 @@ function renderWeek(data) {
 }
 
 function renderBody(data) {
-  nodes.weightTrend.textContent = data.latest_weight_kg
+  setTextWithPulse(nodes.weightTrend, data.latest_weight_kg
     ? `${formatNumber(data.latest_weight_kg)} кг, ${data.trend_label}`
-    : "нет данных";
+    : "нет данных");
   if (!data.weight_logs.length) {
     nodes.weightChart.innerHTML = '<div class="empty-state">Запиши вес, чтобы увидеть тренд.</div>';
   } else {
@@ -1786,6 +1786,42 @@ function toast(message) {
   nodes.toast.classList.remove("hidden");
   window.clearTimeout(toast.timer);
   toast.timer = window.setTimeout(() => nodes.toast.classList.add("hidden"), 2200);
+}
+
+function setTextWithPulse(node, value) {
+  if (!node) return;
+  const nextValue = String(value ?? "");
+  const previousValue = node.dataset.lastTextValue;
+  node.textContent = nextValue;
+  node.dataset.lastTextValue = nextValue;
+  if (previousValue === undefined || previousValue === nextValue) return;
+  restartMicroAnimation(node, "value-pop");
+}
+
+function setProgressValue(node, property, value) {
+  if (!node) return;
+  const nextValue = String(value ?? "");
+  const key = property.replace(/[^a-z0-9]/gi, "");
+  const previousValue = node.dataset[`last${key}`];
+  if (property.startsWith("--")) {
+    node.style.setProperty(property, nextValue);
+  } else {
+    node.style[property] = nextValue;
+  }
+  node.dataset[`last${key}`] = nextValue;
+  if (previousValue === undefined || previousValue === nextValue) return;
+  restartMicroAnimation(node, "progress-pop");
+}
+
+function restartMicroAnimation(node, className) {
+  node.classList.remove(className);
+  void node.offsetWidth;
+  node.classList.add(className);
+  window.clearTimeout(node[`_${className}Timer`]);
+  node[`_${className}Timer`] = window.setTimeout(() => {
+    node.classList.remove(className);
+    node[`_${className}Timer`] = null;
+  }, 760);
 }
 
 function flashFoodPickAdded(button) {

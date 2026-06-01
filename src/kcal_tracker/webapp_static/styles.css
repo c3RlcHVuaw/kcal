@@ -125,6 +125,20 @@ button:not(:disabled):active {
   transform: scale(0.96);
 }
 
+.value-pop {
+  animation: valuePop 560ms var(--motion-spring) both;
+  transform-origin: center;
+}
+
+:where(#kcal-eaten, #kcal-burned, #kcal-left, #kcal-target, #kcal-percent, #nutrition-score, #nutrition-status, #macro-total, #water, #activity-total, #weight-value, #weight-goal, #ai-usage, #week-average, #week-target, #week-in-target, #weight-trend, #food-add-kcal-summary, #food-add-protein, #food-add-fat, #food-add-carbs, #protein, #fat, #carbs, #protein-percent, #fat-percent, #carbs-percent, #protein-overflow, #fat-overflow, #carbs-overflow).value-pop {
+  display: inline-block;
+}
+
+.progress-pop {
+  animation: progressPop 680ms var(--motion-spring) both;
+  transform-origin: left center;
+}
+
 input,
 select,
 textarea {
@@ -359,6 +373,36 @@ h2 {
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes valuePop {
+  0% {
+    opacity: 0.72;
+    transform: translateY(5px) scale(0.98);
+  }
+  42% {
+    opacity: 1;
+    transform: translateY(-1px) scale(1.045);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes progressPop {
+  0% {
+    filter: saturate(0.9) brightness(1);
+    transform: scaleX(0.992);
+  }
+  45% {
+    filter: saturate(1.18) brightness(1.05);
+    transform: scaleX(1.008);
+  }
+  100% {
+    filter: saturate(1) brightness(1);
+    transform: scaleX(1);
   }
 }
 
