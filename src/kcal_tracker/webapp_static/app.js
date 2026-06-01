@@ -154,6 +154,12 @@ document.querySelectorAll("[data-view]").forEach((button) => {
   });
 });
 
+document.addEventListener("click", (event) => {
+  const button = event.target.closest?.("button");
+  if (!button || button.disabled) return;
+  triggerHaptic(button.matches(".primary-button, .food-pick-add, [data-view='food']") ? "medium" : "light");
+});
+
 document.querySelectorAll("[data-food-tab]").forEach((button) => {
   button.addEventListener("click", () => switchFoodTab(button.dataset.foodTab));
 });
@@ -718,6 +724,14 @@ function applyTelegramSafeArea() {
     Number(tg?.contentSafeAreaInset?.top) || 0,
   );
   document.documentElement.style.setProperty("--telegram-top-safe-js", `${top}px`);
+}
+
+function triggerHaptic(style = "light") {
+  try {
+    tg?.HapticFeedback?.impactOccurred?.(style);
+  } catch {
+    // Haptics are optional and unavailable in local browsers.
+  }
 }
 
 async function loadAll() {

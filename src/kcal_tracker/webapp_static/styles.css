@@ -38,6 +38,9 @@
   --panel-blur: blur(24px) saturate(1.42);
   --control-blur: blur(24px) saturate(1.5);
   --focus-ring: 0 0 0 4px rgba(70, 211, 124, 0.12);
+  --motion-fast: 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-soft: 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-spring: 420ms cubic-bezier(0.16, 1.08, 0.32, 1);
   --panel-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.08));
   --control-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.18));
   --telegram-top-safe: max(
@@ -103,11 +106,33 @@ textarea {
 button {
   border: 0;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--motion-fast),
+    opacity var(--motion-fast),
+    background var(--motion-soft),
+    border-color var(--motion-soft),
+    box-shadow var(--motion-soft),
+    color var(--motion-soft);
 }
 
 button:disabled {
   cursor: progress;
   opacity: 0.72;
+}
+
+button:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+input,
+select,
+textarea {
+  transition:
+    background var(--motion-soft),
+    border-color var(--motion-soft),
+    box-shadow var(--motion-soft),
+    transform var(--motion-fast);
 }
 
 button:focus-visible,
@@ -201,6 +226,7 @@ h2 {
 .view.active {
   display: grid;
   gap: 16px;
+  animation: viewIn var(--motion-soft) both;
 }
 
 .component-card,
@@ -224,6 +250,18 @@ h2 {
     inset 0 -1px 0 rgba(255, 255, 255, 0.12);
   backdrop-filter: var(--panel-blur);
   -webkit-backdrop-filter: var(--panel-blur);
+  transition:
+    transform var(--motion-soft),
+    box-shadow var(--motion-soft),
+    border-color var(--motion-soft),
+    background var(--motion-soft);
+}
+
+.metric-grid button:active,
+.action-list button:active,
+.details-card summary:active,
+.stats-link:active {
+  transform: scale(0.985);
 }
 
 .component-section {
@@ -263,7 +301,60 @@ h2 {
   position: relative;
 }
 
+@keyframes viewIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sheetIn {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes cardIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes softPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+@keyframes shimmerSweep {
+  from {
+    transform: translateX(-130%) rotate(8deg);
+  }
+  to {
+    transform: translateX(130%) rotate(8deg);
+  }
+}
+
 .icon-button {
+  position: relative;
   display: grid;
   place-items: center;
   width: var(--control-md);
@@ -297,6 +388,13 @@ h2 {
 .icon-button svg {
   width: 21px;
   height: 21px;
+  transition: transform var(--motion-spring);
+}
+
+.icon-button:not(:disabled):active svg,
+.icon-mini:not(:disabled):active svg,
+.tab-bar button:not(:disabled):active svg {
+  transform: scale(0.88);
 }
 
 .notice {
@@ -334,6 +432,7 @@ h2 {
 }
 
 .calorie-card {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-4);
@@ -346,6 +445,25 @@ h2 {
     radial-gradient(circle at 98% 4%, rgba(99, 128, 214, 0.16), transparent 28%),
     linear-gradient(145deg, rgba(255, 255, 255, 0.56), rgba(255, 255, 255, 0.18)),
     var(--surface);
+}
+
+.calorie-card::after,
+.primary-button::after,
+.scan-shortcut::after {
+  content: "";
+  position: absolute;
+  inset: -45% -70%;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.36), transparent);
+  opacity: 0;
+  transform: translateX(-130%) rotate(8deg);
+}
+
+.calorie-card:hover::after,
+.primary-button:hover::after,
+.scan-shortcut:hover::after {
+  animation: shimmerSweep 920ms ease;
+  opacity: 1;
 }
 
 .calorie-main span,
@@ -447,7 +565,7 @@ h2 {
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, var(--accent-strong), var(--activity));
-  transition: width 180ms ease;
+  transition: width 520ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .macro-card {
@@ -472,6 +590,15 @@ h2 {
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.54);
   text-align: center;
+  animation: cardIn var(--motion-spring) both;
+}
+
+.macro-card article:nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.macro-card article:nth-child(3) {
+  animation-delay: 90ms;
 }
 
 .macro-card span,
@@ -849,6 +976,7 @@ h2 {
 }
 
 .food-card {
+  position: relative;
   display: grid;
   grid-template-columns: 74px minmax(0, 1fr);
   gap: var(--space-3);
@@ -860,6 +988,16 @@ h2 {
   background: transparent;
   box-shadow: none;
   backdrop-filter: none;
+  transition:
+    background var(--motion-soft),
+    transform var(--motion-fast),
+    border-color var(--motion-soft);
+}
+
+.food-card:active,
+.food-pick-card:active,
+.parsed-food-card:active {
+  transform: scale(0.985);
 }
 
 .food-thumb {
@@ -1311,6 +1449,15 @@ textarea:focus {
   color: var(--muted);
   font-size: 21px;
   line-height: 1;
+  transition:
+    transform var(--motion-fast),
+    background var(--motion-soft),
+    color var(--motion-soft),
+    box-shadow var(--motion-soft);
+}
+
+.icon-mini:active {
+  transform: scale(0.9);
 }
 
 .compact-title {
@@ -1379,6 +1526,8 @@ textarea:focus {
 
 .primary-button,
 .secondary-button {
+  position: relative;
+  overflow: hidden;
   min-height: var(--control-lg);
   border-radius: var(--radius-lg);
   font-weight: 790;
@@ -1556,7 +1705,11 @@ textarea:focus {
     inset 0 -1px 0 rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(30px) saturate(1.7);
   -webkit-backdrop-filter: blur(30px) saturate(1.7);
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateZ(0);
+  transition:
+    transform var(--motion-spring),
+    box-shadow var(--motion-soft),
+    background var(--motion-soft);
 }
 
 .tab-bar button {
@@ -1575,7 +1728,11 @@ textarea:focus {
   font-weight: 740;
   line-height: 1;
   letter-spacing: 0;
-  transition: color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+  transition:
+    color var(--motion-soft),
+    background var(--motion-soft),
+    box-shadow var(--motion-soft),
+    transform var(--motion-fast);
 }
 
 .tab-bar svg {
@@ -1587,6 +1744,7 @@ textarea:focus {
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2.2;
+  transition: transform var(--motion-spring), stroke-width var(--motion-soft);
 }
 
 .tab-bar [data-view="today"] svg,
@@ -1610,6 +1768,19 @@ textarea:focus {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     0 8px 18px rgba(24, 42, 58, 0.1);
+}
+
+.tab-bar button.active svg {
+  transform: translateY(-1px);
+  stroke-width: 2.35;
+}
+
+.tab-bar [data-view="food"] {
+  animation: softPulse 3.2s ease-in-out infinite;
+}
+
+.tab-bar [data-view="food"]:active {
+  animation: none;
 }
 
 .toast {
@@ -1639,6 +1810,7 @@ textarea:focus {
   background: rgba(9, 16, 22, 0.3);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  animation: viewIn var(--motion-soft) both;
 }
 
 .sheet-panel {
@@ -1646,6 +1818,8 @@ textarea:focus {
   margin: 0 auto calc(74px + env(safe-area-inset-bottom));
   overflow: hidden;
   border-radius: var(--radius-xl);
+  animation: sheetIn var(--motion-spring) both;
+  transform-origin: 50% 100%;
 }
 
 .sheet .form-panel {
@@ -1680,6 +1854,7 @@ textarea:focus {
 
 .add-mode-panel.active {
   display: grid;
+  animation: cardIn var(--motion-soft) both;
 }
 
 .barcode-wide-action {
@@ -2672,6 +2847,10 @@ textarea {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), #fff 34%);
 }
 
+.toast:not(.hidden) {
+  animation: cardIn var(--motion-spring) both;
+}
+
 #food-add-sheet {
   align-items: stretch;
   padding: 0;
@@ -2800,6 +2979,8 @@ textarea {
 }
 
 .scan-shortcut {
+  position: relative;
+  overflow: hidden;
   display: grid;
   place-items: center;
   min-width: 0;
@@ -2955,6 +3136,8 @@ textarea {
 }
 
 .add-mode-actions button {
+  position: relative;
+  overflow: hidden;
   display: grid;
   min-width: 0;
   min-height: 72px;
@@ -2968,6 +3151,21 @@ textarea {
     var(--surface);
   color: var(--text);
   box-shadow: var(--shadow-tight);
+  transition:
+    transform var(--motion-fast),
+    box-shadow var(--motion-soft),
+    background var(--motion-soft),
+    border-color var(--motion-soft);
+}
+
+.add-mode-actions button:active {
+  transform: scale(0.94);
+}
+
+.add-mode-actions button:hover {
+  box-shadow:
+    var(--shadow-tight),
+    inset 0 1px 0 color-mix(in srgb, var(--glass-line) 80%, transparent);
 }
 
 .add-mode-actions span,
@@ -3020,6 +3218,7 @@ textarea {
 }
 
 .food-pick-card {
+  animation: cardIn var(--motion-spring) both;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 54px;
   align-items: center;
@@ -3033,6 +3232,18 @@ textarea {
   box-shadow: var(--shadow-tight);
   backdrop-filter: var(--panel-blur);
   -webkit-backdrop-filter: var(--panel-blur);
+}
+
+.food-pick-card:nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.food-pick-card:nth-child(3) {
+  animation-delay: 90ms;
+}
+
+.food-pick-card:nth-child(n + 4) {
+  animation-delay: 120ms;
 }
 
 .food-pick-main {
@@ -3074,6 +3285,16 @@ textarea {
     var(--control-gradient),
     var(--surface-soft);
   color: var(--accent-strong);
+  transition:
+    transform var(--motion-fast),
+    background var(--motion-soft),
+    box-shadow var(--motion-soft);
+}
+
+.food-pick-card:active .food-pick-add,
+.food-pick-add:active {
+  transform: scale(0.9);
+  box-shadow: inset 0 2px 8px color-mix(in srgb, var(--text) 9%, transparent);
 }
 
 .food-pick-add svg {
@@ -3101,6 +3322,7 @@ textarea {
 #food-add-sheet .add-mode-panel.active {
   display: flex;
   flex-direction: column;
+  animation: cardIn var(--motion-soft) both;
 }
 
 .mode-screen-head {
@@ -3131,6 +3353,10 @@ textarea {
   color: var(--accent-strong);
   font-weight: 800;
   box-shadow: var(--shadow-tight);
+}
+
+.mode-screen-head button:active {
+  transform: translateX(-2px) scale(0.96);
 }
 
 .mode-screen-head h3 {
@@ -3196,6 +3422,8 @@ textarea {
 }
 
 #food-add-sheet .media-action {
+  position: relative;
+  overflow: hidden;
   min-height: 148px;
   border: 1px dashed color-mix(in srgb, var(--accent) 34%, var(--line));
   border-radius: 22px;
@@ -3203,11 +3431,27 @@ textarea {
     var(--panel-gradient),
     var(--surface);
   box-shadow: none;
+  transition:
+    transform var(--motion-fast),
+    border-color var(--motion-soft),
+    background var(--motion-soft),
+    box-shadow var(--motion-soft);
+}
+
+#food-add-sheet .media-action:active {
+  transform: scale(0.985);
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
+  box-shadow: inset 0 1px 12px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 #food-add-sheet .media-action svg {
   width: 34px;
   height: 34px;
+  transition: transform var(--motion-spring);
+}
+
+#food-add-sheet .media-action:active svg {
+  transform: scale(0.9);
 }
 
 #food-add-sheet .media-action span {
@@ -3338,6 +3582,28 @@ textarea {
 
 .sheet-actions .primary-button {
   width: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+
+  button:not(:disabled):active,
+  .food-card:active,
+  .food-pick-card:active,
+  .parsed-food-card:active,
+  .metric-grid button:active,
+  .action-list button:active,
+  .details-card summary:active,
+  .stats-link:active {
+    transform: none !important;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
