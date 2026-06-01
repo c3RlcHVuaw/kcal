@@ -337,10 +337,10 @@ h2 {
 @keyframes softPulse {
   0%,
   100% {
-    transform: scale(1);
+    transform: translateY(var(--pulse-y, 0)) scale(1);
   }
   50% {
-    transform: scale(1.035);
+    transform: translateY(var(--pulse-y, 0)) scale(1.035);
   }
 }
 
@@ -1781,6 +1781,7 @@ textarea:focus {
 
 .tab-bar [data-view="food"]:active {
   animation: none;
+  transform: translateY(var(--pulse-y, 0)) scale(0.96);
 }
 
 .toast {
@@ -2737,6 +2738,7 @@ textarea {
 }
 
 .tab-bar [data-view="food"] {
+  --pulse-y: -4px;
   grid-column: 3;
   grid-row: 1;
   display: grid;
@@ -2752,7 +2754,7 @@ textarea {
   box-shadow:
     0 13px 24px rgba(31, 35, 42, 0.26),
     0 0 0 7px rgba(255, 255, 255, 0.72);
-  transform: translateY(-4px);
+  transform: translateY(var(--pulse-y));
 }
 
 .tab-bar [data-view="body"] {
