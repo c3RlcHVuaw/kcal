@@ -20,6 +20,8 @@ const state = {
   searchTimer: null,
   searchRequestId: 0,
   deleteConfirmTimer: null,
+  entryHighlightKeys: new Set(),
+  entryHighlightTimer: null,
   loadingAll: false,
 };
 
@@ -478,6 +480,7 @@ async function addFoodEstimateToDiary(food, source, button) {
         meal_type: state.selectedMeal,
       }),
     });
+    markEntryHighlights([food], state.selectedMeal);
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     added = true;
     toast(`${food.name} добавлено`);
@@ -524,6 +527,7 @@ async function saveParsedFoods() {
     nodes.barcodeCode.value = "";
     nodes.foodPreview.classList.add("hidden");
     closeFoodReviewSheet();
+    markEntryHighlights(foods, state.selectedMeal);
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     switchView("today");
     toast(foods.length === 1 ? "Еда добавлена" : `Добавлено позиций: ${foods.length}`);
@@ -581,6 +585,7 @@ nodes.foodForm.addEventListener("submit", async (event) => {
     });
     nodes.foodForm.reset();
     closeFoodAddSheet();
+    markEntryHighlights([payload], payload.meal_type);
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     switchView("today");
     toast("Еда добавлена");
@@ -794,7 +799,7 @@ async function loadFrequent() {
     name: item.entry.name,
     kcal: item.entry.kcal,
     meta: `${item.count} раза`,
-    action: () => repeatEntry(item.entry.id),
+    action: () => repeatEntry(item.entry.id, item.entry),
   })));
 }
 
@@ -811,7 +816,7 @@ async function loadFavorites() {
     name: item.name,
     kcal: item.kcal,
     meta: item.weight_g ? `${formatNumber(item.weight_g)} г` : "шаблон",
-    action: () => addFavorite(item.id),
+    action: () => addFavorite(item.id, item),
   })));
 }
 
@@ -985,8 +990,9 @@ function mealSummaryText(meal, macros) {
 }
 
 function renderFoodEntry(entry) {
+  const highlightClass = isEntryHighlighted(entry) ? " is-highlighted" : "";
   return `
-    <article class="entry food-card">
+    <article class="entry food-card${highlightClass}">
       <div class="food-thumb">${escapeHtml(entry.emoji || foodInitial(entry.name))}</div>
       <div class="food-content">
         <div class="entry-main">
@@ -1007,6 +1013,31 @@ function renderFoodEntry(entry) {
       </div>
     </article>
   `;
+}
+
+function entryHighlightKey(food, mealType) {
+  return [
+    String(food?.name || "").trim().toLowerCase(),
+    Math.round(Number(food?.kcal || 0)),
+    mealType || mealIdForNow(),
+  ].join("|");
+}
+
+function markEntryHighlights(foods, mealType) {
+  const keys = foods
+    .filter((food) => food?.name)
+    .map((food) => entryHighlightKey(food, food.meal_type || mealType));
+  if (!keys.length) return;
+  state.entryHighlightKeys = new Set(keys);
+  window.clearTimeout(state.entryHighlightTimer);
+  state.entryHighlightTimer = window.setTimeout(() => {
+    state.entryHighlightKeys.clear();
+    state.entryHighlightTimer = null;
+  }, 2400);
+}
+
+function isEntryHighlighted(entry) {
+  return state.entryHighlightKeys.has(entryHighlightKey(entry, mealIdForEntry(entry)));
 }
 
 function mealIdForEntry(entry) {
@@ -1486,9 +1517,10 @@ async function refineParsedFood(event) {
   }
 }
 
-async function repeatEntry(entryId) {
+async function repeatEntry(entryId, entry = null) {
   try {
     await api(`/webapp/me/repeat-entry/${entryId}`, { method: "POST" });
+    if (entry) markEntryHighlights([entry], mealIdForEntry(entry));
     await Promise.allSettled([loadToday(), loadWeek()]);
     switchView("today");
     toast("Добавлено");
@@ -1497,9 +1529,10 @@ async function repeatEntry(entryId) {
   }
 }
 
-async function addFavorite(favoriteId) {
+async function addFavorite(favoriteId, favorite = null) {
   try {
     await api(`/webapp/me/favorites/${favoriteId}`, { method: "POST" });
+    if (favorite) markEntryHighlights([favorite], state.selectedMeal);
     await Promise.allSettled([loadToday(), loadWeek()]);
     switchView("today");
     toast("Шаблон добавлен");
@@ -1513,6 +1546,7 @@ async function repeatYesterday() {
   setButtonBusy(nodes.repeatYesterday, "Повторяю...");
   try {
     const entries = await api("/webapp/me/repeat-yesterday", { method: "POST" });
+    markEntryHighlights(entries, null);
     await Promise.allSettled([loadToday(), loadWeek()]);
     switchView("today");
     toast(entries.length ? "Вчерашний день добавлен" : "Вчера нечего повторять");
