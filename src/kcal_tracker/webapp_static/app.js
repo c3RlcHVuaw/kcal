@@ -934,6 +934,7 @@ function renderMealDiary(entries) {
 
   return meals.map((meal) => {
     const kcal = meal.items.reduce((total, entry) => total + Number(entry.kcal || 0), 0);
+    const mealMacros = mealMacroSummary(meal.items);
     const content = meal.items.length
       ? meal.items.map(renderFoodEntry).join("")
       : `
@@ -947,7 +948,14 @@ function renderMealDiary(entries) {
         <div class="meal-header">
           <div>
             <strong>${meal.title}</strong>
-            <span>${meal.hint}</span>
+            <span>${mealSummaryText(meal, mealMacros)}</span>
+            ${meal.items.length ? `
+              <div class="meal-macros" aria-label="БЖУ за ${meal.title}">
+                <i class="carbs">У ${Math.round(mealMacros.carbs)}</i>
+                <i class="protein">Б ${Math.round(mealMacros.protein)}</i>
+                <i class="fat">Ж ${Math.round(mealMacros.fat)}</i>
+              </div>
+            ` : ""}
           </div>
           <button class="meal-add" type="button" data-view-shortcut="food" data-meal-shortcut="${meal.id}" aria-label="Добавить в ${meal.title}">
             <span>${Math.round(kcal)} ккал</span>
@@ -958,6 +966,21 @@ function renderMealDiary(entries) {
       </section>
     `;
   }).join("");
+}
+
+function mealMacroSummary(items) {
+  return items.reduce((total, entry) => ({
+    protein: total.protein + Number(entry.protein || 0),
+    fat: total.fat + Number(entry.fat || 0),
+    carbs: total.carbs + Number(entry.carbs || 0),
+  }), { protein: 0, fat: 0, carbs: 0 });
+}
+
+function mealSummaryText(meal, macros) {
+  if (!meal.items.length) return meal.hint;
+  const count = meal.items.length;
+  const totalGrams = Math.round(macros.protein + macros.fat + macros.carbs);
+  return `${count} ${pluralRu(count, "позиция", "позиции", "позиций")} · ${totalGrams} г БЖУ`;
 }
 
 function renderFoodEntry(entry) {
@@ -1598,6 +1621,15 @@ function formatNumber(value) {
 
 function formatInput(value) {
   return value === null || value === undefined ? "" : String(formatNumber(value)).replace(/\s/g, "");
+}
+
+function pluralRu(count, one, few, many) {
+  const abs = Math.abs(Number(count) || 0);
+  const mod10 = abs % 10;
+  const mod100 = abs % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
 }
 
 function mealLabel(meal) {

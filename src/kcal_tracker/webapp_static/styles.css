@@ -869,6 +869,40 @@ h2 {
   font-size: 12px;
 }
 
+.meal-macros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.meal-macros i {
+  min-height: 21px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 10%, transparent);
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 760;
+  line-height: 1.2;
+}
+
+.meal-macros .carbs {
+  background: color-mix(in srgb, var(--carbs) 18%, transparent);
+  color: color-mix(in srgb, var(--carbs) 72%, var(--text));
+}
+
+.meal-macros .protein {
+  background: color-mix(in srgb, var(--protein) 16%, transparent);
+  color: var(--protein);
+}
+
+.meal-macros .fat {
+  background: color-mix(in srgb, var(--fat) 16%, transparent);
+  color: var(--fat);
+}
+
 .meal-items {
   display: grid;
   gap: 0;
@@ -2507,6 +2541,16 @@ body::before {
 .meal-header {
   min-height: 45px;
   padding: 10px 12px;
+}
+
+.meal-macros {
+  margin-top: 7px;
+}
+
+.meal-macros i {
+  min-height: 18px;
+  padding: 2px 6px;
+  font-size: 10px;
 }
 
 .meal-header strong,
