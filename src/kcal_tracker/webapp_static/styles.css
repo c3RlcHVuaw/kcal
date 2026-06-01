@@ -2928,6 +2928,57 @@ textarea {
   font-size: 12px;
 }
 
+.food-add-browse {
+  display: grid;
+  gap: 0;
+}
+
+.food-add-browse.hidden {
+  display: none;
+}
+
+.add-mode-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 2px 0 14px;
+}
+
+.add-mode-actions button {
+  display: grid;
+  min-width: 0;
+  min-height: 72px;
+  align-content: center;
+  gap: 5px;
+  padding: 9px 5px;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background:
+    var(--control-gradient),
+    var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-tight);
+}
+
+.add-mode-actions span,
+.add-mode-actions b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-mode-actions span {
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.add-mode-actions b {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 760;
+}
+
 .food-add-section-head {
   display: flex;
   align-items: baseline;
@@ -3025,39 +3076,12 @@ textarea {
   stroke-width: 2.25;
 }
 
-#food-add-sheet .add-mode-tabs {
-  flex: 0 0 auto;
-  height: 44px;
-  margin: 0 0 12px;
-  padding: 4px;
-  border-radius: 18px;
-  border: 1px solid var(--line);
-  background: var(--surface-soft);
-}
-
-#food-add-sheet .add-mode-tabs button {
-  height: 36px;
-  min-height: 36px;
-  border-radius: 14px;
-  font-size: 13px;
-  font-weight: 820;
-}
-
-#food-add-sheet .add-mode-tabs button.active {
-  background:
-    var(--control-gradient),
-    var(--glass-strong);
-  color: var(--text);
-  box-shadow:
-    var(--shadow-tight),
-    inset 0 1px 0 color-mix(in srgb, var(--glass-line) 70%, transparent);
-}
-
 #food-add-sheet .add-mode-panel {
-  flex: 0 0 auto;
+  display: none;
+  flex: 1 0 auto;
   gap: 14px;
   margin: 0;
-  padding: 6px 0 0;
+  padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -3067,6 +3091,56 @@ textarea {
 #food-add-sheet .add-mode-panel.active {
   display: flex;
   flex-direction: column;
+}
+
+.mode-screen-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: minmax(96px, auto) minmax(0, 1fr) minmax(96px, auto);
+  align-items: center;
+  gap: 8px;
+  margin: 0 -18px 12px;
+  padding: 8px 18px 12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 96%, transparent), color-mix(in srgb, var(--bg) 82%, transparent));
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+}
+
+.mode-screen-head button {
+  justify-self: start;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background:
+    var(--control-gradient),
+    var(--glass);
+  color: var(--accent-strong);
+  font-weight: 800;
+  box-shadow: var(--shadow-tight);
+}
+
+.mode-screen-head h3 {
+  grid-column: 2;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 840;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#food-add-sheet .mode-ai > .food-add-scroll > .sheet-title,
+#food-add-sheet .mode-photo > .food-add-scroll > .sheet-title,
+#food-add-sheet .mode-manual > .food-add-scroll > .sheet-title,
+#food-add-sheet .mode-barcode > .food-add-scroll > .sheet-title {
+  display: none;
 }
 
 #food-add-sheet .input-label {

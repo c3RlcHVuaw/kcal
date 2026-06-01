@@ -60,7 +60,6 @@ const nodes = {
   foodSearchSection: document.querySelector("#food-search-section"),
   foodSearchResults: document.querySelector("#food-search-results"),
   foodSearchClear: document.querySelector("#food-search-clear"),
-  foodAiCta: document.querySelector("#food-ai-cta"),
   foodAddKcalSummary: document.querySelector("#food-add-kcal-summary"),
   foodAddKcalLine: document.querySelector("#food-add-kcal-line"),
   foodAddProtein: document.querySelector("#food-add-protein"),
@@ -84,6 +83,7 @@ const nodes = {
   foodForm: document.querySelector("#food-form"),
   foodMeal: document.querySelector("#food-meal"),
   foodAddSheet: document.querySelector("#food-add-sheet"),
+  foodAddPanel: document.querySelector(".food-add-panel"),
   foodAddClose: document.querySelector("#food-add-close"),
   foodReviewSheet: document.querySelector("#food-review-sheet"),
   foodReviewClose: document.querySelector("#food-review-close"),
@@ -152,6 +152,10 @@ document.querySelectorAll("[data-food-tab]").forEach((button) => {
 
 document.querySelectorAll("[data-add-mode]").forEach((button) => {
   button.addEventListener("click", () => switchAddMode(button.dataset.addMode));
+});
+
+document.querySelectorAll("[data-add-mode-back]").forEach((button) => {
+  button.addEventListener("click", () => switchAddMode("browse"));
 });
 
 document.querySelectorAll("[data-food-example]").forEach((button) => {
@@ -224,10 +228,8 @@ nodes.foodSearchForm.addEventListener("submit", searchFood);
 nodes.foodSearch.addEventListener("input", queueFoodSearch);
 nodes.foodSearchBarcode.addEventListener("click", () => {
   switchAddMode("barcode");
-  nodes.barcodePhotoInput.click();
 });
 nodes.foodSearchClear.addEventListener("click", clearFoodSearch);
-nodes.foodAiCta.addEventListener("click", () => switchAddMode("ai"));
 nodes.foodSearchResults.addEventListener("click", handleFoodPick);
 nodes.foodAddRecentList.addEventListener("click", handleFoodPick);
 nodes.foodAddFavoritesList.addEventListener("click", handleFoodPick);
@@ -1180,13 +1182,14 @@ function closeEntryEditor() {
 }
 
 function openFoodAddSheet() {
-  switchAddMode(state.addMode || "browse");
+  switchAddMode("browse");
   lockPageScroll("food-add");
   nodes.foodReviewSheet.classList.add("hidden");
   nodes.foodAddSheet.classList.remove("hidden");
 }
 
 function closeFoodAddSheet() {
+  switchAddMode("browse");
   nodes.foodAddSheet.classList.add("hidden");
   unlockPageScroll("food-add");
 }
@@ -1428,8 +1431,16 @@ function switchAddMode(mode) {
   document.querySelectorAll("[data-add-mode]").forEach((button) => {
     button.classList.toggle("active", button.dataset.addMode === mode);
   });
+  document.querySelectorAll("[data-add-browse]").forEach((panel) => {
+    panel.classList.toggle("hidden", mode !== "browse");
+  });
   document.querySelectorAll("[data-add-panel]").forEach((panel) => {
     panel.classList.toggle("active", panel.dataset.addPanel === mode);
+  });
+  nodes.foodAddPanel?.classList.remove("mode-browse", "mode-ai", "mode-photo", "mode-manual", "mode-barcode");
+  nodes.foodAddPanel?.classList.add(`mode-${mode}`);
+  requestAnimationFrame(() => {
+    nodes.foodAddSheet.querySelector(".food-add-scroll")?.scrollTo({ top: 0 });
   });
 }
 

@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/styles.css?v=food-flow-20260601c" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=food-flow-20260601d" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -364,72 +364,85 @@
             <button id="food-add-close" class="icon-mini" type="button" aria-label="Закрыть">×</button>
           </div>
 
-          <form id="food-search-form" class="food-search-form" role="search">
-            <div class="food-search-field">
-              <svg aria-hidden="true"><use href="#icon-search"></use></svg>
-              <input
-                id="food-search"
-                type="search"
-                autocomplete="off"
-                enterkeyhint="search"
-                placeholder="Продукт, блюдо или бренд"
-              />
-            </div>
-            <button id="food-search-barcode" class="scan-shortcut" type="button" aria-label="Сканировать штрихкод">
-              <svg aria-hidden="true"><use href="#icon-scan"></use></svg>
-            </button>
-          </form>
+          <div class="food-add-browse" data-add-browse>
+            <form id="food-search-form" class="food-search-form" role="search">
+              <div class="food-search-field">
+                <svg aria-hidden="true"><use href="#icon-search"></use></svg>
+                <input
+                  id="food-search"
+                  type="search"
+                  autocomplete="off"
+                  enterkeyhint="search"
+                  placeholder="Продукт, блюдо или бренд"
+                />
+              </div>
+              <button id="food-search-barcode" class="scan-shortcut" type="button" aria-label="Сканировать штрихкод">
+                <svg aria-hidden="true"><use href="#icon-scan"></use></svg>
+              </button>
+            </form>
 
-          <section class="food-add-overview component-card" aria-label="Сводка за день">
-            <div>
-              <strong>Потребление за день</strong>
-              <span id="food-add-kcal-summary">0 / 0 ккал</span>
-            </div>
-            <i id="food-add-kcal-line"></i>
-            <div class="food-add-macro-row">
-              <span><b>Углеводы</b><i class="carbs"></i><em id="food-add-carbs">0 / 0 г</em></span>
-              <span><b>Белки</b><i class="protein"></i><em id="food-add-protein">0 / 0 г</em></span>
-              <span><b>Жиры</b><i class="fat"></i><em id="food-add-fat">0 / 0 г</em></span>
-            </div>
-          </section>
+            <section class="food-add-overview component-card" aria-label="Сводка за день">
+              <div>
+                <strong>Потребление за день</strong>
+                <span id="food-add-kcal-summary">0 / 0 ккал</span>
+              </div>
+              <i id="food-add-kcal-line"></i>
+              <div class="food-add-macro-row">
+                <span><b>Углеводы</b><i class="carbs"></i><em id="food-add-carbs">0 / 0 г</em></span>
+                <span><b>Белки</b><i class="protein"></i><em id="food-add-protein">0 / 0 г</em></span>
+                <span><b>Жиры</b><i class="fat"></i><em id="food-add-fat">0 / 0 г</em></span>
+              </div>
+            </section>
 
-          <button id="food-ai-cta" class="food-ai-cta" type="button">
-            <span>Разобрать еду через AI</span>
-            <b>Текстом или по фото</b>
-          </button>
-
-          <section id="food-search-section" class="food-search-section hidden" aria-live="polite">
-            <div class="food-add-section-head">
-              <h3>Результаты поиска</h3>
-              <button id="food-search-clear" type="button">Очистить</button>
+            <div class="add-mode-actions" aria-label="Способ добавления">
+              <button type="button" data-add-mode="ai">
+                <span>AI</span>
+                <b>описать</b>
+              </button>
+              <button type="button" data-add-mode="photo">
+                <span>Фото</span>
+                <b>камера</b>
+              </button>
+              <button type="button" data-add-mode="manual">
+                <span>Точно</span>
+                <b>ккал и БЖУ</b>
+              </button>
+              <button type="button" data-add-mode="barcode">
+                <span>Штрихкод</span>
+                <b>скан</b>
+              </button>
             </div>
-            <div id="food-search-results" class="food-pick-list"></div>
-          </section>
 
-          <div class="segmented add-mode-tabs" role="tablist" aria-label="Способ добавления">
-            <button type="button" data-add-mode="ai">Текст</button>
-            <button type="button" data-add-mode="photo">Фото</button>
-            <button type="button" data-add-mode="manual">Точно</button>
-            <button type="button" data-add-mode="barcode">Штрихкод</button>
+            <section id="food-search-section" class="food-search-section hidden" aria-live="polite">
+              <div class="food-add-section-head">
+                <h3>Результаты поиска</h3>
+                <button id="food-search-clear" type="button">Очистить</button>
+              </div>
+              <div id="food-search-results" class="food-pick-list"></div>
+            </section>
+
+            <section id="food-add-recent" class="food-add-library">
+              <div class="food-add-section-head">
+                <h3>Недавние</h3>
+                <span>быстро добавить снова</span>
+              </div>
+              <div id="food-add-recent-list" class="food-pick-list"></div>
+            </section>
+
+            <section id="food-add-favorites" class="food-add-library hidden">
+              <div class="food-add-section-head">
+                <h3>Шаблоны</h3>
+                <span>из избранного</span>
+              </div>
+              <div id="food-add-favorites-list" class="food-pick-list"></div>
+            </section>
           </div>
 
-          <section id="food-add-recent" class="food-add-library">
-            <div class="food-add-section-head">
-              <h3>Недавние</h3>
-              <span>быстро добавить снова</span>
-            </div>
-            <div id="food-add-recent-list" class="food-pick-list"></div>
-          </section>
-
-          <section id="food-add-favorites" class="food-add-library hidden">
-            <div class="food-add-section-head">
-              <h3>Шаблоны</h3>
-              <span>из избранного</span>
-            </div>
-            <div id="food-add-favorites-list" class="food-pick-list"></div>
-          </section>
-
           <form id="food-text-form" class="form-panel component-card food-text-panel add-mode-panel" data-add-panel="ai">
+            <div class="mode-screen-head">
+              <button type="button" data-add-mode-back>← Назад</button>
+              <h3>Опиши еду</h3>
+            </div>
             <label class="input-label" for="food-text">Что съел?</label>
             <textarea
               id="food-text"
@@ -448,6 +461,10 @@
           </form>
 
           <section class="form-panel component-card food-text-panel add-mode-panel add-photo-panel" data-add-panel="photo">
+            <div class="mode-screen-head">
+              <button type="button" data-add-mode-back>← Назад</button>
+              <h3>Фото блюда</h3>
+            </div>
             <label class="input-label" for="food-photo-input">Фото блюда</label>
             <button id="food-photo-button" class="media-action photo-primary-action" type="button">
               <svg aria-hidden="true"><use href="#icon-camera"></use></svg>
@@ -464,6 +481,10 @@
           </section>
 
           <form id="food-form" class="form-panel component-card food-text-panel add-mode-panel" data-add-panel="manual">
+            <div class="mode-screen-head">
+              <button type="button" data-add-mode-back>← Назад</button>
+              <h3>Точные значения</h3>
+            </div>
             <label class="input-label" for="food-name">Точные значения</label>
             <input id="food-name" name="name" autocomplete="off" placeholder="Название" required />
             <div class="field-row">
@@ -479,6 +500,10 @@
           </form>
 
           <section class="form-panel component-card food-text-panel add-mode-panel" data-add-panel="barcode">
+            <div class="mode-screen-head">
+              <button type="button" data-add-mode-back>← Назад</button>
+              <h3>Штрихкод</h3>
+            </div>
             <label class="input-label" for="barcode-code">Штрихкод</label>
             <button id="barcode-photo-button" class="media-action barcode-wide-action" type="button">
               <svg aria-hidden="true"><use href="#icon-scan"></use></svg>
@@ -576,6 +601,6 @@
     </div>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/app/static/app.js?v=food-flow-20260601c" type="module"></script>
+    <script src="/app/static/app.js?v=food-flow-20260601d" type="module"></script>
   </body>
 </html>
