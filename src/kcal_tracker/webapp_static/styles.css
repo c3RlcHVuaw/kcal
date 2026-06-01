@@ -2704,11 +2704,13 @@ textarea {
   position: sticky;
   top: 0;
   z-index: 3;
+  display: grid;
   align-items: center;
   grid-template-columns: 56px minmax(0, 1fr) 56px;
   gap: 8px;
-  margin: calc(-1 * max(18px, env(safe-area-inset-top))) -18px 18px;
-  padding: max(18px, env(safe-area-inset-top)) 18px 12px;
+  min-height: calc(76px + max(0px, env(safe-area-inset-top)));
+  margin: calc(-1 * max(18px, env(safe-area-inset-top))) -18px 20px;
+  padding: max(18px, env(safe-area-inset-top)) 18px 14px;
   border-bottom: 0;
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--bg) 96%, transparent), color-mix(in srgb, var(--bg) 82%, transparent));
@@ -2735,6 +2737,7 @@ textarea {
 #food-add-sheet #food-add-close {
   grid-column: 1;
   grid-row: 1;
+  justify-self: start;
   width: 52px;
   height: 52px;
   border-radius: 50%;
