@@ -79,7 +79,6 @@ const nodes = {
   foodPreviewSource: document.querySelector("#food-preview-source"),
   foodPreviewList: document.querySelector("#food-preview-list"),
   saveParsedFood: document.querySelector("#save-parsed-food"),
-  saveParsedFoodTop: document.querySelector("#save-parsed-food-top"),
   foodPhotoButton: document.querySelector("#food-photo-button"),
   foodPhotoInput: document.querySelector("#food-photo-input"),
   foodPhotoHint: document.querySelector("#food-photo-hint"),
@@ -266,7 +265,6 @@ nodes.foodSearchResults.addEventListener("click", handleFoodPick);
 nodes.foodAddRecentList.addEventListener("click", handleFoodPick);
 nodes.foodAddFavoritesList.addEventListener("click", handleFoodPick);
 nodes.saveParsedFood.addEventListener("click", saveParsedFoods);
-nodes.saveParsedFoodTop.addEventListener("click", saveParsedFoods);
 nodes.foodPreviewList.addEventListener("input", updateParsedFoodField);
 nodes.foodPreviewList.addEventListener("click", removeParsedFood);
 nodes.foodPreviewList.addEventListener("submit", refineParsedFood);
@@ -522,9 +520,8 @@ async function saveParsedFoods() {
     return;
   }
 
-  if (isBusy(nodes.saveParsedFood) || isBusy(nodes.saveParsedFoodTop)) return;
+  if (isBusy(nodes.saveParsedFood)) return;
   setButtonBusy(nodes.saveParsedFood, "Сохраняю...");
-  setButtonBusy(nodes.saveParsedFoodTop, "...");
   try {
     for (const food of foods) {
       await api("/webapp/me/entries", {
@@ -552,7 +549,6 @@ async function saveParsedFoods() {
     toast("Не получилось сохранить еду");
   } finally {
     restoreButton(nodes.saveParsedFood);
-    restoreButton(nodes.saveParsedFoodTop);
   }
 }
 
@@ -1329,7 +1325,6 @@ function renderParsedFoods(result) {
   nodes.foodPreview.classList.remove("hidden");
   if (!state.parsedFoods.length) {
     nodes.saveParsedFood.disabled = true;
-    nodes.saveParsedFoodTop.disabled = true;
     nodes.foodPreviewList.innerHTML = `
       <article class="parsed-food-empty component-card">
         <strong>Позиции удалены</strong>
@@ -1340,7 +1335,6 @@ function renderParsedFoods(result) {
     return;
   }
   nodes.saveParsedFood.disabled = false;
-  nodes.saveParsedFoodTop.disabled = false;
   nodes.foodPreviewList.innerHTML = state.parsedFoods.map((food, index) => `
     <article class="parsed-food-card entry food-card${state.expandedParsedFood === index ? " is-expanded" : ""}" data-index="${index}">
       <div class="food-thumb">${escapeHtml(food.emoji || foodInitial(food.name))}</div>
