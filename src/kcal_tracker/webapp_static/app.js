@@ -13,6 +13,7 @@ const state = {
   activeSheet: null,
   parsedFoods: [],
   parsedFoodSource: "ai",
+  foodReviewReturnView: "today",
   addMode: "browse",
   foodSearchResults: [],
   frequentFoods: [],
@@ -89,7 +90,6 @@ const nodes = {
   foodAddSheet: document.querySelector("#food-add-sheet"),
   foodAddPanel: document.querySelector(".food-add-panel"),
   foodAddClose: document.querySelector("#food-add-close"),
-  foodReviewSheet: document.querySelector("#food-review-sheet"),
   foodReviewClose: document.querySelector("#food-review-close"),
   toast: document.querySelector("#toast"),
   weightButton: document.querySelector("#weight-button"),
@@ -253,9 +253,6 @@ nodes.foodAddSheet.addEventListener("click", (event) => {
   if (event.target === nodes.foodAddSheet) closeFoodAddSheet();
 });
 nodes.foodReviewClose.addEventListener("click", closeFoodReviewSheet);
-nodes.foodReviewSheet.addEventListener("click", (event) => {
-  if (event.target === nodes.foodReviewSheet) closeFoodReviewSheet();
-});
 nodes.foodTextForm.addEventListener("submit", parseFoodText);
 nodes.foodSearchForm.addEventListener("submit", searchFood);
 nodes.foodSearch.addEventListener("input", queueFoodSearch);
@@ -511,7 +508,7 @@ function setParsedFoods(result) {
   state.parsedFoods = result.foods.map(normalizeParsedFood);
   state.parsedFoodSource = result.source;
   renderParsedFoods(result);
-  openFoodReviewSheet();
+  openFoodReviewScreen();
 }
 
 async function saveParsedFoods() {
@@ -540,8 +537,7 @@ async function saveParsedFoods() {
     state.parsedFoods = [];
     nodes.foodTextForm.reset();
     nodes.barcodeCode.value = "";
-    nodes.foodPreview.classList.add("hidden");
-    closeFoodReviewSheet();
+    renderParsedFoods({ source: state.parsedFoodSource });
     markEntryHighlights(foods, state.selectedMeal);
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     switchView("today");
@@ -1323,7 +1319,19 @@ function renderParsedFoods(result) {
     history: "Похоже на то, что ты уже добавлял раньше.",
   };
   nodes.foodPreviewSource.textContent = sourceText[result.source] || "Можно поправить значения";
-  nodes.foodPreview.classList.toggle("hidden", !state.parsedFoods.length);
+  nodes.foodPreview.classList.remove("hidden");
+  if (!state.parsedFoods.length) {
+    nodes.saveParsedFood.disabled = true;
+    nodes.foodPreviewList.innerHTML = `
+      <article class="parsed-food-empty component-card">
+        <strong>Позиции удалены</strong>
+        <p>Можно вернуться назад и добавить еду заново через поиск, AI, фото или штрихкод.</p>
+        <button class="secondary-button" type="button" data-review-add-again>Добавить заново</button>
+      </article>
+    `;
+    return;
+  }
+  nodes.saveParsedFood.disabled = false;
   nodes.foodPreviewList.innerHTML = state.parsedFoods.map((food, index) => `
     <article class="parsed-food-card" data-index="${index}">
       <div class="parsed-food-head preview-head">
@@ -1406,7 +1414,6 @@ function closeEntryEditor() {
 function openFoodAddSheet() {
   switchAddMode("browse");
   lockPageScroll("food-add");
-  nodes.foodReviewSheet.classList.add("hidden");
   nodes.foodAddSheet.classList.remove("hidden");
 }
 
@@ -1416,18 +1423,21 @@ function closeFoodAddSheet() {
   unlockPageScroll("food-add");
 }
 
-function openFoodReviewSheet() {
-  lockPageScroll("food-review");
-  nodes.foodAddSheet.classList.add("hidden");
-  nodes.foodReviewSheet.classList.remove("hidden");
+function openFoodReviewScreen() {
+  const returnView = state.activeView === "food-review" ? state.foodReviewReturnView : state.activeView;
+  state.foodReviewReturnView = returnView || "today";
+  if (!nodes.foodAddSheet.classList.contains("hidden")) {
+    closeFoodAddSheet();
+  }
+  switchView("food-review");
   requestAnimationFrame(() => {
-    nodes.foodReviewSheet.querySelector(".food-review-scroll")?.scrollTo({ top: 0 });
+    window.scrollTo({ top: 0 });
   });
 }
 
 function closeFoodReviewSheet() {
-  nodes.foodReviewSheet.classList.add("hidden");
-  unlockPageScroll("food-review");
+  const returnView = state.foodReviewReturnView || "today";
+  switchView(returnView === "food-review" ? "today" : returnView);
 }
 
 function lockPageScroll(sheetName) {
@@ -1554,14 +1564,16 @@ function updateParsedFoodField(event) {
 }
 
 function removeParsedFood(event) {
+  const addAgain = event.target.closest("[data-review-add-again]");
+  if (addAgain) {
+    switchView(state.foodReviewReturnView || "today");
+    openFoodAddSheet();
+    return;
+  }
   const button = event.target.closest("[data-remove-parsed]");
   if (!button) return;
   const index = Number(button.dataset.removeParsed);
   state.parsedFoods.splice(index, 1);
-  if (!state.parsedFoods.length) {
-    nodes.foodPreview.classList.add("hidden");
-    return;
-  }
   renderParsedFoods({ source: state.parsedFoodSource });
 }
 

@@ -193,6 +193,15 @@ body[data-view="today"] .app-header {
   display: none;
 }
 
+body[data-view="food-review"] .app-header,
+body[data-view="food-review"] .tab-bar {
+  display: none;
+}
+
+body[data-view="food-review"] .app-shell {
+  padding-bottom: 0;
+}
+
 h1,
 h2,
 p {
@@ -1460,6 +1469,153 @@ textarea:focus {
   gap: 10px;
 }
 
+.food-review-view {
+  min-height: calc(100dvh - var(--app-top-pad));
+  gap: var(--space-4);
+  padding-bottom: 0;
+}
+
+.food-review-top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: center;
+  margin: calc(var(--app-top-pad) * -1) calc(var(--space-page-x) * -1) 0;
+  padding: calc(var(--app-top-pad) + 8px) var(--space-page-x) var(--space-3);
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 94%, transparent), color-mix(in srgb, var(--bg) 86%, transparent)),
+    var(--bg);
+  backdrop-filter: blur(22px) saturate(1.25);
+  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+}
+
+.food-review-top h2 {
+  font-size: 28px;
+  line-height: 1.05;
+}
+
+.review-back-button {
+  display: inline-grid;
+  grid-template-columns: 18px auto;
+  gap: 6px;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-solid);
+  color: var(--text);
+  box-shadow: var(--shadow-tight);
+}
+
+.review-back-button span {
+  color: var(--accent-strong);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.review-back-button b {
+  font-size: 14px;
+}
+
+.food-review-page {
+  gap: var(--space-4);
+  padding-bottom: calc(104px + env(safe-area-inset-bottom));
+}
+
+.food-review-page .parsed-food-list {
+  gap: var(--space-4);
+}
+
+.food-review-page .parsed-food-card {
+  padding: var(--space-4);
+  border-radius: 28px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-solid) 96%, white), var(--surface-solid)),
+    var(--surface-solid);
+  box-shadow: var(--shadow-card);
+}
+
+.food-review-page .parsed-food-head {
+  grid-template-columns: 52px minmax(0, 1fr) 42px;
+  gap: 12px;
+}
+
+.food-review-page .food-thumb.small {
+  width: 52px;
+  height: 52px;
+  border-radius: 17px;
+  font-size: 24px;
+}
+
+.food-review-page .preview-title input {
+  min-height: 48px;
+  border-radius: 16px;
+  font-size: 17px;
+  font-weight: 760;
+}
+
+.food-review-page .icon-mini {
+  width: 42px;
+  height: 42px;
+  font-size: 24px;
+}
+
+.food-review-page .preview-summary {
+  min-height: 62px;
+  padding: 10px 14px;
+  border-radius: 18px;
+}
+
+.food-review-page .preview-summary strong {
+  font-size: 26px;
+}
+
+.food-review-page .preview-summary span {
+  font-size: 14px;
+}
+
+.food-review-page .compact-fields input {
+  min-height: 48px;
+  border-radius: 14px;
+}
+
+.food-review-page .portion-actions button {
+  min-height: 42px;
+}
+
+.food-review-page .preview-advice {
+  padding: 12px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+}
+
+.parsed-food-empty {
+  display: grid;
+  gap: var(--space-2);
+  padding: 22px;
+  text-align: center;
+}
+
+.parsed-food-empty strong {
+  font-size: 20px;
+}
+
+.parsed-food-empty p {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.parsed-food-empty .secondary-button {
+  justify-self: center;
+  min-width: 180px;
+  margin-top: var(--space-2);
+}
+
 .parsed-food-list {
   display: grid;
   gap: var(--space-3);
@@ -2429,6 +2585,18 @@ body.sheet-open .tab-bar [data-view="food"] {
 
 .food-save-bar .primary-button {
   width: 100%;
+}
+
+.food-review-page .food-save-bar {
+  position: fixed;
+  right: max(var(--space-page-x), calc((100vw - 560px) / 2 + var(--space-page-x)));
+  bottom: 0;
+  left: max(var(--space-page-x), calc((100vw - 560px) / 2 + var(--space-page-x)));
+  margin: 0;
+  padding: var(--space-3) 0 calc(var(--space-3) + env(safe-area-inset-bottom));
+  background:
+    linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg) 92%, transparent) 28%, var(--bg) 72%),
+    var(--bg);
 }
 
 .food-review-panel {
