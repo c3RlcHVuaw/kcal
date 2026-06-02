@@ -4003,27 +4003,32 @@ textarea {
 
 .add-mode-actions {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin: 2px 0 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 4px 0 16px;
 }
 
 .add-mode-actions button {
+  --action-tint: var(--accent);
+  --action-tint-soft: color-mix(in srgb, var(--action-tint) 13%, transparent);
   position: relative;
   overflow: hidden;
   display: grid;
   min-width: 0;
-  min-height: 72px;
-  align-content: center;
-  gap: 5px;
-  padding: 9px 5px;
-  border: 1px solid var(--line);
-  border-radius: 17px;
+  min-height: 88px;
+  align-content: start;
+  justify-items: center;
+  gap: 4px;
+  padding: 10px 6px 9px;
+  border: 1px solid color-mix(in srgb, var(--action-tint) 20%, var(--line));
+  border-radius: 20px;
   background:
-    var(--control-gradient),
-    var(--surface);
+    radial-gradient(circle at 50% 10%, color-mix(in srgb, var(--action-tint) 18%, transparent), transparent 45%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 96%, var(--action-tint-soft)), var(--surface-solid));
   color: var(--text);
-  box-shadow: var(--shadow-tight);
+  box-shadow:
+    0 14px 28px color-mix(in srgb, var(--action-tint) 10%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.74);
   transition:
     transform var(--motion-fast),
     box-shadow var(--motion-soft),
@@ -4031,14 +4036,61 @@ textarea {
     border-color var(--motion-soft);
 }
 
+.add-mode-actions button[data-add-mode="ai"] {
+  --action-tint: #6e8dff;
+}
+
+.add-mode-actions button[data-add-mode="photo"] {
+  --action-tint: #47c08b;
+}
+
+.add-mode-actions button[data-add-mode="manual"] {
+  --action-tint: #ffb43e;
+}
+
+.add-mode-actions button::before {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  margin-bottom: 2px;
+  border-radius: 14px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--action-tint) 92%, #fff), var(--action-tint));
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow:
+    0 8px 18px color-mix(in srgb, var(--action-tint) 28%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.add-mode-actions button[data-add-mode="ai"]::before {
+  content: "AI";
+  font-size: 12px;
+}
+
+.add-mode-actions button[data-add-mode="photo"]::before {
+  content: "◎";
+  font-size: 20px;
+}
+
+.add-mode-actions button[data-add-mode="manual"]::before {
+  content: "123";
+  font-size: 11px;
+}
+
 .add-mode-actions button:active {
-  transform: scale(0.94);
+  transform: scale(0.95) translateY(1px);
+  box-shadow:
+    0 8px 18px color-mix(in srgb, var(--action-tint) 10%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
 }
 
 .add-mode-actions button:hover {
   box-shadow:
-    var(--shadow-tight),
-    inset 0 1px 0 color-mix(in srgb, var(--glass-line) 80%, transparent);
+    0 16px 32px color-mix(in srgb, var(--action-tint) 14%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.82);
 }
 
 .add-mode-actions span,
@@ -4050,14 +4102,15 @@ textarea {
 }
 
 .add-mode-actions span {
-  font-size: 14px;
-  font-weight: 820;
+  font-size: 13px;
+  font-weight: 860;
+  letter-spacing: 0;
 }
 
 .add-mode-actions b {
-  color: var(--muted);
+  color: color-mix(in srgb, var(--action-tint) 52%, var(--muted));
   font-size: 10px;
-  font-weight: 760;
+  font-weight: 800;
 }
 
 .food-add-section-head {
