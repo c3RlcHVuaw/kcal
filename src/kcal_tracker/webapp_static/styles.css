@@ -3752,29 +3752,32 @@ textarea {
   max-height: none;
   width: min(100%, 560px);
   margin: 0 auto;
-  padding: var(--app-top-pad) 18px calc(22px + env(safe-area-inset-bottom));
+  padding: 0 18px calc(22px + env(safe-area-inset-bottom));
 }
 
+#food-add-sheet .sheet-panel::before,
 #food-add-sheet .food-add-scroll::before {
   content: none;
 }
 
 #food-add-sheet .food-add-scroll > .sheet-title {
   position: sticky;
-  top: var(--app-top-pad);
-  z-index: 3;
+  top: 0;
+  z-index: 8;
   display: grid;
   align-items: center;
   grid-template-columns: 56px minmax(0, 1fr) 56px;
   gap: 8px;
-  min-height: 76px;
-  margin: 0 -18px 20px;
-  padding: 0 18px 14px;
-  border-bottom: 0;
+  min-height: calc(var(--app-top-pad) + 58px);
+  margin: 0 -18px 16px;
+  padding: var(--app-top-pad) 18px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--bg) 96%, transparent), color-mix(in srgb, var(--bg) 82%, transparent));
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 98%, transparent) 0%, color-mix(in srgb, var(--bg) 94%, transparent) 66%, color-mix(in srgb, var(--bg) 86%, transparent) 100%),
+    var(--bg);
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(28px) saturate(1.45);
+  -webkit-backdrop-filter: blur(28px) saturate(1.45);
 }
 
 #food-add-sheet .sheet-title > div {
@@ -4357,18 +4360,22 @@ textarea {
 
 .mode-screen-head {
   position: sticky;
-  top: var(--app-top-pad);
-  z-index: 2;
+  top: 0;
+  z-index: 8;
   display: grid;
   grid-template-columns: minmax(96px, auto) minmax(0, 1fr) minmax(96px, auto);
   align-items: center;
   gap: 8px;
-  margin: 0 -18px 12px;
-  padding: 8px 18px 12px;
+  min-height: calc(var(--app-top-pad) + 58px);
+  margin: 0 -18px 14px;
+  padding: var(--app-top-pad) 18px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 62%, transparent);
   background:
-    linear-gradient(180deg, color-mix(in srgb, var(--bg) 96%, transparent), color-mix(in srgb, var(--bg) 82%, transparent));
-  backdrop-filter: blur(24px) saturate(1.4);
-  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    linear-gradient(180deg, color-mix(in srgb, var(--bg) 98%, transparent) 0%, color-mix(in srgb, var(--bg) 94%, transparent) 66%, color-mix(in srgb, var(--bg) 86%, transparent) 100%),
+    var(--bg);
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(28px) saturate(1.45);
+  -webkit-backdrop-filter: blur(28px) saturate(1.45);
 }
 
 .mode-screen-head button {
