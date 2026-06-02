@@ -130,7 +130,7 @@ button:not(:disabled):active {
   transform-origin: center;
 }
 
-:where(#kcal-eaten, #kcal-burned, #kcal-left, #kcal-target, #kcal-percent, #nutrition-score, #nutrition-status, #macro-total, #water, #activity-total, #weight-value, #weight-goal, #ai-usage, #week-average, #week-target, #week-in-target, #weight-trend, #food-add-kcal-summary, #food-add-protein, #food-add-fat, #food-add-carbs, #protein, #fat, #carbs, #protein-percent, #fat-percent, #carbs-percent, #protein-overflow, #fat-overflow, #carbs-overflow).value-pop {
+:where(#kcal-eaten, #kcal-burned, #kcal-left, #kcal-target, #kcal-percent, #nutrition-score, #nutrition-status, #macro-total, #water, #activity-total, #weight-value, #weight-goal, #ai-usage, #week-average, #week-target, #week-target-percent, #week-status-label, #week-insight, #week-delta, #week-in-target, #week-tracked, #week-consistency, #week-chart-note, #weight-trend, #food-add-kcal-summary, #food-add-protein, #food-add-fat, #food-add-carbs, #protein, #fat, #carbs, #protein-percent, #fat-percent, #carbs-percent, #protein-overflow, #fat-overflow, #carbs-overflow).value-pop {
   display: inline-block;
 }
 
@@ -1752,44 +1752,205 @@ textarea:focus {
   font-size: 12px;
 }
 
+.progress-hero {
+  display: grid;
+  gap: 12px;
+}
+
+.progress-insight-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 86px;
+  align-items: center;
+  gap: 14px;
+  min-height: 132px;
+  padding: 20px 18px;
+}
+
+.progress-insight-card strong {
+  display: block;
+  margin: 4px 0 3px;
+  color: var(--text);
+  font-size: clamp(36px, 10vw, 52px);
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.progress-insight-card .caption {
+  width: fit-content;
+  margin-bottom: 8px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.progress-insight-card.is-over .caption {
+  background: color-mix(in srgb, var(--danger) 13%, transparent);
+  color: var(--danger);
+}
+
+.progress-insight-card.is-under .caption {
+  background: color-mix(in srgb, var(--carbs) 18%, transparent);
+  color: color-mix(in srgb, var(--carbs) 72%, var(--text));
+}
+
+.week-target-ring {
+  --week-progress: 0%;
+  position: relative;
+  display: grid;
+  width: 82px;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, var(--surface-solid) 0 55%, transparent 56%),
+    conic-gradient(
+      from -90deg,
+      var(--accent) 0 var(--week-progress),
+      color-mix(in srgb, var(--line) 72%, transparent) var(--week-progress) 100%
+    );
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--glass-line) 80%, transparent),
+    0 14px 28px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.progress-insight-card.is-over .week-target-ring {
+  background:
+    radial-gradient(circle at center, var(--surface-solid) 0 55%, transparent 56%),
+    conic-gradient(from -90deg, var(--danger) 0 var(--week-progress), color-mix(in srgb, var(--line) 72%, transparent) var(--week-progress) 100%);
+}
+
+.progress-insight-card.is-under .week-target-ring {
+  background:
+    radial-gradient(circle at center, var(--surface-solid) 0 55%, transparent 56%),
+    conic-gradient(from -90deg, var(--carbs) 0 var(--week-progress), color-mix(in srgb, var(--line) 72%, transparent) var(--week-progress) 100%);
+}
+
+.week-target-ring span {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 860;
+}
+
+.progress-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.progress-kpi-grid article {
+  display: grid;
+  min-width: 0;
+  min-height: 92px;
+  align-content: center;
+  gap: 5px;
+  padding: 13px 12px;
+  border-radius: 18px;
+}
+
+.progress-kpi-grid span,
+.progress-kpi-grid small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-kpi-grid span {
+  font-size: 12px;
+  font-weight: 780;
+}
+
+.progress-kpi-grid strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: clamp(19px, 5.2vw, 25px);
+  line-height: 1.05;
+}
+
+.progress-kpi-grid small {
+  font-size: 10px;
+  font-weight: 720;
+}
+
+.progress-chart-section {
+  gap: 10px;
+}
+
 .week-chart {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6px;
+  gap: 7px;
   align-items: end;
-  min-height: 184px;
-  padding: 14px 12px;
+  min-height: 204px;
+  padding: 16px 12px 14px;
+}
+
+.week-chart::before {
+  content: "";
+  position: absolute;
+  inset: 42px 12px 46px;
+  pointer-events: none;
+  border-top: 1px dashed color-mix(in srgb, var(--muted) 18%, transparent);
+  opacity: 0.8;
 }
 
 .week-bar {
+  position: relative;
   display: grid;
-  grid-template-rows: 18px minmax(76px, 1fr) 18px;
-  gap: 6px;
+  grid-template-rows: 20px minmax(84px, 1fr) 14px 18px;
+  gap: 5px;
   align-items: stretch;
   min-width: 0;
-  height: 150px;
+  height: 172px;
   text-align: center;
 }
 
 .week-bar strong {
   min-height: 18px;
   overflow: hidden;
-  color: var(--muted);
+  color: var(--text);
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 10px;
-  font-weight: 720;
+  font-weight: 800;
 }
 
 .week-bar i {
   align-self: end;
   display: block;
   width: 100%;
-  min-height: 6px;
-  border-radius: 999px 999px 8px 8px;
-  background: var(--accent-strong);
+  min-height: 8px;
+  border-radius: 999px 999px 10px 10px;
+  background: linear-gradient(180deg, var(--accent), color-mix(in srgb, var(--accent) 72%, var(--activity)));
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--accent) 16%, transparent);
 }
 
+.week-bar.near i {
+  background: linear-gradient(180deg, #63d79d, #48c08b);
+}
+
+.week-bar.over i {
+  background: linear-gradient(180deg, #ff8a6a, #ff6257);
+  box-shadow: 0 8px 16px rgba(255, 98, 87, 0.16);
+}
+
+.week-bar.under i {
+  background: linear-gradient(180deg, #ffc75f, #f1b84b);
+  box-shadow: 0 8px 16px rgba(241, 184, 75, 0.16);
+}
+
+.week-bar.empty i {
+  background: color-mix(in srgb, var(--muted) 18%, transparent);
+  box-shadow: none;
+}
+
+.week-bar em,
 .week-bar span {
   display: block;
   min-width: 0;
@@ -1797,8 +1958,52 @@ textarea:focus {
   color: var(--muted);
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 10px;
+  font-style: normal;
   line-height: 1.15;
+}
+
+.week-bar em {
+  font-size: 9px;
+  font-weight: 720;
+}
+
+.week-bar span {
+  font-size: 10px;
+  font-weight: 760;
+}
+
+.week-legend {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin-top: -2px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+}
+
+.week-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.week-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.week-legend .under {
+  background: var(--carbs);
+}
+
+.week-legend .near {
+  background: var(--accent);
+}
+
+.week-legend .over {
+  background: var(--danger);
 }
 
 .weight-chart {

@@ -100,7 +100,14 @@ const nodes = {
   favoritesList: document.querySelector("#favorites-list"),
   weekAverage: document.querySelector("#week-average"),
   weekTarget: document.querySelector("#week-target"),
+  weekTargetPercent: document.querySelector("#week-target-percent"),
+  weekStatusLabel: document.querySelector("#week-status-label"),
+  weekInsight: document.querySelector("#week-insight"),
+  weekDelta: document.querySelector("#week-delta"),
   weekInTarget: document.querySelector("#week-in-target"),
+  weekTracked: document.querySelector("#week-tracked"),
+  weekConsistency: document.querySelector("#week-consistency"),
+  weekChartNote: document.querySelector("#week-chart-note"),
   weekChart: document.querySelector("#week-chart"),
   goalForm: document.querySelector("#goal-form"),
   goalKind: document.querySelector("#goal-kind"),
@@ -1060,21 +1067,88 @@ function mealIdForNow() {
 }
 
 function renderWeek(data) {
-  setTextWithPulse(nodes.weekAverage, `${Math.round(data.average_kcal)} ккал`);
-  setTextWithPulse(nodes.weekTarget, `Цель: ${data.target_kcal} ккал`);
-  setTextWithPulse(nodes.weekInTarget, `${data.days_in_target} дней в цели`);
-  const max = Math.max(data.target_kcal, ...data.days.map((day) => day.kcal), 1);
-  nodes.weekChart.innerHTML = data.days.map((day) => {
+  const days = data.days || [];
+  const trackedDays = days.filter((day) => day.entries_count);
+  const totalDays = Math.max(days.length, 1);
+  const average = Math.round(Number(data.average_kcal || 0));
+  const target = Math.round(Number(data.target_kcal || 0));
+  const delta = average - target;
+  const absDelta = Math.abs(delta);
+  const ratio = target > 0 ? average / target : 0;
+  const percent = target > 0 ? Math.round(ratio * 100) : 0;
+  const status = weekStatus(delta, target, trackedDays.length);
+  const trackedText = `${trackedDays.length}/${totalDays}`;
+
+  setTextWithPulse(nodes.weekAverage, `${average} ккал`);
+  setTextWithPulse(nodes.weekTarget, `Цель: ${target} ккал`);
+  setTextWithPulse(nodes.weekTargetPercent, `${percent}%`);
+  setTextWithPulse(nodes.weekStatusLabel, status.label);
+  setTextWithPulse(nodes.weekInsight, status.text);
+  setTextWithPulse(nodes.weekDelta, delta === 0 ? "0" : `${delta > 0 ? "+" : "-"}${absDelta} ккал`);
+  setTextWithPulse(nodes.weekInTarget, `${data.days_in_target}/${totalDays}`);
+  setTextWithPulse(nodes.weekTracked, trackedText);
+  setTextWithPulse(nodes.weekConsistency, trackedDays.length >= 6 ? "отличная регулярность" : trackedDays.length >= 4 ? "почти вся неделя" : "мало данных");
+  setTextWithPulse(nodes.weekChartNote, `${trackedDays.length} ${pluralRu(trackedDays.length, "день", "дня", "дней")} с записями`);
+  document.querySelector(".week-target-ring")?.style.setProperty("--week-progress", `${Math.min(percent, 100)}%`);
+  document.querySelector(".progress-insight-card")?.classList.toggle("is-over", status.kind === "over");
+  document.querySelector(".progress-insight-card")?.classList.toggle("is-under", status.kind === "under");
+  document.querySelector(".progress-insight-card")?.classList.toggle("is-good", status.kind === "good");
+
+  const max = Math.max(target, ...days.map((day) => day.kcal), 1);
+  nodes.weekChart.innerHTML = days.map((day) => {
     const height = Math.max(5, Math.round((day.kcal / max) * 116));
-    const color = day.kcal > data.target_kcal + 150 ? "var(--danger)" : day.entries_count ? "var(--accent)" : "rgba(120,120,128,.28)";
+    const dayKind = weekDayKind(day, target);
+    const kcalLabel = day.entries_count ? Math.round(day.kcal) : "—";
+    const entryLabel = day.entries_count
+      ? `${day.entries_count} ${pluralRu(day.entries_count, "запись", "записи", "записей")}`
+      : "нет записей";
     return `
-      <div class="week-bar">
-        <strong>${day.entries_count ? Math.round(day.kcal) : ""}</strong>
-        <i style="height:${height}px;background:${color}"></i>
+      <div class="week-bar ${dayKind}">
+        <strong>${kcalLabel}</strong>
+        <i style="height:${height}px"></i>
+        <em>${entryLabel}</em>
         <span>${escapeHtml(day.date)}</span>
       </div>
     `;
   }).join("");
+}
+
+function weekStatus(delta, target, trackedCount) {
+  if (!trackedCount) {
+    return {
+      kind: "empty",
+      label: "Неделя пока пустая",
+      text: "Добавь несколько приёмов пищи, и здесь появится честный тренд.",
+    };
+  }
+  const tolerance = Math.max(120, Math.round(target * 0.08));
+  if (Math.abs(delta) <= tolerance) {
+    return {
+      kind: "good",
+      label: "Рядом с целью",
+      text: "Среднее держится в рабочем коридоре. Продолжай в том же темпе.",
+    };
+  }
+  if (delta > 0) {
+    return {
+      kind: "over",
+      label: "Выше цели",
+      text: "Неделя идёт с перебором. Посмотри дни с красными столбцами.",
+    };
+  }
+  return {
+    kind: "under",
+    label: "Ниже цели",
+    text: "Есть заметный недобор. Проверь, хватает ли белка и плотных приёмов пищи.",
+  };
+}
+
+function weekDayKind(day, target) {
+  if (!day.entries_count) return "empty";
+  const tolerance = Math.max(120, Math.round(target * 0.08));
+  if (day.kcal > target + tolerance) return "over";
+  if (day.kcal < Math.max(target - tolerance, 0)) return "under";
+  return "near";
 }
 
 function renderBody(data) {
