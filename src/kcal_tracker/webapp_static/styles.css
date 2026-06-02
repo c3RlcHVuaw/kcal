@@ -1480,7 +1480,7 @@ textarea:focus {
   top: 0;
   z-index: 5;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) auto;
   gap: var(--space-3);
   align-items: center;
   margin: calc(var(--app-top-pad) * -1) calc(var(--space-page-x) * -1) 0;
@@ -1522,9 +1522,24 @@ textarea:focus {
   font-size: 14px;
 }
 
+.review-save-button {
+  min-height: 42px;
+  padding: 0 15px;
+  border-radius: var(--radius-pill);
+  background: var(--text);
+  color: var(--surface-solid);
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--text) 18%, transparent);
+}
+
 .food-review-page {
-  gap: var(--space-4);
+  gap: var(--space-3);
   padding-bottom: calc(104px + env(safe-area-inset-bottom));
+}
+
+.review-source-note {
+  display: none;
 }
 
 .food-review-page .parsed-food-list {
@@ -1538,6 +1553,79 @@ textarea:focus {
     linear-gradient(145deg, color-mix(in srgb, var(--surface-solid) 96%, white), var(--surface-solid)),
     var(--surface-solid);
   box-shadow: var(--shadow-card);
+}
+
+.food-review-page .parsed-food-card.food-card {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 78px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-solid) 98%, white), var(--surface-solid)),
+    var(--surface-solid);
+  box-shadow: var(--shadow-tight);
+  transform-origin: center top;
+}
+
+.food-review-page .parsed-food-card.food-card.is-expanded {
+  gap: var(--space-3);
+  padding: 12px;
+  border-radius: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+.food-review-page .parsed-food-card.food-card .food-thumb {
+  width: 54px;
+  height: 54px;
+  border-radius: 17px;
+  font-size: 23px;
+}
+
+.food-review-page .parsed-food-card .entry-main strong {
+  font-size: 16px;
+  line-height: 1.18;
+}
+
+.food-review-page .parsed-food-card .entry-main b {
+  max-width: 86px;
+  font-size: 13px;
+}
+
+.food-review-page .parsed-food-card .entry-meta {
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.food-review-page .parsed-food-card .entry-meta span {
+  min-height: 20px;
+  padding: 2px 7px;
+  font-size: 11px;
+}
+
+.parsed-entry-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  margin-top: 7px;
+}
+
+.food-review-page .parsed-entry-actions button {
+  min-height: 30px;
+  border-radius: 12px;
+}
+
+.parsed-food-editor {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+  animation: cardIn var(--motion-soft) both;
+}
+
+.parsed-food-editor[hidden] {
+  display: none;
 }
 
 .food-review-page .parsed-food-head {
@@ -1566,13 +1654,13 @@ textarea:focus {
 }
 
 .food-review-page .preview-summary {
-  min-height: 62px;
-  padding: 10px 14px;
-  border-radius: 18px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border-radius: 14px;
 }
 
 .food-review-page .preview-summary strong {
-  font-size: 26px;
+  font-size: 20px;
 }
 
 .food-review-page .preview-summary span {
@@ -1580,18 +1668,47 @@ textarea:focus {
 }
 
 .food-review-page .compact-fields input {
-  min-height: 48px;
-  border-radius: 14px;
+  min-height: 40px;
+  border-radius: 13px;
 }
 
 .food-review-page .portion-actions button {
-  min-height: 42px;
+  min-height: 36px;
 }
 
 .food-review-page .preview-advice {
-  padding: 12px 14px;
-  border-radius: 16px;
-  font-size: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  font-size: 13px;
+}
+
+.refine-details {
+  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.refine-details summary {
+  display: grid;
+  min-height: 40px;
+  place-items: center;
+  color: var(--accent-strong);
+  font-size: 13px;
+  font-weight: 800;
+  list-style: none;
+  cursor: pointer;
+}
+
+.refine-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.refine-details[open] {
+  padding-bottom: var(--space-2);
+}
+
+.refine-details .refine-form {
+  padding: 0 var(--space-2);
 }
 
 .parsed-food-empty {

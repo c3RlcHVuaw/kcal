@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/styles.css?v=food-review-fullscreen-20260602" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=food-review-compact-20260602" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -463,12 +463,13 @@
             <b>Назад</b>
           </button>
           <div>
-            <p id="food-preview-source" class="section-subtitle">Можно поправить значения</p>
             <h2 id="food-review-title">Проверь еду</h2>
           </div>
+          <button id="save-parsed-food-top" class="review-save-button" type="button">Добавить</button>
         </header>
 
         <section id="food-preview" class="food-preview food-review-page" aria-live="polite">
+          <p id="food-preview-source" class="review-source-note">Можно поправить значения перед сохранением</p>
           <div id="food-preview-list" class="parsed-food-list"></div>
           <div class="food-save-bar">
             <button id="save-parsed-food" class="primary-button" type="button">Добавить в дневник</button>
@@ -727,6 +728,6 @@
     </div>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/app/static/app.js?v=food-review-fullscreen-20260602" type="module"></script>
+    <script src="/app/static/app.js?v=food-review-compact-20260602" type="module"></script>
   </body>
 </html>

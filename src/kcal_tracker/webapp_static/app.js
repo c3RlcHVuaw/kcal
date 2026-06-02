@@ -14,6 +14,7 @@ const state = {
   parsedFoods: [],
   parsedFoodSource: "ai",
   foodReviewReturnView: "today",
+  expandedParsedFood: null,
   addMode: "browse",
   foodSearchResults: [],
   frequentFoods: [],
@@ -78,6 +79,7 @@ const nodes = {
   foodPreviewSource: document.querySelector("#food-preview-source"),
   foodPreviewList: document.querySelector("#food-preview-list"),
   saveParsedFood: document.querySelector("#save-parsed-food"),
+  saveParsedFoodTop: document.querySelector("#save-parsed-food-top"),
   foodPhotoButton: document.querySelector("#food-photo-button"),
   foodPhotoInput: document.querySelector("#food-photo-input"),
   foodPhotoHint: document.querySelector("#food-photo-hint"),
@@ -264,6 +266,7 @@ nodes.foodSearchResults.addEventListener("click", handleFoodPick);
 nodes.foodAddRecentList.addEventListener("click", handleFoodPick);
 nodes.foodAddFavoritesList.addEventListener("click", handleFoodPick);
 nodes.saveParsedFood.addEventListener("click", saveParsedFoods);
+nodes.saveParsedFoodTop.addEventListener("click", saveParsedFoods);
 nodes.foodPreviewList.addEventListener("input", updateParsedFoodField);
 nodes.foodPreviewList.addEventListener("click", removeParsedFood);
 nodes.foodPreviewList.addEventListener("submit", refineParsedFood);
@@ -507,6 +510,7 @@ async function addFoodEstimateToDiary(food, source, button) {
 function setParsedFoods(result) {
   state.parsedFoods = result.foods.map(normalizeParsedFood);
   state.parsedFoodSource = result.source;
+  state.expandedParsedFood = null;
   renderParsedFoods(result);
   openFoodReviewScreen();
 }
@@ -518,8 +522,9 @@ async function saveParsedFoods() {
     return;
   }
 
-  if (isBusy(nodes.saveParsedFood)) return;
+  if (isBusy(nodes.saveParsedFood) || isBusy(nodes.saveParsedFoodTop)) return;
   setButtonBusy(nodes.saveParsedFood, "Сохраняю...");
+  setButtonBusy(nodes.saveParsedFoodTop, "...");
   try {
     for (const food of foods) {
       await api("/webapp/me/entries", {
@@ -535,6 +540,7 @@ async function saveParsedFoods() {
       });
     }
     state.parsedFoods = [];
+    state.expandedParsedFood = null;
     nodes.foodTextForm.reset();
     nodes.barcodeCode.value = "";
     renderParsedFoods({ source: state.parsedFoodSource });
@@ -546,6 +552,7 @@ async function saveParsedFoods() {
     toast("Не получилось сохранить еду");
   } finally {
     restoreButton(nodes.saveParsedFood);
+    restoreButton(nodes.saveParsedFoodTop);
   }
 }
 
@@ -1322,6 +1329,7 @@ function renderParsedFoods(result) {
   nodes.foodPreview.classList.remove("hidden");
   if (!state.parsedFoods.length) {
     nodes.saveParsedFood.disabled = true;
+    nodes.saveParsedFoodTop.disabled = true;
     nodes.foodPreviewList.innerHTML = `
       <article class="parsed-food-empty component-card">
         <strong>Позиции удалены</strong>
@@ -1332,39 +1340,59 @@ function renderParsedFoods(result) {
     return;
   }
   nodes.saveParsedFood.disabled = false;
+  nodes.saveParsedFoodTop.disabled = false;
   nodes.foodPreviewList.innerHTML = state.parsedFoods.map((food, index) => `
-    <article class="parsed-food-card" data-index="${index}">
-      <div class="parsed-food-head preview-head">
-        <div class="food-thumb small">${escapeHtml(food.emoji || foodInitial(food.name))}</div>
-        <div class="preview-title">
-          <input data-field="name" value="${escapeHtml(food.name)}" aria-label="Название" />
-          <span>${mealLabel(state.selectedMeal)} · ${sourceLabel(result.source)}${confidenceLabel(food.confidence)}</span>
+    <article class="parsed-food-card entry food-card${state.expandedParsedFood === index ? " is-expanded" : ""}" data-index="${index}">
+      <div class="food-thumb">${escapeHtml(food.emoji || foodInitial(food.name))}</div>
+      <div class="food-content">
+        <div class="entry-main">
+          <strong>${escapeHtml(food.name || "Еда")}</strong>
+          <b>${Math.round(food.kcal || 0)} ккал</b>
         </div>
-        <button class="icon-mini" type="button" data-remove-parsed="${index}" aria-label="Удалить">×</button>
+        <div class="entry-meta">
+          <span>${food.weight_g ? `${formatNumber(food.weight_g)} г` : "без граммовки"}</span>
+          <span>${Math.round(food.protein || 0)}Б</span>
+          <span>${Math.round(food.fat || 0)}Ж</span>
+          <span>${Math.round(food.carbs || 0)}У</span>
+          <span>${sourceLabel(result.source)}${confidenceLabel(food.confidence)}</span>
+        </div>
+        <div class="entry-actions parsed-entry-actions">
+          <button type="button" data-toggle-parsed="${index}">${state.expandedParsedFood === index ? "Свернуть" : "Изменить"}</button>
+          <button type="button" data-remove-parsed="${index}" aria-label="Удалить ${escapeHtml(food.name)}">Удалить</button>
+        </div>
+        <div class="parsed-food-editor" ${state.expandedParsedFood === index ? "" : "hidden"}>
+          <label class="wide-field compact-fields">
+            <span>Название</span>
+            <input data-field="name" value="${escapeHtml(food.name)}" aria-label="Название" />
+          </label>
+          <div class="preview-summary">
+            <strong>${Math.round(food.kcal || 0)} ккал</strong>
+            <span>${food.weight_g ? `${formatNumber(food.weight_g)} г` : "граммы не указаны"}</span>
+          </div>
+          <div class="field-row compact-fields">
+            <label><span>ккал</span><input data-field="kcal" inputmode="decimal" value="${formatInput(food.kcal)}" /></label>
+            <label><span>граммы</span><input data-field="weight_g" inputmode="decimal" value="${formatInput(food.weight_g)}" /></label>
+          </div>
+          <div class="field-row three compact-fields">
+            <label><span>Б</span><input data-field="protein" inputmode="decimal" value="${formatInput(food.protein)}" /></label>
+            <label><span>Ж</span><input data-field="fat" inputmode="decimal" value="${formatInput(food.fat)}" /></label>
+            <label><span>У</span><input data-field="carbs" inputmode="decimal" value="${formatInput(food.carbs)}" /></label>
+          </div>
+          <div class="portion-actions">
+            <button type="button" data-index="${index}" data-scale-parsed="0.5">1/2</button>
+            <button type="button" data-index="${index}" data-scale-parsed="1.25">+ порция</button>
+            <button type="button" data-index="${index}" data-scale-parsed="2">x2</button>
+          </div>
+          ${food.advice ? `<p class="preview-advice">${escapeHtml(food.advice)}</p>` : ""}
+          <details class="refine-details">
+            <summary>Уточнить через AI</summary>
+            <form class="refine-form" data-refine-index="${index}">
+              <input name="refinement" autocomplete="off" placeholder="Без хлеба, половина, ещё соус..." />
+              <button class="secondary-button" type="submit">Уточнить</button>
+            </form>
+          </details>
+        </div>
       </div>
-      <div class="preview-summary">
-        <strong>${Math.round(food.kcal || 0)} ккал</strong>
-        <span>${food.weight_g ? `${formatNumber(food.weight_g)} г` : "граммы не указаны"}</span>
-      </div>
-      <div class="field-row compact-fields">
-        <label><span>ккал</span><input data-field="kcal" inputmode="decimal" value="${formatInput(food.kcal)}" /></label>
-        <label><span>граммы</span><input data-field="weight_g" inputmode="decimal" value="${formatInput(food.weight_g)}" /></label>
-      </div>
-      <div class="field-row three compact-fields">
-        <label><span>Б</span><input data-field="protein" inputmode="decimal" value="${formatInput(food.protein)}" /></label>
-        <label><span>Ж</span><input data-field="fat" inputmode="decimal" value="${formatInput(food.fat)}" /></label>
-        <label><span>У</span><input data-field="carbs" inputmode="decimal" value="${formatInput(food.carbs)}" /></label>
-      </div>
-      <div class="portion-actions">
-        <button type="button" data-index="${index}" data-scale-parsed="0.5">1/2</button>
-        <button type="button" data-index="${index}" data-scale-parsed="1.25">+ порция</button>
-        <button type="button" data-index="${index}" data-scale-parsed="2">x2</button>
-      </div>
-      ${food.advice ? `<p class="preview-advice">${escapeHtml(food.advice)}</p>` : ""}
-      <form class="refine-form" data-refine-index="${index}">
-        <input name="refinement" autocomplete="off" placeholder="Уточнить: без хлеба, половина, ещё соус..." />
-        <button class="secondary-button" type="submit">Уточнить</button>
-      </form>
     </article>
   `).join("");
 }
@@ -1570,10 +1598,22 @@ function removeParsedFood(event) {
     openFoodAddSheet();
     return;
   }
+  const toggleButton = event.target.closest("[data-toggle-parsed]");
+  if (toggleButton) {
+    const index = Number(toggleButton.dataset.toggleParsed);
+    state.expandedParsedFood = state.expandedParsedFood === index ? null : index;
+    renderParsedFoods({ source: state.parsedFoodSource });
+    return;
+  }
   const button = event.target.closest("[data-remove-parsed]");
   if (!button) return;
   const index = Number(button.dataset.removeParsed);
   state.parsedFoods.splice(index, 1);
+  if (state.expandedParsedFood === index) {
+    state.expandedParsedFood = null;
+  } else if (state.expandedParsedFood !== null && state.expandedParsedFood > index) {
+    state.expandedParsedFood -= 1;
+  }
   renderParsedFoods({ source: state.parsedFoodSource });
 }
 
