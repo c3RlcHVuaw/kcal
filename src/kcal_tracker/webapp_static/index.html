@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/styles.css?v=food-flow-20260602a" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=food-flow-20260602b" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -324,11 +324,96 @@
       </section>
 
       <section id="view-more" class="view" data-title="Ещё">
-        <section class="summary-panel compact component-card accent-card">
-          <span class="caption">AI сегодня</span>
-          <strong id="ai-usage">0 / 0</strong>
-          <p class="muted">Лимит обновляется каждый день</p>
+        <section class="more-hero component-card accent-card">
+          <div>
+            <span class="caption">Центр функций</span>
+            <h2>Всё под рукой</h2>
+            <p class="muted">Еда, вода, активность, прогресс и сервисные сценарии из бота.</p>
+          </div>
+          <div class="more-status-grid" aria-label="Краткий статус">
+            <span>
+              <b id="more-kcal">0 / 0</b>
+              <em>ккал</em>
+            </span>
+            <span>
+              <b id="more-water">0 мл</b>
+              <em>вода</em>
+            </span>
+            <span>
+              <b id="ai-usage">0 / 0</b>
+              <em>AI</em>
+            </span>
+          </div>
         </section>
+
+        <section class="more-section">
+          <div class="section-title">
+            <div>
+              <h2>Основное</h2>
+              <p class="section-subtitle">Те же быстрые сценарии, что в боте</p>
+            </div>
+          </div>
+          <div class="more-action-grid">
+            <button type="button" data-more-action="add-food">
+              <i>+</i>
+              <span>Еда</span>
+              <b>поиск, AI, фото</b>
+            </button>
+            <button type="button" data-more-action="barcode">
+              <i>⌗</i>
+              <span>Штрихкод</span>
+              <b>скан или цифры</b>
+            </button>
+            <button type="button" data-more-action="templates">
+              <i>☆</i>
+              <span>Шаблоны</span>
+              <b>любимые блюда</b>
+            </button>
+            <button type="button" data-more-action="repeat-yesterday">
+              <i>↺</i>
+              <span>Как вчера</span>
+              <b>повторить день</b>
+            </button>
+            <button type="button" data-more-action="water">
+              <i>ml</i>
+              <span>Вода</span>
+              <b>250 / 500 мл</b>
+            </button>
+            <button type="button" data-more-action="activity">
+              <i>↯</i>
+              <span>Активность</span>
+              <b>расход ккал</b>
+            </button>
+            <button type="button" data-more-action="weight">
+              <i>kg</i>
+              <span>Вес</span>
+              <b>цель и тренд</b>
+            </button>
+            <button type="button" data-more-action="progress">
+              <i>▥</i>
+              <span>Прогресс</span>
+              <b>неделя и цель</b>
+            </button>
+          </div>
+        </section>
+
+        <section class="more-section">
+          <div class="section-title">
+            <div>
+              <h2>AI и Premium</h2>
+              <p class="section-subtitle">Лимиты, подписка и промокоды</p>
+            </div>
+          </div>
+          <div class="more-premium-card component-card">
+            <div>
+              <span class="caption">AI сегодня</span>
+              <strong id="more-ai-caption">Проверяю лимит</strong>
+              <p class="muted">Фото еды, уточнение записей и разбор текста используют дневной лимит.</p>
+            </div>
+            <button class="secondary-button" type="button" data-more-action="subscription">Подписка</button>
+          </div>
+        </section>
+
         <form id="promo-form" class="form-panel component-card promo-card">
           <div class="section-title">
             <div>
@@ -342,21 +427,30 @@
           </div>
           <div id="promo-result" class="promo-result hidden"></div>
         </form>
+
         <section class="list-section component-section">
           <div class="section-title">
             <div>
-              <h2>Действия</h2>
-              <p class="section-subtitle">Экспорт, бот и дополнительные сценарии</p>
+              <h2>Сервис</h2>
+              <p class="section-subtitle">Экспорт и функции, которые пока живут в боте</p>
             </div>
           </div>
-          <div class="action-list component-card">
-            <button id="open-bot" type="button">
-              <span>Открыть бота</span>
-              <b>Фото еды, штрихкод, подписка, поддержка</b>
+          <div class="action-list component-card more-service-list">
+            <button type="button" data-more-action="reminders">
+              <span>Напоминания</span>
+              <b>включить еду, воду и вес в боте</b>
             </button>
             <button id="export-food" type="button">
               <span>Экспорт питания</span>
               <b>CSV для внешнего анализа</b>
+            </button>
+            <button type="button" data-more-action="support">
+              <span>Поддержка</span>
+              <b>вопросы, ошибки и предложения</b>
+            </button>
+            <button id="open-bot" type="button">
+              <span>Открыть бота</span>
+              <b>полное меню Telegram</b>
             </button>
           </div>
         </section>
@@ -634,6 +728,6 @@
     </div>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/app/static/app.js?v=food-flow-20260602a" type="module"></script>
+    <script src="/app/static/app.js?v=food-flow-20260602b" type="module"></script>
   </body>
 </html>

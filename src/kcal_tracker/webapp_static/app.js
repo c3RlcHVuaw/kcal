@@ -117,6 +117,9 @@ const nodes = {
   weightTrend: document.querySelector("#weight-trend"),
   weightChart: document.querySelector("#weight-chart"),
   habitList: document.querySelector("#habit-list"),
+  moreKcal: document.querySelector("#more-kcal"),
+  moreWater: document.querySelector("#more-water"),
+  moreAiCaption: document.querySelector("#more-ai-caption"),
   aiUsage: document.querySelector("#ai-usage"),
   promoForm: document.querySelector("#promo-form"),
   promoCode: document.querySelector("#promo-code"),
@@ -235,10 +238,15 @@ document.addEventListener("click", (event) => {
   const scaleButton = event.target.closest("[data-scale-parsed]");
   if (scaleButton) {
     scaleParsedFood(Number(scaleButton.dataset.index), Number(scaleButton.dataset.scaleParsed));
+    return;
+  }
+  const moreAction = event.target.closest("[data-more-action]");
+  if (moreAction) {
+    handleMoreAction(moreAction.dataset.moreAction);
   }
 });
 nodes.repeatYesterday.addEventListener("click", repeatYesterday);
-nodes.openBot.addEventListener("click", () => tg?.close());
+nodes.openBot.addEventListener("click", openBotFromWebApp);
 nodes.exportFood.addEventListener("click", exportFood);
 nodes.foodAddClose.addEventListener("click", closeFoodAddSheet);
 nodes.foodAddSheet.addEventListener("click", (event) => {
@@ -843,12 +851,18 @@ function renderToday(data) {
   renderMacroRing("carbs", diary.carbs, diary.target_carbs);
   renderNutritionOverview(diary);
   setTextWithPulse(nodes.water, `${data.water_ml} мл воды`);
+  setTextWithPulse(nodes.moreKcal, `${Math.round(diary.kcal)} / ${diary.target_kcal}`);
+  setTextWithPulse(nodes.moreWater, `${data.water_ml} мл`);
   setTextWithPulse(nodes.activityTotal, `${Math.round(diary.activity_kcal)} ккал активности`);
   setTextWithPulse(nodes.weightValue, data.latest_weight_kg ? `${formatNumber(data.latest_weight_kg)} кг` : "Записать");
   setTextWithPulse(nodes.weightGoal, data.weight_goal.forecast_text);
-  setTextWithPulse(nodes.aiUsage, data.ai_usage.daily_limit
+  const aiUsageText = data.ai_usage.daily_limit
     ? `${data.ai_usage.used_today} / ${data.ai_usage.daily_limit}`
-    : `${data.ai_usage.used_today} / ∞`);
+    : `${data.ai_usage.used_today} / ∞`;
+  setTextWithPulse(nodes.aiUsage, aiUsageText);
+  setTextWithPulse(nodes.moreAiCaption, data.ai_usage.daily_limit
+    ? `${Math.max(data.ai_usage.daily_limit - data.ai_usage.used_today, 0)} осталось`
+    : "без дневного лимита");
   nodes.goalKind.value = data.weight_goal.goal || "maintain";
   nodes.goalWeight.value = data.weight_goal.target_weight_kg ? formatNumber(data.weight_goal.target_weight_kg) : "";
   nodes.goalPace.value = data.weight_goal.weekly_weight_change_kg ? formatNumber(data.weight_goal.weekly_weight_change_kg) : "";
@@ -1629,6 +1643,48 @@ async function repeatYesterday() {
   } finally {
     restoreButton(nodes.repeatYesterday);
   }
+}
+
+function handleMoreAction(action) {
+  switch (action) {
+    case "add-food":
+      openFoodAddSheet();
+      return;
+    case "barcode":
+      openFoodAddSheet();
+      switchAddMode("barcode");
+      return;
+    case "templates":
+      switchView("food");
+      switchFoodTab("templates");
+      return;
+    case "repeat-yesterday":
+      repeatYesterday();
+      return;
+    case "water":
+    case "weight":
+    case "activity":
+      switchView("body");
+      return;
+    case "progress":
+      switchView("progress");
+      return;
+    case "subscription":
+    case "reminders":
+    case "support":
+      openBotFromWebApp();
+      return;
+    default:
+      toast("Скоро добавим");
+  }
+}
+
+function openBotFromWebApp() {
+  if (tg) {
+    tg.close();
+    return;
+  }
+  toast("В Telegram откроется бот");
 }
 
 async function exportFood() {
