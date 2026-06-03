@@ -2192,6 +2192,10 @@ textarea:focus {
   align-items: center;
   gap: 12px;
   padding: 16px;
+  transition:
+    border-color var(--motion-soft),
+    box-shadow var(--motion-soft),
+    transform var(--motion-fast);
 }
 
 .more-premium-card strong {
@@ -2205,6 +2209,14 @@ textarea:focus {
 .more-premium-card .secondary-button {
   min-width: 112px;
   padding: 0 14px;
+}
+
+.more-premium-card.is-highlighted {
+  border-color: color-mix(in srgb, var(--carbs) 58%, var(--line));
+  box-shadow:
+    0 18px 40px color-mix(in srgb, var(--carbs) 18%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--carbs) 24%, transparent);
+  transform: translateY(-2px);
 }
 
 .more-service-list button[data-more-action] span::after {
@@ -4208,15 +4220,26 @@ textarea {
   grid-template-columns: 1fr;
   padding: 0;
   overflow: hidden;
-  border-color: color-mix(in srgb, var(--protein) 34%, var(--line));
+  cursor: pointer;
+  border-color: color-mix(in srgb, var(--protein) 44%, var(--line));
   background:
-    radial-gradient(circle at 8% 10%, color-mix(in srgb, var(--protein) 22%, transparent), transparent 34%),
-    radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 32%),
+    radial-gradient(circle at 8% 10%, color-mix(in srgb, var(--protein) 28%, transparent), transparent 34%),
+    radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 32%),
     var(--panel-gradient),
     var(--surface);
+  box-shadow:
+    0 16px 34px color-mix(in srgb, var(--protein) 12%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.68);
+}
+
+.food-ai-search-card:active,
+.food-ai-search-card.is-pressed {
+  transform: scale(0.985);
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
 }
 
 .food-ai-search-button {
+  cursor: pointer;
   display: grid;
   grid-template-columns: 50px minmax(0, 1fr) auto;
   align-items: center;
@@ -4277,6 +4300,15 @@ textarea {
   color: var(--accent-strong);
   font-style: normal;
   font-weight: 900;
+  transition:
+    transform var(--motion-fast),
+    background var(--motion-soft);
+}
+
+.food-ai-search-card:active .food-ai-search-button > i,
+.food-ai-search-card.is-pressed .food-ai-search-button > i {
+  transform: translateX(2px) scale(0.96);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .food-ai-search-card.is-loading {
@@ -4299,6 +4331,90 @@ textarea {
 
 .food-ai-search-card.is-loading .food-ai-search-orb {
   animation: softPulse 820ms ease-in-out infinite;
+}
+
+.premium-badge {
+  display: none;
+}
+
+body.is-free-user .premium-badge {
+  display: inline-grid;
+  place-items: center;
+  width: fit-content;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, #fff7bf, #ffb43e 48%, #ff7a59);
+  color: #3b2410;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1;
+  box-shadow:
+    0 8px 18px rgba(255, 180, 62, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  vertical-align: middle;
+}
+
+.add-mode-actions .premium-badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 2;
+}
+
+.mode-screen-head .premium-badge,
+.refine-details summary .premium-badge,
+.food-ai-search-copy .premium-badge {
+  margin-left: 6px;
+}
+
+.premium-feature-note {
+  display: none;
+}
+
+body.is-free-user .premium-feature-note {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--carbs) 34%, var(--line));
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 0 0, color-mix(in srgb, var(--carbs) 24%, transparent), transparent 42%),
+    var(--surface);
+  box-shadow: var(--shadow-tight);
+}
+
+.premium-feature-note b,
+.premium-feature-note span {
+  grid-column: 1;
+}
+
+.premium-feature-note b {
+  font-size: 14px;
+  font-weight: 860;
+}
+
+.premium-feature-note span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 660;
+  line-height: 1.25;
+}
+
+.premium-feature-note button {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--text);
+  color: var(--surface);
+  font-size: 12px;
+  font-weight: 820;
 }
 
 .food-pick-card:nth-child(2) {

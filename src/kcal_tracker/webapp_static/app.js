@@ -26,6 +26,7 @@ const state = {
   entryHighlightKeys: new Set(),
   entryHighlightTimer: null,
   loadingAll: false,
+  hasActiveSubscription: false,
 };
 
 const nodes = {
@@ -334,6 +335,7 @@ async function parseFoodText(event) {
       ? "Лимит AI на сегодня закончился"
       : "Не получилось разобрать еду";
     toast(message);
+    if (error.status === 402) showPremiumUpsell("AI разбор еды");
   } finally {
     restoreButton(submit);
   }
@@ -358,6 +360,7 @@ async function parseFoodPhoto() {
       ? "Лимит AI на сегодня закончился"
       : "Не получилось распознать фото";
     toast(message);
+    if (error.status === 402) showPremiumUpsell("Распознавание фото");
   } finally {
     nodes.foodPhotoInput.value = "";
     restoreButton(nodes.foodPhotoButton);
@@ -483,7 +486,7 @@ function clearFoodSearch(clearInput = true) {
 function handleFoodPick(event) {
   const aiSearchButton = event.target.closest("[data-food-search-ai]");
   if (aiSearchButton) {
-    searchFoodWithAi();
+    searchFoodWithAi(aiSearchButton);
     return;
   }
   const editButton = event.target.closest("[data-pick-edit]");
@@ -856,6 +859,9 @@ async function loadFavorites() {
 
 function renderToday(data) {
   const diary = data.diary;
+  state.hasActiveSubscription = Boolean(data.has_active_subscription);
+  document.body.classList.toggle("is-free-user", !state.hasActiveSubscription);
+  document.body.classList.toggle("is-premium-user", state.hasActiveSubscription);
   const progress = diary.target_kcal > 0 ? Math.min(diary.kcal / diary.target_kcal, 1) : 0;
   setProgressValue(nodes.kcalProgress, "width", `${Math.round(progress * 100)}%`);
   setTextWithPulse(nodes.kcalPercent, `${Math.round(progress * 100)}%`);
@@ -1308,7 +1314,7 @@ function renderFoodSearchAiCard(query) {
       <article class="food-pick-card food-ai-search-card is-loading" aria-live="polite">
         <div class="food-ai-search-orb">AI</div>
         <div class="food-ai-search-copy">
-          <strong>Ищу через AI</strong>
+          <strong>Ищу через AI <span class="premium-badge">Premium</span></strong>
           <span>${escapeHtml(text)}</span>
           <em>Проверяю КБЖУ и порцию</em>
         </div>
@@ -1316,11 +1322,11 @@ function renderFoodSearchAiCard(query) {
     `;
   }
   return `
-    <article class="food-pick-card food-ai-search-card">
+    <article class="food-pick-card food-ai-search-card" data-food-search-ai>
       <button class="food-ai-search-button" type="button" data-food-search-ai>
         <div class="food-ai-search-orb">AI</div>
         <div class="food-ai-search-copy">
-          <strong>Найти через AI</strong>
+          <strong>Найти через AI <span class="premium-badge">Premium</span></strong>
           <span>${escapeHtml(text)}</span>
           <em>Если базы мало, AI предложит продукт для проверки</em>
         </div>
@@ -1330,13 +1336,14 @@ function renderFoodSearchAiCard(query) {
   `;
 }
 
-async function searchFoodWithAi() {
+async function searchFoodWithAi(trigger = null) {
   const query = nodes.foodSearch.value.trim();
   if (query.length < 4 || state.foodSearchAiLoading) return;
   if (!initData) {
     toast("AI-поиск работает внутри Telegram mini-app");
     return;
   }
+  trigger?.classList.add("is-pressed");
   const requestId = ++state.searchRequestId;
   state.foodSearchAiLoading = true;
   nodes.foodSearchSection.classList.remove("hidden");
@@ -1346,7 +1353,7 @@ async function searchFoodWithAi() {
     showAiSearch: true,
   });
   nodes.foodSearchResults.setAttribute("aria-busy", "true");
-  haptic("impact", "light");
+  triggerHaptic("light");
   try {
     const result = await api(`/webapp/me/food/search?query=${encodeURIComponent(query)}&force_ai=true`);
     if (requestId !== state.searchRequestId) return;
@@ -1371,7 +1378,9 @@ async function searchFoodWithAi() {
       emptyText: "AI-поиск не сработал. Попробуй позже.",
     });
     toast(error.status === 402 ? "Лимит AI на сегодня закончился" : "AI-поиск не сработал");
+    if (error.status === 402) showPremiumUpsell("AI-поиск по еде");
   } finally {
+    trigger?.classList.remove("is-pressed");
     if (requestId === state.searchRequestId) {
       nodes.foodSearchResults.removeAttribute("aria-busy");
     }
@@ -1481,10 +1490,10 @@ function renderParsedFoods(result) {
           </div>
           ${food.advice ? `<p class="preview-advice">${escapeHtml(food.advice)}</p>` : ""}
           <details class="refine-details">
-            <summary>Уточнить через AI</summary>
+            <summary>Уточнить через AI <span class="premium-badge">Premium</span></summary>
             <form class="refine-form" data-refine-index="${index}">
               <input name="refinement" autocomplete="off" placeholder="Без хлеба, половина, ещё соус..." />
-              <button class="secondary-button" type="submit">Уточнить</button>
+              <button class="secondary-button" type="submit">Уточнить <span class="premium-badge">Premium</span></button>
             </form>
           </details>
         </div>
@@ -1758,6 +1767,7 @@ async function refineParsedFood(event) {
       ? "Лимит AI на сегодня закончился"
       : "Не получилось уточнить";
     toast(message);
+    if (error.status === 402) showPremiumUpsell("AI-уточнение еды");
   } finally {
     restoreButton(button);
   }
@@ -1843,6 +1853,16 @@ function openBotFromWebApp() {
     return;
   }
   toast("В Telegram откроется бот");
+}
+
+function showPremiumUpsell(feature = "Premium") {
+  closeFoodAddSheet();
+  closeFoodReviewSheet();
+  switchView("more");
+  const card = document.querySelector(".more-premium-card");
+  card?.classList.add("is-highlighted");
+  window.setTimeout(() => card?.classList.remove("is-highlighted"), 1800);
+  toast(`${feature}: открой подписку, чтобы снять ограничения`);
 }
 
 async function exportFood() {

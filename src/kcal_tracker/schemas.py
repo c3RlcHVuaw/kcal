@@ -191,6 +191,8 @@ class WebAppToday(BaseModel):
     water_ml: int
     latest_weight_kg: float | None
     ai_usage: AIUsageSummary
+    has_active_subscription: bool = False
+    subscription_plan: str | None = None
     weight_goal: WeightGoalRead
 
 

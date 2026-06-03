@@ -63,6 +63,7 @@ from kcal_tracker.services.profile import (
 )
 from kcal_tracker.services.subscriptions import (
     SubscriptionService,
+    has_active_subscription,
     subscription_plans,
     user_ai_daily_limit,
 )
@@ -288,6 +289,8 @@ async def webapp_today(
             remaining_today=10**9 if daily_limit is None else max(daily_limit - used_today, 0),
             daily_limit=0 if daily_limit is None else daily_limit,
         ),
+        has_active_subscription=has_active_subscription(user),
+        subscription_plan=user.subscription_plan,
         weight_goal=weight_goal_summary(user),
     )
 

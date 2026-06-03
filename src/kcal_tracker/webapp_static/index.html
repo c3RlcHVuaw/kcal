@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/styles.css?v=ai-search-card-20260603" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=premium-ai-search-20260603" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -407,7 +407,7 @@
           <div class="more-premium-card component-card">
             <div>
               <span class="caption">AI сегодня</span>
-              <strong id="more-ai-caption">Проверяю лимит</strong>
+              <strong><span id="more-ai-caption">Проверяю лимит</span> <span class="premium-badge">Premium</span></strong>
               <p class="muted">Фото еды, уточнение записей и разбор текста используют дневной лимит.</p>
             </div>
             <button class="secondary-button" type="button" data-more-action="subscription">Подписка</button>
@@ -543,10 +543,12 @@
 
             <div class="add-mode-actions" aria-label="Способ добавления">
               <button type="button" data-add-mode="ai">
+                <i class="premium-badge">Premium</i>
                 <span>AI</span>
                 <b>описать</b>
               </button>
               <button type="button" data-add-mode="photo">
+                <i class="premium-badge">Premium</i>
                 <span>Фото</span>
                 <b>камера</b>
               </button>
@@ -584,7 +586,12 @@
           <form id="food-text-form" class="form-panel component-card food-text-panel add-mode-panel" data-add-panel="ai">
             <div class="mode-screen-head">
               <button type="button" data-add-mode-back>← Назад</button>
-              <h3>Опиши еду</h3>
+              <h3>Опиши еду <span class="premium-badge">Premium</span></h3>
+            </div>
+            <div class="premium-feature-note">
+              <b>Premium AI</b>
+              <span>Разбирает сложные блюда, граммы и КБЖУ. Бесплатный лимит ограничен.</span>
+              <button type="button" data-more-action="subscription">Открыть подписку</button>
             </div>
             <label class="input-label" for="food-text">Что съел?</label>
             <textarea
@@ -606,7 +613,12 @@
           <section class="form-panel component-card food-text-panel add-mode-panel add-photo-panel" data-add-panel="photo">
             <div class="mode-screen-head">
               <button type="button" data-add-mode-back>← Назад</button>
-              <h3>Фото блюда</h3>
+              <h3>Фото блюда <span class="premium-badge">Premium</span></h3>
+            </div>
+            <div class="premium-feature-note">
+              <b>Premium фото</b>
+              <span>Распознаёт блюдо по камере или галерее и сразу готовит карточку для дневника.</span>
+              <button type="button" data-more-action="subscription">Открыть подписку</button>
             </div>
             <label class="input-label" for="food-photo-input">Фото блюда</label>
             <button id="food-photo-button" class="media-action photo-primary-action" type="button">
@@ -733,6 +745,6 @@
     </div>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/app/static/app.js?v=ai-search-card-20260603" type="module"></script>
+    <script src="/app/static/app.js?v=premium-ai-search-20260603" type="module"></script>
   </body>
 </html>
