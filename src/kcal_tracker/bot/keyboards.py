@@ -242,6 +242,14 @@ def _button_text_without_plain_icon(text: str) -> str:
 
 def _button_style(text: str, callback_data: str | None = None) -> str:
     source = f"{text} {callback_data or ''}".lower()
+    if callback_data and (
+        callback_data.startswith("nav:today")
+        or callback_data.startswith("entry:edit-menu")
+        or callback_data.startswith("entry:fav")
+        or callback_data.startswith("water:add")
+        or callback_data.startswith("coach:meal")
+    ):
+        return "primary"
     if any(
         token in source
         for token in (
@@ -498,7 +506,7 @@ def smart_after_food_save_keyboard(
         rows.append(
             [
                 InlineKeyboardButton(text="✏️ Исправить", callback_data=f"entry:edit-menu:{entry_id}"),
-                InlineKeyboardButton(text="↩️ Отменить", callback_data=f"entry:delete:{entry_id}"),
+                InlineKeyboardButton(text="⭐ В шаблон", callback_data=f"entry:fav:{entry_id}"),
             ]
         )
     smart_row: list[InlineKeyboardButton] = []
@@ -509,7 +517,7 @@ def smart_after_food_save_keyboard(
     if smart_row:
         rows.append(smart_row[:2])
     if entry_id is not None:
-        rows.append([InlineKeyboardButton(text="⭐ В шаблон", callback_data=f"entry:fav:{entry_id}")])
+        rows.append([InlineKeyboardButton(text="↩️ Отменить добавление", callback_data=f"entry:delete:{entry_id}")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

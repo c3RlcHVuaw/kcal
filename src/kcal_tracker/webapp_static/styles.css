@@ -4223,13 +4223,12 @@ textarea {
   cursor: pointer;
   border-color: color-mix(in srgb, var(--protein) 44%, var(--line));
   background:
-    radial-gradient(circle at 8% 10%, color-mix(in srgb, var(--protein) 28%, transparent), transparent 34%),
-    radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 32%),
-    var(--panel-gradient),
-    var(--surface);
+    radial-gradient(circle at 8% 10%, color-mix(in srgb, var(--protein) 18%, transparent), transparent 34%),
+    radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 32%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 98%, #fff), var(--surface-solid));
   box-shadow:
-    0 16px 34px color-mix(in srgb, var(--protein) 12%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.68);
+    0 14px 30px color-mix(in srgb, var(--protein) 10%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.78);
 }
 
 .food-ai-search-card:active,
@@ -4239,6 +4238,7 @@ textarea {
 }
 
 .food-ai-search-button {
+  appearance: none;
   cursor: pointer;
   display: grid;
   grid-template-columns: 50px minmax(0, 1fr) auto;
@@ -4247,6 +4247,7 @@ textarea {
   width: 100%;
   padding: 16px 16px 16px 18px;
   text-align: left;
+  background: transparent;
   color: var(--text);
 }
 
@@ -4283,7 +4284,7 @@ textarea {
 .food-ai-search-copy span,
 .food-ai-search-copy em {
   overflow: hidden;
-  color: var(--muted);
+  color: color-mix(in srgb, var(--muted) 86%, var(--text));
   font-size: 13px;
   font-style: normal;
   text-overflow: ellipsis;
@@ -4296,7 +4297,7 @@ textarea {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-solid));
   color: var(--accent-strong);
   font-style: normal;
   font-weight: 900;
