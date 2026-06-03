@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from kcal_tracker.models import ActivityLog, FoodEntry, QualityEvent, User
 from kcal_tracker.schemas import DiarySummary, FoodEntryCreate, FoodEstimate
+from kcal_tracker.services.food_catalog import FoodCatalogService
 from kcal_tracker.services.food_insights import enrich_food_payload, food_advice, food_emoji
 from kcal_tracker.services.growth import GrowthService
 from kcal_tracker.services.profile import calculate_macro_targets
@@ -73,6 +74,7 @@ class DiaryService:
         self.session.add(entry)
         await self.session.commit()
         await self.session.refresh(entry)
+        await FoodCatalogService(self.session).learn_from_saved_entry(user, entry, payload)
         await GrowthService(self.session).reward_referrer_for_activity(user)
         return entry
 

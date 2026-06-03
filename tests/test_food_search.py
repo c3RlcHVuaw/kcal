@@ -4,7 +4,8 @@ from kcal_tracker.bot.handlers.food import (
     _filter_relevant_estimates,
     _is_confident_single_search_match,
 )
-from kcal_tracker.schemas import FoodEstimate
+from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate
+from kcal_tracker.services.food_catalog import _can_learn, normalize_food_text, scale_estimate
 from kcal_tracker.services.food_search import estimate_common_food
 
 
@@ -40,3 +41,44 @@ def test_single_database_result_needs_confident_match() -> None:
 
     assert not _is_confident_single_search_match("латте 300 мл", estimate)
     assert _is_confident_single_search_match("латте", estimate)
+
+
+def test_catalog_normalize_handles_case_and_yo() -> None:
+    assert normalize_food_text("  ЁГУРТ, KFC!  ") == "егурт kfc"
+
+
+def test_catalog_scales_estimate_preserving_metadata() -> None:
+    estimate = FoodEstimate(
+        name="наггетсы KFC",
+        weight_g=100,
+        kcal=270,
+        protein=16,
+        fat=17,
+        carbs=15,
+        source_label="Фастфуд",
+        catalog_id=42,
+        trust_score=0.9,
+    )
+
+    scaled = scale_estimate(estimate, 1.5)
+
+    assert scaled.weight_g == 150
+    assert scaled.kcal == 405
+    assert scaled.protein == 24
+    assert scaled.catalog_id == 42
+    assert scaled.source_label == "Фастфуд"
+
+
+def test_catalog_learning_rejects_low_confidence_payload() -> None:
+    payload = FoodEntryCreate(
+        name="пирожок",
+        weight_g=100,
+        kcal=240,
+        protein=6,
+        fat=8,
+        carbs=35,
+        confidence=0.4,
+        source="manual",
+    )
+
+    assert not _can_learn(payload)

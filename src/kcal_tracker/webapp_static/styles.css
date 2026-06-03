@@ -4187,6 +4187,14 @@ textarea {
     inset 0 1px 0 color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
+.food-pick-card.is-ai-suggestion {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+    var(--panel-gradient),
+    var(--surface);
+}
+
 .food-pick-card:nth-child(2) {
   animation-delay: 45ms;
 }
@@ -4215,6 +4223,18 @@ textarea {
   font-weight: 780;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.food-source-badge {
+  display: inline-grid;
+  margin-left: 6px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 820;
+  vertical-align: 2px;
 }
 
 .food-pick-main span,
@@ -4252,6 +4272,11 @@ textarea {
 .food-impact.over {
   background: color-mix(in srgb, var(--danger) 14%, transparent);
   color: var(--danger);
+}
+
+.food-impact.ai {
+  background: color-mix(in srgb, var(--protein) 15%, transparent);
+  color: color-mix(in srgb, var(--protein) 76%, var(--text));
 }
 
 .food-pick-add {

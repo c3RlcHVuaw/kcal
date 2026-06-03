@@ -15,6 +15,10 @@ class FoodEstimate(BaseModel):
     confidence: float | None = Field(default=None, ge=0, lt=1)
     emoji: str | None = Field(default=None, max_length=16)
     advice: str | None = Field(default=None, max_length=255)
+    source_label: str | None = Field(default=None, max_length=32)
+    catalog_id: int | None = None
+    is_ai_suggestion: bool = False
+    trust_score: float | None = Field(default=None, ge=0, le=1)
 
 
 class FoodEstimateList(BaseModel):

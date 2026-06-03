@@ -33,6 +33,7 @@ from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
 from kcal_tracker.services.diary import DiaryService, estimate_from_entry
 from kcal_tracker.services.fatsecret import FatSecretService
+from kcal_tracker.services.food_catalog import FoodCatalogService
 from kcal_tracker.services.food_insights import enrich_food_payload, food_label
 from kcal_tracker.services.food_search import estimate_common_food
 from kcal_tracker.services.media import (
@@ -128,7 +129,11 @@ async def parse_manual_food(message: Message, state: FSMContext) -> None:
         if await _try_ai_text_parse(message, state, query, source="manual"):
             return
 
-    free_estimates = await _free_food_estimates(query)
+    free_estimates = await _free_food_estimates(
+        query,
+        telegram_id=message.from_user.id,
+        username=message.from_user.username,
+    )
     if len(free_estimates) == 1:
         if _is_confident_single_search_match(query, free_estimates[0]):
             await _show_confirmation(message, state, free_estimates[0], "food_search")
@@ -316,9 +321,20 @@ async def _history_food_estimate(
     return estimate
 
 
-async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimate]:
+async def _free_food_estimates(
+    text: str,
+    *,
+    limit: int = 5,
+    telegram_id: int | None = None,
+    username: str | None = None,
+) -> list[FoodEstimate]:
     barcode = normalize_barcode(text)
     async with SessionLocal() as session:
+        user = (
+            await UserService(session).get_or_create(telegram_id, username)
+            if telegram_id is not None
+            else None
+        )
         if barcode is not None:
             try:
                 product = await OpenFoodFactsService(session).get_product(barcode)
@@ -334,17 +350,25 @@ async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimat
                         fat=product.fat_100g or 0,
                         carbs=product.carbs_100g or 0,
                         confidence=0.9,
+                        source_label="Штрихкод",
                     )
                 )
             ]
+        if user is not None:
+            catalog_estimates = await FoodCatalogService(session).search(user, text, limit=limit)
+            if catalog_estimates:
+                return catalog_estimates
         estimate = estimate_common_food(text)
         if estimate is not None:
+            estimate.source_label = "База"
             return [estimate]
         try:
             estimates = await asyncio.wait_for(
                 OpenFoodFactsService(session).search_products(text, limit=limit),
                 timeout=settings.food_search_openfoodfacts_timeout_seconds,
             )
+            for estimate in estimates:
+                estimate.source_label = "База"
         except TimeoutError:
             logger.info("OpenFoodFacts text search timed out query=%r", text)
             estimates = []
@@ -360,6 +384,8 @@ async def _free_food_estimates(text: str, *, limit: int = 5) -> list[FoodEstimat
             FatSecretService().search_products(text, limit=limit),
             timeout=settings.food_search_fatsecret_timeout_seconds,
         )
+        for estimate in estimates:
+            estimate.source_label = "База"
     except TimeoutError:
         logger.info("FatSecret text search timed out query=%r", text)
         estimates = []
@@ -526,7 +552,11 @@ async def retry_confirmation_with_database_search(callback: CallbackQuery, state
         await callback.answer("Запрос уже устарел. Напиши продукт ещё раз.", show_alert=True)
         return
 
-    estimates = await _free_food_estimates(query)
+    estimates = await _free_food_estimates(
+        query,
+        telegram_id=callback.from_user.id,
+        username=callback.from_user.username,
+    )
     if not estimates:
         await _record_callback_quality_event(
             callback,
@@ -1737,9 +1767,10 @@ def _format_search_results(estimates: list[FoodEstimate], *, query: str) -> str:
         "",
     ]
     for index, estimate in enumerate(estimates, start=1):
+        label = f" · {estimate.source_label}" if estimate.source_label else ""
         lines.append(
             f"#{index} {food_label(estimate)} — {estimate.weight_g or 100:.0f}г, "
-            f"{estimate.kcal:.0f} ккал"
+            f"{estimate.kcal:.0f} ккал{label}"
         )
         lines.append(
             f"   Б {estimate.protein:.0f} / Ж {estimate.fat:.0f} / У {estimate.carbs:.0f} г"

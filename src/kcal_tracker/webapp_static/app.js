@@ -1266,12 +1266,15 @@ function renderFoodPickList(container, foods, options = {}) {
       : "search";
   container.innerHTML = foods.map((food, index) => {
     const impact = foodPickImpact(food);
+    const label = food.source_label || sourceLabel(source);
+    const aiClass = food.is_ai_suggestion ? " is-ai-suggestion" : "";
     return `
-      <article class="food-pick-card">
+      <article class="food-pick-card${aiClass}">
         <button class="food-pick-main" type="button" data-pick-edit="${index}" data-pick-index="${index}" data-pick-source="${listName}" data-entry-source="${source}">
-          <strong>${escapeHtml(food.name)}</strong>
+          <strong>${escapeHtml(food.name)} <small class="food-source-badge">${escapeHtml(label)}</small></strong>
           <span>${Math.round(food.kcal || 0)} ккал${food.weight_g ? ` · ${formatNumber(food.weight_g)} г` : ""}</span>
           <em>Б ${formatNumber(food.protein || 0)} · Ж ${formatNumber(food.fat || 0)} · У ${formatNumber(food.carbs || 0)}</em>
+          ${food.is_ai_suggestion ? '<small class="food-impact ai">AI-оценка, проверь перед сохранением</small>' : ""}
           ${impact ? `<small class="food-impact ${impact.kind}">${escapeHtml(impact.text)}</small>` : ""}
         </button>
         <button class="food-pick-add" type="button" data-pick-add="${index}" data-pick-index="${index}" data-pick-source="${listName}" data-entry-source="${source}" aria-label="Добавить ${escapeHtml(food.name)}">
@@ -1354,7 +1357,7 @@ function renderParsedFoods(result) {
           <span>${Math.round(food.protein || 0)}Б</span>
           <span>${Math.round(food.fat || 0)}Ж</span>
           <span>${Math.round(food.carbs || 0)}У</span>
-          <span>${sourceLabel(result.source)}${confidenceLabel(food.confidence)}</span>
+          <span>${escapeHtml(food.source_label || sourceLabel(result.source))}${confidenceLabel(food.confidence)}</span>
         </div>
         <div class="entry-actions parsed-entry-actions">
           <button type="button" data-toggle-parsed="${index}">${state.expandedParsedFood === index ? "Свернуть" : "Изменить"}</button>
@@ -1951,6 +1954,10 @@ function normalizeParsedFood(food) {
     confidence: numberOrNull(food.confidence),
     emoji: food.emoji || null,
     advice: food.advice || null,
+    source_label: food.source_label || null,
+    catalog_id: Number.isFinite(Number(food.catalog_id)) ? Number(food.catalog_id) : null,
+    is_ai_suggestion: Boolean(food.is_ai_suggestion),
+    trust_score: numberOrNull(food.trust_score),
   };
 }
 

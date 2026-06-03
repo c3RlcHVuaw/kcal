@@ -52,6 +52,7 @@ from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, 
 from kcal_tracker.services.diary import DiaryService, estimate_from_entry
 from kcal_tracker.services.export import ExportService
 from kcal_tracker.services.fatsecret import FatSecretService
+from kcal_tracker.services.food_catalog import FoodCatalogService, mark_ai_suggestions
 from kcal_tracker.services.food_insights import enrich_food_payload
 from kcal_tracker.services.food_search import estimate_common_food
 from kcal_tracker.services.open_food_facts import OpenFoodFactsService, ProductNotFoundError
@@ -324,6 +325,7 @@ async def webapp_parse_food_text(
 
     common_estimate = None if _should_parse_food_text_with_ai(text) else estimate_common_food(text)
     if common_estimate is not None:
+        common_estimate.source_label = "База"
         return WebAppFoodTextParseResult(
             foods=[common_estimate],
             source="common",
@@ -453,19 +455,26 @@ async def webapp_search_food(
 
     history_entry = await diary.recent_matching_entry(user, text)
     if history_entry is not None:
-        estimates.append(estimate_from_entry(history_entry))
+        history_estimate = estimate_from_entry(history_entry)
+        history_estimate.source_label = "История"
+        estimates.append(history_estimate)
+
+    catalog = FoodCatalogService(session)
+    estimates.extend(await catalog.search(user, text, limit=8))
 
     common_estimate = estimate_common_food(text)
     if common_estimate is not None:
+        common_estimate.source_label = "База"
         estimates.append(common_estimate)
 
     try:
-        estimates.extend(
-            await asyncio.wait_for(
-                OpenFoodFactsService(session).search_products(text, limit=8),
-                timeout=settings.food_search_openfoodfacts_timeout_seconds,
-            )
+        openfood_estimates = await asyncio.wait_for(
+            OpenFoodFactsService(session).search_products(text, limit=8),
+            timeout=settings.food_search_openfoodfacts_timeout_seconds,
         )
+        for estimate in openfood_estimates:
+            estimate.source_label = "База"
+        estimates.extend(openfood_estimates)
     except TimeoutError:
         logger.info("Web app OpenFoodFacts search timed out query=%r", text)
     except Exception:
@@ -473,22 +482,38 @@ async def webapp_search_food(
 
     if len(estimates) < 4:
         try:
-            estimates.extend(
-                await asyncio.wait_for(
-                    FatSecretService().search_products(text, limit=8),
-                    timeout=settings.food_search_fatsecret_timeout_seconds,
-                )
+            fatsecret_estimates = await asyncio.wait_for(
+                FatSecretService().search_products(text, limit=8),
+                timeout=settings.food_search_fatsecret_timeout_seconds,
             )
+            for estimate in fatsecret_estimates:
+                estimate.source_label = "База"
+            estimates.extend(fatsecret_estimates)
         except TimeoutError:
             logger.info("Web app FatSecret search timed out query=%r", text)
         except Exception:
             logger.debug("Web app FatSecret search failed", exc_info=True)
 
+    ai_used = False
+    usage = AIUsageService(session)
+    deduped = _dedupe_food_estimates(estimates, limit=8)
+    if not deduped and len(text) >= 4 and normalize_barcode(text) is None:
+        try:
+            await usage.ensure_allowed(user)
+            ai_estimates = await AIFoodService().parse_text(text)
+            await usage.record_request(user, "webapp_food_search_ai")
+            ai_used = True
+            deduped = _dedupe_food_estimates(mark_ai_suggestions(ai_estimates.foods), limit=3)
+        except AILimitReachedError:
+            logger.info("Web app food search AI suggestion skipped: limit reached")
+        except Exception:
+            logger.debug("Web app food search AI suggestion failed", exc_info=True)
+
     return WebAppFoodTextParseResult(
-        foods=_dedupe_food_estimates(estimates, limit=8),
+        foods=deduped,
         source="food_search",
-        ai_used=False,
-        remaining_ai_today=await AIUsageService(session).remaining_today(user),
+        ai_used=ai_used,
+        remaining_ai_today=await usage.remaining_today(user),
     )
 
 
@@ -580,7 +605,7 @@ async def _webapp_barcode_result(
 
 
 def _estimate_from_product_cache(product: Any) -> FoodEstimate:
-    return enrich_food_payload(
+    estimate = enrich_food_payload(
         FoodEstimate(
             name=product.product_name,
             weight_g=100,
@@ -589,8 +614,10 @@ def _estimate_from_product_cache(product: Any) -> FoodEstimate:
             fat=product.fat_100g or 0,
             carbs=product.carbs_100g or 0,
             confidence=0.9,
+            source_label="Штрихкод",
         )
     )
+    return estimate
 
 
 def _dedupe_food_estimates(estimates: list[FoodEstimate], *, limit: int) -> list[FoodEstimate]:

@@ -9,6 +9,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Identity,
     Index,
     Integer,
     String,
@@ -161,6 +162,66 @@ class ProductCache(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
     )
+
+
+class FoodCatalogItem(Base):
+    __tablename__ = "food_catalog_items"
+    __table_args__ = (
+        Index("ix_food_catalog_items_normalized", "normalized_name"),
+        Index("ix_food_catalog_items_source_trust", "source", "trust_score"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    food_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    normalized_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    kcal: Mapped[float] = mapped_column(Float, nullable=False)
+    protein: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    fat: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    carbs: Mapped[float] = mapped_column(Float, nullable=False, default=0)
+    weight_g: Mapped[float | None] = mapped_column(Float)
+    emoji: Mapped[str | None] = mapped_column(String(16))
+    advice: Mapped[str | None] = mapped_column(String(255))
+    source: Mapped[str] = mapped_column(String(32), nullable=False)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    trust_score: Mapped[float] = mapped_column(Float, nullable=False, default=0.5)
+    usage_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    confirmed_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rejected_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now()
+    )
+
+    aliases: Mapped[list[FoodCatalogAlias]] = relationship(
+        back_populates="item",
+        cascade="all, delete-orphan",
+    )
+
+
+class FoodCatalogAlias(Base):
+    __tablename__ = "food_catalog_aliases"
+    __table_args__ = (
+        UniqueConstraint("item_id", "normalized_alias"),
+        Index("ix_food_catalog_aliases_normalized", "normalized_alias"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    item_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("food_catalog_items.id", ondelete="CASCADE"), nullable=False
+    )
+    alias: Mapped[str] = mapped_column(String(255), nullable=False)
+    normalized_alias: Mapped[str] = mapped_column(String(255), nullable=False)
+    source: Mapped[str] = mapped_column(String(32), nullable=False, default="system")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    item: Mapped[FoodCatalogItem] = relationship(back_populates="aliases")
 
 
 class FavoriteFood(Base):
