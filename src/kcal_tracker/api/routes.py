@@ -447,6 +447,7 @@ async def webapp_search_food(
     identity: WebAppIdentityDep,
     session: SessionDep,
     query: str = Query(min_length=2, max_length=80),
+    force_ai: bool = Query(default=False),
 ) -> WebAppFoodTextParseResult:
     text = " ".join(query.split())
     user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
@@ -497,7 +498,7 @@ async def webapp_search_food(
     ai_used = False
     usage = AIUsageService(session)
     deduped = _dedupe_food_estimates(estimates, limit=8)
-    if not deduped and len(text) >= 4 and normalize_barcode(text) is None:
+    if (force_ai or not deduped) and len(text) >= 4 and normalize_barcode(text) is None:
         try:
             await usage.ensure_allowed(user)
             ai_estimates = await AIFoodService().parse_text(text)

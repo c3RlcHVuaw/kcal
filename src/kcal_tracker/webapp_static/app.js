@@ -21,6 +21,7 @@ const state = {
   favoriteFoods: [],
   searchTimer: null,
   searchRequestId: 0,
+  foodSearchAiLoading: false,
   deleteConfirmTimer: null,
   entryHighlightKeys: new Set(),
   entryHighlightTimer: null,
@@ -442,10 +443,13 @@ async function searchFood(event) {
   try {
     const result = await api(`/webapp/me/food/search?query=${encodeURIComponent(query)}`);
     if (requestId !== state.searchRequestId) return;
+    state.foodSearchAiLoading = false;
     state.foodSearchResults = result.foods.map(normalizeParsedFood);
     renderFoodPickList(nodes.foodSearchResults, state.foodSearchResults, {
       source: result.source,
       emptyText: "Ничего не нашлось. Можно разобрать через AI.",
+      query,
+      showAiSearch: !state.foodSearchResults.some((food) => food.is_ai_suggestion),
     });
     switchAddMode("browse");
   } catch (error) {
@@ -454,7 +458,11 @@ async function searchFood(event) {
     const text = error.status === 401
       ? "Открой mini-app из Telegram, чтобы поиск получил доступ к дневнику."
       : "Поиск не сработал. Попробуй AI или штрихкод.";
-    nodes.foodSearchResults.innerHTML = `<div class="empty-state">${escapeHtml(text)}</div>`;
+    renderFoodPickList(nodes.foodSearchResults, [], {
+      emptyText: text,
+      query,
+      showAiSearch: error.status !== 401,
+    });
   } finally {
     if (requestId === state.searchRequestId) {
       nodes.foodSearchResults.removeAttribute("aria-busy");
@@ -465,6 +473,7 @@ async function searchFood(event) {
 function clearFoodSearch(clearInput = true) {
   if (clearInput) nodes.foodSearch.value = "";
   state.searchRequestId += 1;
+  state.foodSearchAiLoading = false;
   state.foodSearchResults = [];
   nodes.foodSearchSection.classList.add("hidden");
   nodes.foodSearchResults.innerHTML = "";
@@ -472,6 +481,11 @@ function clearFoodSearch(clearInput = true) {
 }
 
 function handleFoodPick(event) {
+  const aiSearchButton = event.target.closest("[data-food-search-ai]");
+  if (aiSearchButton) {
+    searchFoodWithAi();
+    return;
+  }
   const editButton = event.target.closest("[data-pick-edit]");
   const addButton = event.target.closest("[data-pick-add]");
   const button = editButton || addButton;
@@ -1255,8 +1269,9 @@ function renderReusableFood(container, items) {
 
 function renderFoodPickList(container, foods, options = {}) {
   const source = options.source || "food_search";
+  const aiCard = options.showAiSearch ? renderFoodSearchAiCard(options.query || nodes.foodSearch?.value || "") : "";
   if (!foods.length) {
-    container.innerHTML = `<div class="empty-state">${escapeHtml(options.emptyText || "Пока пусто.")}</div>`;
+    container.innerHTML = aiCard || `<div class="empty-state">${escapeHtml(options.emptyText || "Пока пусто.")}</div>`;
     return;
   }
   const listName = source === "history" && container === nodes.foodAddFavoritesList
@@ -1282,7 +1297,85 @@ function renderFoodPickList(container, foods, options = {}) {
         </button>
       </article>
     `;
-  }).join("");
+  }).join("") + aiCard;
+}
+
+function renderFoodSearchAiCard(query) {
+  const text = String(query || "").trim();
+  if (text.length < 4) return "";
+  if (state.foodSearchAiLoading) {
+    return `
+      <article class="food-pick-card food-ai-search-card is-loading" aria-live="polite">
+        <div class="food-ai-search-orb">AI</div>
+        <div class="food-ai-search-copy">
+          <strong>Ищу через AI</strong>
+          <span>${escapeHtml(text)}</span>
+          <em>Проверяю КБЖУ и порцию</em>
+        </div>
+      </article>
+    `;
+  }
+  return `
+    <article class="food-pick-card food-ai-search-card">
+      <button class="food-ai-search-button" type="button" data-food-search-ai>
+        <div class="food-ai-search-orb">AI</div>
+        <div class="food-ai-search-copy">
+          <strong>Найти через AI</strong>
+          <span>${escapeHtml(text)}</span>
+          <em>Если базы мало, AI предложит продукт для проверки</em>
+        </div>
+        <i>→</i>
+      </button>
+    </article>
+  `;
+}
+
+async function searchFoodWithAi() {
+  const query = nodes.foodSearch.value.trim();
+  if (query.length < 4 || state.foodSearchAiLoading) return;
+  if (!initData) {
+    toast("AI-поиск работает внутри Telegram mini-app");
+    return;
+  }
+  const requestId = ++state.searchRequestId;
+  state.foodSearchAiLoading = true;
+  nodes.foodSearchSection.classList.remove("hidden");
+  renderFoodPickList(nodes.foodSearchResults, state.foodSearchResults, {
+    source: "food_search",
+    query,
+    showAiSearch: true,
+  });
+  nodes.foodSearchResults.setAttribute("aria-busy", "true");
+  haptic("impact", "light");
+  try {
+    const result = await api(`/webapp/me/food/search?query=${encodeURIComponent(query)}&force_ai=true`);
+    if (requestId !== state.searchRequestId) return;
+    state.foodSearchAiLoading = false;
+    state.foodSearchResults = result.foods.map(normalizeParsedFood);
+    renderFoodPickList(nodes.foodSearchResults, state.foodSearchResults, {
+      source: result.source,
+      query,
+      showAiSearch: !state.foodSearchResults.some((food) => food.is_ai_suggestion),
+      emptyText: "AI тоже не нашёл уверенный вариант. Попробуй описать порцию подробнее.",
+    });
+    if (result.ai_used) {
+      toast("AI предложил вариант");
+    }
+  } catch (error) {
+    if (requestId !== state.searchRequestId) return;
+    state.foodSearchAiLoading = false;
+    renderFoodPickList(nodes.foodSearchResults, state.foodSearchResults, {
+      source: "food_search",
+      query,
+      showAiSearch: true,
+      emptyText: "AI-поиск не сработал. Попробуй позже.",
+    });
+    toast(error.status === 402 ? "Лимит AI на сегодня закончился" : "AI-поиск не сработал");
+  } finally {
+    if (requestId === state.searchRequestId) {
+      nodes.foodSearchResults.removeAttribute("aria-busy");
+    }
+  }
 }
 
 function foodPickImpact(food) {

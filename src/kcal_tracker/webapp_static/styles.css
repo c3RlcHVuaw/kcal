@@ -424,6 +424,15 @@ h2 {
   }
 }
 
+@keyframes aiSearchShimmer {
+  from {
+    background-position: 140% 0;
+  }
+  to {
+    background-position: -140% 0;
+  }
+}
+
 @keyframes skeletonFlow {
   from {
     background-position: 140% 0;
@@ -4193,6 +4202,103 @@ textarea {
     radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
     var(--panel-gradient),
     var(--surface);
+}
+
+.food-ai-search-card {
+  grid-template-columns: 1fr;
+  padding: 0;
+  overflow: hidden;
+  border-color: color-mix(in srgb, var(--protein) 34%, var(--line));
+  background:
+    radial-gradient(circle at 8% 10%, color-mix(in srgb, var(--protein) 22%, transparent), transparent 34%),
+    radial-gradient(circle at 92% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 32%),
+    var(--panel-gradient),
+    var(--surface);
+}
+
+.food-ai-search-button {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 16px 16px 18px;
+  text-align: left;
+  color: var(--text);
+}
+
+.food-ai-search-orb {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--protein) 86%, white), var(--accent));
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+  box-shadow:
+    0 12px 26px color-mix(in srgb, var(--protein) 25%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.food-ai-search-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.food-ai-search-copy strong {
+  overflow: hidden;
+  font-size: 18px;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.food-ai-search-copy span,
+.food-ai-search-copy em {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 13px;
+  font-style: normal;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.food-ai-search-button > i {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-strong);
+  font-style: normal;
+  font-weight: 900;
+}
+
+.food-ai-search-card.is-loading {
+  position: relative;
+  grid-template-columns: 50px minmax(0, 1fr);
+  align-items: center;
+  padding: 16px 16px 16px 18px;
+}
+
+.food-ai-search-card.is-loading::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(105deg, transparent 18%, rgba(255, 255, 255, 0.34) 40%, transparent 62%);
+  background-size: 220% 100%;
+  animation: aiSearchShimmer 1.05s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.food-ai-search-card.is-loading .food-ai-search-orb {
+  animation: softPulse 820ms ease-in-out infinite;
 }
 
 .food-pick-card:nth-child(2) {
