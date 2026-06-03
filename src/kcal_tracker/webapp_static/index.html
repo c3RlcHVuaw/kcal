@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/styles.css?v=food-review-bottom-save-20260602" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=entry-edit-polish-20260603" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -666,54 +666,64 @@
     <div id="entry-editor" class="sheet hidden" role="dialog" aria-modal="true" aria-labelledby="entry-editor-title">
       <div class="sheet-panel component-card">
         <form id="entry-edit-form" class="form-panel entry-edit-panel">
-          <div class="section-title sheet-title">
+          <div class="section-title sheet-title entry-edit-title">
             <div>
               <h2 id="entry-editor-title">Редактировать еду</h2>
-              <p class="section-subtitle">Поправь только нужные значения</p>
+              <p class="section-subtitle">Граммы пересчитают калории и БЖУ</p>
             </div>
             <button id="entry-edit-close" class="icon-mini" type="button" aria-label="Закрыть">×</button>
           </div>
 
-          <label class="edit-field wide-field" for="entry-edit-name">
-            <span>Название</span>
-            <input id="entry-edit-name" name="name" autocomplete="off" placeholder="Например: сырники со сметаной" required />
-          </label>
+          <div class="entry-edit-card">
+            <div class="entry-edit-head">
+              <div class="food-thumb small" id="entry-edit-thumb" aria-hidden="true">🍽️</div>
+              <label class="edit-field entry-edit-name-field" for="entry-edit-name">
+                <span>Название</span>
+                <input id="entry-edit-name" name="name" autocomplete="off" placeholder="Например: сырники со сметаной" required />
+              </label>
+            </div>
 
-          <div class="field-row edit-row">
-            <label class="edit-field" for="entry-edit-kcal">
-              <span>Калории</span>
-              <input id="entry-edit-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
-            </label>
-            <label class="edit-field" for="entry-edit-weight">
-              <span>Вес</span>
-              <input id="entry-edit-weight" name="weight_g" inputmode="decimal" placeholder="граммы" />
+            <div class="entry-edit-summary" aria-live="polite">
+              <strong id="entry-edit-summary-kcal">0 ккал</strong>
+              <span id="entry-edit-summary-weight">без граммовки</span>
+            </div>
+
+            <div class="field-row edit-row">
+              <label class="edit-field" for="entry-edit-kcal">
+                <span>ккал</span>
+                <input id="entry-edit-kcal" name="kcal" inputmode="decimal" placeholder="ккал" required />
+              </label>
+              <label class="edit-field" for="entry-edit-weight">
+                <span>граммы</span>
+                <input id="entry-edit-weight" name="weight_g" inputmode="decimal" placeholder="г" />
+              </label>
+            </div>
+
+            <div class="macro-edit-grid" aria-label="БЖУ">
+              <label class="edit-field macro-protein" for="entry-edit-protein">
+                <span>Б</span>
+                <input id="entry-edit-protein" name="protein" inputmode="decimal" placeholder="г" />
+              </label>
+              <label class="edit-field macro-fat" for="entry-edit-fat">
+                <span>Ж</span>
+                <input id="entry-edit-fat" name="fat" inputmode="decimal" placeholder="г" />
+              </label>
+              <label class="edit-field macro-carbs" for="entry-edit-carbs">
+                <span>У</span>
+                <input id="entry-edit-carbs" name="carbs" inputmode="decimal" placeholder="г" />
+              </label>
+            </div>
+
+            <label class="edit-field wide-field" for="entry-edit-meal">
+              <span>Приём пищи</span>
+              <select id="entry-edit-meal" name="meal_type" aria-label="Приём пищи">
+                <option value="breakfast">Завтрак</option>
+                <option value="lunch">Обед</option>
+                <option value="dinner">Ужин</option>
+                <option value="snack">Перекус</option>
+              </select>
             </label>
           </div>
-
-          <div class="macro-edit-grid" aria-label="БЖУ">
-            <label class="edit-field macro-protein" for="entry-edit-protein">
-              <span>Белки</span>
-              <input id="entry-edit-protein" name="protein" inputmode="decimal" placeholder="г" />
-            </label>
-            <label class="edit-field macro-fat" for="entry-edit-fat">
-              <span>Жиры</span>
-              <input id="entry-edit-fat" name="fat" inputmode="decimal" placeholder="г" />
-            </label>
-            <label class="edit-field macro-carbs" for="entry-edit-carbs">
-              <span>Углеводы</span>
-              <input id="entry-edit-carbs" name="carbs" inputmode="decimal" placeholder="г" />
-            </label>
-          </div>
-
-          <label class="edit-field wide-field" for="entry-edit-meal">
-            <span>Приём пищи</span>
-            <select id="entry-edit-meal" name="meal_type" aria-label="Приём пищи">
-              <option value="breakfast">Завтрак</option>
-              <option value="lunch">Обед</option>
-              <option value="dinner">Ужин</option>
-              <option value="snack">Перекус</option>
-            </select>
-          </label>
 
           <div class="sheet-actions">
             <button class="primary-button" type="submit">Сохранить</button>
@@ -723,6 +733,6 @@
     </div>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/app/static/app.js?v=food-review-bottom-save-20260602" type="module"></script>
+    <script src="/app/static/app.js?v=entry-edit-polish-20260603" type="module"></script>
   </body>
 </html>

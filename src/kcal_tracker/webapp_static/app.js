@@ -136,6 +136,9 @@ const nodes = {
   entryEditFat: document.querySelector("#entry-edit-fat"),
   entryEditCarbs: document.querySelector("#entry-edit-carbs"),
   entryEditMeal: document.querySelector("#entry-edit-meal"),
+  entryEditThumb: document.querySelector("#entry-edit-thumb"),
+  entryEditSummaryKcal: document.querySelector("#entry-edit-summary-kcal"),
+  entryEditSummaryWeight: document.querySelector("#entry-edit-summary-weight"),
   openBot: document.querySelector("#open-bot"),
   exportFood: document.querySelector("#export-food"),
 };
@@ -281,6 +284,9 @@ nodes.barcodeCode.addEventListener("keydown", (event) => {
 });
 nodes.entryEditClose.addEventListener("click", closeEntryEditor);
 nodes.entryEditWeight.addEventListener("input", recalculateEntryByWeight);
+[nodes.entryEditKcal, nodes.entryEditWeight, nodes.entryEditProtein, nodes.entryEditFat, nodes.entryEditCarbs].forEach((input) => {
+  input.addEventListener("input", updateEntryEditSummary);
+});
 nodes.entryEditor.addEventListener("click", (event) => {
   if (event.target === nodes.entryEditor) closeEntryEditor();
 });
@@ -1414,6 +1420,7 @@ function openEntryEditor(entryId) {
   nodes.entryEditFat.value = formatInput(entry.fat);
   nodes.entryEditCarbs.value = formatInput(entry.carbs);
   nodes.entryEditMeal.value = mealIdForEntry(entry);
+  nodes.entryEditThumb.textContent = entry.emoji || foodInitial(entry.name);
   state.editingEntryBase = {
     weight_g: numberOrNull(entry.weight_g),
     kcal: numberOrNull(entry.kcal) ?? 0,
@@ -1421,6 +1428,7 @@ function openEntryEditor(entryId) {
     fat: numberOrNull(entry.fat) ?? 0,
     carbs: numberOrNull(entry.carbs) ?? 0,
   };
+  updateEntryEditSummary();
   lockPageScroll("entry-editor");
   nodes.entryEditor.classList.remove("hidden");
 }
@@ -1492,10 +1500,18 @@ function recalculateEntryByWeight() {
   nodes.entryEditProtein.value = formatInput(scaledValue(base.protein, scale));
   nodes.entryEditFat.value = formatInput(scaledValue(base.fat, scale));
   nodes.entryEditCarbs.value = formatInput(scaledValue(base.carbs, scale));
+  updateEntryEditSummary();
 }
 
 function scaledValue(value, scale) {
   return Math.round(Number(value || 0) * scale * 10) / 10;
+}
+
+function updateEntryEditSummary() {
+  const kcal = parseNumber(nodes.entryEditKcal.value);
+  const weight = parseNumber(nodes.entryEditWeight.value);
+  nodes.entryEditSummaryKcal.textContent = `${Math.round(kcal || 0)} ккал`;
+  nodes.entryEditSummaryWeight.textContent = weight ? `${formatNumber(weight)} г` : "без граммовки";
 }
 
 function scaleParsedFood(index, multiplier) {
