@@ -41,6 +41,7 @@ from kcal_tracker.models import (
 )
 from kcal_tracker.services.admin_alerts import admin_alert_loop
 from kcal_tracker.services.diary import DiaryService
+from kcal_tracker.services.openai_balance import OpenAIBalanceService
 from kcal_tracker.services.subscriptions import (
     SubscriptionService,
     has_active_subscription,
@@ -60,6 +61,7 @@ class AdminFlow(StatesGroup):
     waiting_promo_create = State()
     waiting_broadcast_text = State()
     waiting_support_reply = State()
+    waiting_openai_balance = State()
 
 
 class AdminAccessMiddleware(BaseMiddleware):
@@ -312,6 +314,11 @@ async def server_callback(callback: CallbackQuery) -> None:
 @router.message(Command("openai"))
 @router.message(Command("balance"))
 async def openai_command(message: Message) -> None:
+    raw = _command_arg(message.text)
+    if raw:
+        text = await _set_openai_balance_from_text(raw)
+        await message.answer(text, reply_markup=_openai_keyboard())
+        return
     text = await _openai_text()
     await message.answer(text, reply_markup=_openai_keyboard())
 
@@ -321,6 +328,32 @@ async def openai_callback(callback: CallbackQuery) -> None:
     text = await _openai_text()
     await callback.message.edit_text(text, reply_markup=_openai_keyboard())
     await callback.answer("Обновлено")
+
+
+@router.callback_query(F.data == "admin:openai:set-balance")
+async def ask_openai_balance(callback: CallbackQuery, state: FSMContext) -> None:
+    await state.set_state(AdminFlow.waiting_openai_balance)
+    await callback.message.edit_text(
+        "Текущий баланс OpenAI API.\n\n"
+        "Отправь сумму в долларах, например:\n"
+        "9.33",
+        reply_markup=_cancel_keyboard(),
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("admin:openai:adjust:"))
+async def adjust_openai_balance(callback: CallbackQuery) -> None:
+    raw = callback.data.rsplit(":", 1)[1]
+    try:
+        delta = float(raw)
+    except ValueError:
+        await callback.answer("Некорректная сумма", show_alert=True)
+        return
+    async with SessionLocal() as session:
+        await OpenAIBalanceService(session).adjust_balance(delta)
+    await callback.message.edit_text(await _openai_text(), reply_markup=_openai_keyboard())
+    await callback.answer(f"Баланс изменён на ${delta:.2f}")
 
 
 @router.message(Command("alerts"))
@@ -760,6 +793,13 @@ async def support_reply_from_state(message: Message, state: FSMContext) -> None:
     )
 
 
+@router.message(AdminFlow.waiting_openai_balance, F.text)
+async def openai_balance_from_state(message: Message, state: FSMContext) -> None:
+    text = await _set_openai_balance_from_text(message.text or "")
+    await state.clear()
+    await message.answer(text, reply_markup=_openai_keyboard())
+
+
 @router.callback_query(F.data == "admin:cancel")
 async def cancel_callback(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
@@ -858,8 +898,24 @@ async def _server_text() -> str:
 async def _openai_text() -> str:
     api_key = settings.openai_admin_api_key or settings.openai_api_key
     local_ai = await _local_ai_cost_hint()
+    manual_balance = await _manual_openai_balance_text()
+    pricing_note = (
+        "Оценка: gpt-4o-mini $0.15 input / $0.60 output за 1M токенов. "
+        "Если токены не записаны, считаю по среднему на тип запроса."
+    )
     if not api_key:
-        return "💳 OpenAI\n\nOPENAI_API_KEY не настроен.\n\n" + local_ai
+        return "\n".join(
+            [
+                "💳 OpenAI",
+                "",
+                manual_balance,
+                "",
+                "OPENAI_API_KEY не настроен.",
+                pricing_note,
+                "",
+                local_ai,
+            ]
+        )
 
     now = datetime.now(UTC)
     month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
@@ -881,9 +937,12 @@ async def _openai_text() -> str:
             [
                 "💳 OpenAI",
                 "",
+                manual_balance,
+                "",
                 "Не удалось получить Costs API.",
                 f"Причина: {type(exc).__name__}",
                 "Нужен ключ с правами на organization costs.",
+                pricing_note,
                 "",
                 local_ai,
             ]
@@ -898,7 +957,7 @@ async def _openai_text() -> str:
                 amount.get("value") or 0
             )
     totals = ", ".join(f"{value:.2f} {currency}" for currency, value in total_by_currency.items())
-    lines = ["💳 OpenAI", "", f"Costs API за месяц: {totals or '0'}"]
+    lines = ["💳 OpenAI", "", manual_balance, "", f"Costs API за месяц: {totals or '0'}"]
     if settings.openai_monthly_budget_usd > 0:
         spent_usd = total_by_currency.get("USD", 0.0)
         remaining = settings.openai_monthly_budget_usd - spent_usd
@@ -908,7 +967,7 @@ async def _openai_text() -> str:
         lines.append(f"Порог алерта: ${settings.openai_remaining_alert_usd:.2f}")
     else:
         lines.append("Месячный бюджет не задан: OPENAI_MONTHLY_BUDGET_USD=0")
-    lines.extend(["", local_ai])
+    lines.extend(["", pricing_note, "", local_ai])
     return "\n".join(lines)
 
 
@@ -929,6 +988,48 @@ async def _local_ai_cost_hint() -> str:
             ),
         )
     return f"Локально в БД: сегодня {today_count} AI-запросов, месяц {month_count}."
+
+
+async def _manual_openai_balance_text() -> str:
+    async with SessionLocal() as session:
+        summary = await OpenAIBalanceService(session).summary()
+    updated = (
+        summary.updated_at.strftime("%d.%m.%Y %H:%M UTC")
+        if summary.updated_at
+        else "ещё не задан"
+    )
+    token_line = (
+        f"Токены месяца: {summary.month_input_tokens + summary.estimated_input_tokens:,} input / "
+        f"{summary.month_output_tokens + summary.estimated_output_tokens:,} output"
+    ).replace(",", " ")
+    return "\n".join(
+        [
+            "💰 Ручной баланс API",
+            f"Баланс: ${summary.balance_usd:.2f}",
+            f"Расход за месяц: ~${summary.spent_usd:.4f}",
+            f"Осталось: ~${summary.remaining_usd:.2f}",
+            f"AI-запросы: сегодня {summary.today_requests}, месяц {summary.month_requests}",
+            token_line,
+            f"Последнее изменение: {updated}",
+        ]
+    )
+
+
+async def _set_openai_balance_from_text(raw: str) -> str:
+    amount = _parse_money(raw)
+    if amount is None:
+        return "Не понял сумму. Напиши число в долларах, например: /balance 9.33"
+    async with SessionLocal() as session:
+        summary = await OpenAIBalanceService(session).set_balance(amount)
+    return "\n".join(
+        [
+            "💰 Баланс OpenAI обновлён",
+            "",
+            f"Баланс: ${summary.balance_usd:.2f}",
+            f"Расход за месяц: ~${summary.spent_usd:.4f}",
+            f"Осталось: ~${summary.remaining_usd:.2f}",
+        ]
+    )
 
 
 async def _alerts_text() -> str:
@@ -1297,6 +1398,17 @@ def _parse_promo_create_text(
     return code, discount_percent, max_uses, expires_at, note
 
 
+def _parse_money(raw: str) -> float | None:
+    cleaned = raw.strip().replace("$", "").replace(",", ".")
+    try:
+        amount = float(cleaned)
+    except ValueError:
+        return None
+    if not 0 <= amount <= 100_000:
+        return None
+    return round(amount, 2)
+
+
 async def _growth_text() -> str:
     async with SessionLocal() as session:
         invited = await _scalar(session, select(func.count(User.id)).where(User.referred_by_user_id.is_not(None)))
@@ -1630,6 +1742,11 @@ def _server_keyboard() -> InlineKeyboardMarkup:
 def _openai_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
+            [
+                InlineKeyboardButton(text="💰 Задать баланс", callback_data="admin:openai:set-balance"),
+                InlineKeyboardButton(text="+$10", callback_data="admin:openai:adjust:10"),
+            ],
+            [InlineKeyboardButton(text="−$1", callback_data="admin:openai:adjust:-1")],
             [
                 InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:openai"),
                 InlineKeyboardButton(text="🧠 AI локально", callback_data="admin:ai"),
