@@ -593,9 +593,9 @@ def test_after_food_save_keyboard_has_fast_correction_actions() -> None:
         for row in keyboard.inline_keyboard
         for button in row
     ]
-    assert callbacks[:4] == ["nav:today", "nav:add-food", "entry:edit-menu:42", "entry:delete:42"]
+    assert callbacks[:4] == ["nav:today", "nav:add-food", "entry:edit-menu:42", "entry:fav:42"]
     assert "coach:meal" in callbacks
-    assert "entry:fav:42" in callbacks
+    assert callbacks[-1] == "entry:delete:42"
 
 
 def test_entry_edit_keyboard_has_manual_correction_fields() -> None:
