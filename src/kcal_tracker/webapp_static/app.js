@@ -22,7 +22,6 @@ const state = {
   searchTimer: null,
   searchRequestId: 0,
   foodSearchAiLoading: false,
-  swipeGuideDismissTimer: null,
   entryHighlightKeys: new Set(),
   entryHighlightTimer: null,
   loadingAll: false,
@@ -144,8 +143,6 @@ const nodes = {
   openBot: document.querySelector("#open-bot"),
   exportFood: document.querySelector("#export-food"),
 };
-
-const ENTRY_SWIPE_GUIDE_KEY = "kcal.entrySwipeGuideSeen.v1";
 
 tg?.ready();
 tg?.expand();
@@ -908,8 +905,6 @@ function renderToday(data) {
   nodes.goalPace.value = data.weight_goal.weekly_weight_change_kg ? formatNumber(data.weight_goal.weekly_weight_change_kg) : "";
 
   nodes.entries.innerHTML = renderMealDiary(diary.entries);
-  renderEntrySwipeGuide(diary.entries.length > 0);
-  initEntrySwipeActions();
 }
 
 function renderFoodAddSummary(diary) {
@@ -1055,305 +1050,44 @@ function mealSummaryText(meal, macros) {
 function renderFoodEntry(entry) {
   const highlightClass = isEntryHighlighted(entry) ? " is-highlighted" : "";
   return `
-    <div class="entry-swipe" data-swipe-entry="${entry.id}">
-      <div class="entry-swipe-actions entry-swipe-leading">
-        <button class="entry-swipe-action repeat" type="button" data-repeat-entry="${entry.id}" aria-label="Повторить ${escapeHtml(entry.name)}">
-          <svg aria-hidden="true"><use href="#icon-refresh"></use></svg>
-          <span>Повторить</span>
-        </button>
-      </div>
-      <div class="entry-swipe-actions entry-swipe-trailing">
-        <button class="entry-swipe-action edit" type="button" data-edit-entry="${entry.id}" aria-label="Изменить ${escapeHtml(entry.name)}">
-          <svg aria-hidden="true"><use href="#icon-edit"></use></svg>
-          <span>Изменить</span>
-        </button>
-        <button class="entry-swipe-action template" type="button" data-favorite-entry="${entry.id}" aria-label="Сохранить ${escapeHtml(entry.name)} в шаблоны">
-          <svg aria-hidden="true"><use href="#icon-heart"></use></svg>
-          <span>Шаблон</span>
-        </button>
-        <button class="entry-swipe-action delete" type="button" data-delete-entry="${entry.id}" aria-label="Удалить ${escapeHtml(entry.name)}">
-          <svg aria-hidden="true"><use href="#icon-trash"></use></svg>
-          <span>Удалить</span>
-        </button>
-      </div>
-      <article class="entry food-card${highlightClass}">
-        <div class="food-thumb">${escapeHtml(entry.emoji || foodInitial(entry.name))}</div>
-        <div class="food-content">
-          <div class="entry-main">
-            <strong>${escapeHtml(entry.name)}</strong>
-            <b>${Math.round(entry.kcal)} ккал</b>
-          </div>
-          <div class="entry-meta">
-            <span>${entry.weight_g ? `${formatNumber(entry.weight_g)} г` : "без граммовки"}</span>
-            <span>${Math.round(entry.protein)}Б</span>
-            <span>${Math.round(entry.fat)}Ж</span>
-            <span>${Math.round(entry.carbs)}У</span>
-          </div>
+    <article class="entry food-card${highlightClass}">
+      <div class="food-thumb">${escapeHtml(entry.emoji || foodInitial(entry.name))}</div>
+      <div class="food-content">
+        <div class="entry-main">
+          <strong>${escapeHtml(entry.name)}</strong>
+          <b>${Math.round(entry.kcal)} ккал</b>
         </div>
-      </article>
-    </div>
+        <div class="entry-meta">
+          <span>${entry.weight_g ? `${formatNumber(entry.weight_g)} г` : "без граммовки"}</span>
+          <span>${Math.round(entry.protein)}Б</span>
+          <span>${Math.round(entry.fat)}Ж</span>
+          <span>${Math.round(entry.carbs)}У</span>
+        </div>
+        <div class="entry-actions">
+          <button type="button" data-repeat-entry="${entry.id}" aria-label="Повторить ${escapeHtml(entry.name)}">
+            <svg aria-hidden="true"><use href="#icon-refresh"></use></svg>
+            <span>Повторить</span>
+          </button>
+          <button type="button" data-edit-entry="${entry.id}" aria-label="Изменить ${escapeHtml(entry.name)}">
+            <svg aria-hidden="true"><use href="#icon-edit"></use></svg>
+            <span>Изменить</span>
+          </button>
+          <button type="button" data-favorite-entry="${entry.id}" aria-label="Сохранить ${escapeHtml(entry.name)} в шаблоны">
+            <svg aria-hidden="true"><use href="#icon-heart"></use></svg>
+            <span>В шаблон</span>
+          </button>
+          <button type="button" data-delete-entry="${entry.id}" aria-label="Удалить ${escapeHtml(entry.name)}">
+            <svg aria-hidden="true"><use href="#icon-trash"></use></svg>
+            <span>Удалить</span>
+          </button>
+        </div>
+      </div>
+    </article>
   `;
-}
-
-function renderEntrySwipeGuide(hasEntries) {
-  const existing = document.querySelector("[data-entry-swipe-guide]");
-  if (!hasEntries || isEntrySwipeGuideSeen()) {
-    existing?.remove();
-    return;
-  }
-  if (existing) return;
-  const guide = document.createElement("aside");
-  guide.className = "entry-swipe-guide";
-  guide.dataset.entrySwipeGuide = "true";
-  guide.innerHTML = `
-    <div class="entry-swipe-guide-icon" aria-hidden="true">
-      <span></span>
-      <i></i>
-    </div>
-    <div>
-      <strong>Карточки можно свайпать</strong>
-      <p>Вправо — повторить еду. Влево — изменить или удалить.</p>
-    </div>
-    <button type="button" aria-label="Закрыть подсказку">Понятно</button>
-  `;
-  guide.querySelector("button")?.addEventListener("click", dismissEntrySwipeGuide);
-  nodes.entries.before(guide);
-  window.clearTimeout(state.swipeGuideDismissTimer);
-  state.swipeGuideDismissTimer = window.setTimeout(() => {
-    guide.classList.add("is-settled");
-  }, 1800);
-}
-
-function dismissEntrySwipeGuide() {
-  markEntrySwipeGuideSeen();
-  const guide = document.querySelector("[data-entry-swipe-guide]");
-  guide?.classList.add("is-hiding");
-  window.setTimeout(() => guide?.remove(), 220);
-}
-
-function isEntrySwipeGuideSeen() {
-  try {
-    return window.localStorage?.getItem(ENTRY_SWIPE_GUIDE_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
-
-function markEntrySwipeGuideSeen() {
-  try {
-    window.localStorage?.setItem(ENTRY_SWIPE_GUIDE_KEY, "true");
-  } catch {
-    // localStorage can be unavailable in some embedded browser modes.
-  }
-}
-
-function initEntrySwipeActions() {
-  nodes.entries.querySelectorAll("[data-swipe-entry]").forEach((row) => {
-    if (row.dataset.swipeReady === "true") return;
-    row.dataset.swipeReady = "true";
-    row.addEventListener("pointerdown", handleEntrySwipePointerStart);
-    row.addEventListener("click", preventSwipeGhostClick, true);
-  });
-}
-
-let activeEntrySwipeCleanup = null;
-let activeEntrySwipeRow = null;
-
-function handleEntrySwipePointerStart(event) {
-  if (event.pointerType === "mouse" && event.button !== 0) return;
-  if (event.pointerType !== "mouse" && !event.isPrimary) return;
-  if (event.target.closest("button, input, select, textarea, a")) return;
-  beginEntrySwipe(event.currentTarget, event);
-}
-
-function beginEntrySwipe(row, startEvent) {
-  const card = row.querySelector(".food-card");
-  if (!card) return;
-
-  activeEntrySwipeCleanup?.();
-  activeEntrySwipeCleanup = null;
-
-  const startX = startEvent.clientX;
-  const startY = startEvent.clientY;
-  const pointerId = startEvent.pointerId;
-  const openedOffset = Number(row.dataset.swipeOffset || 0);
-  const maxRight = 106;
-  const maxLeft = 226;
-  const commitRight = 88;
-  const openThreshold = 42;
-  const lockThreshold = 10;
-  const verticalCancelThreshold = 12;
-  let currentOffset = openedOffset;
-  let direction = null;
-  let locked = false;
-  let frame = null;
-  let pendingOffset = openedOffset;
-  let finished = false;
-
-  closeOtherEntrySwipes(row);
-
-  try {
-    row.setPointerCapture(pointerId);
-  } catch {
-    // Some embedded browsers can refuse capture after a synthetic pointerdown.
-  }
-
-  const move = (moveEvent) => {
-    if (moveEvent.pointerId !== pointerId) return;
-    const dx = moveEvent.clientX - startX;
-    const dy = moveEvent.clientY - startY;
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-
-    if (!direction) {
-      if (absX < lockThreshold && absY < verticalCancelThreshold) return;
-      if (absY > verticalCancelThreshold && absY > absX * 1.08) {
-        direction = "vertical";
-        cleanup();
-        return;
-      }
-      if (absX <= absY + 2) return;
-      direction = "horizontal";
-      row.classList.add("is-dragging");
-      locked = true;
-    }
-
-    moveEvent.preventDefault();
-    currentOffset = clamp(openedOffset + dx, -maxLeft, maxRight);
-    queueEntrySwipeOffset(row, currentOffset);
-  };
-
-  const end = (endEvent) => {
-    if (endEvent.pointerId !== pointerId) return;
-    if (finished) return;
-    finished = true;
-    if (!locked) {
-      cleanup();
-      return;
-    }
-    row.dataset.suppressClick = "true";
-    window.setTimeout(() => {
-      delete row.dataset.suppressClick;
-    }, 120);
-
-    if (currentOffset >= commitRight) {
-      setEntrySwipeOffset(row, maxRight, true);
-      triggerHaptic("medium");
-      repeatEntry(Number(row.dataset.swipeEntry));
-      window.setTimeout(() => closeEntrySwipe(row), 160);
-    } else if (currentOffset > openThreshold) {
-      setEntrySwipeOffset(row, maxRight, true);
-      triggerHaptic("light");
-    } else if (currentOffset < -openThreshold) {
-      setEntrySwipeOffset(row, -maxLeft, true);
-      triggerHaptic("light");
-    } else {
-      closeEntrySwipe(row);
-    }
-    cleanup();
-  };
-
-  const cleanup = () => {
-    if (activeEntrySwipeRow === row) {
-      activeEntrySwipeCleanup = null;
-      activeEntrySwipeRow = null;
-    }
-    row.classList.remove("is-dragging");
-    if (frame) {
-      cancelAnimationFrame(frame);
-      frame = null;
-    }
-    row.removeEventListener("pointermove", move);
-    row.removeEventListener("pointerup", end);
-    row.removeEventListener("pointercancel", end);
-    row.removeEventListener("lostpointercapture", cancel);
-    try {
-      if (row.hasPointerCapture(pointerId)) row.releasePointerCapture(pointerId);
-    } catch {
-      // Capture may already be gone after pointercancel/lostpointercapture.
-    }
-  };
-
-  const cancel = (cancelEvent) => {
-    if (cancelEvent.pointerId && cancelEvent.pointerId !== pointerId) return;
-    if (locked) {
-      closeEntrySwipe(row);
-    }
-    cleanup();
-  };
-
-  const queueEntrySwipeOffset = (targetRow, offset) => {
-    pendingOffset = offset;
-    if (frame) return;
-    frame = requestAnimationFrame(() => {
-      frame = null;
-      setEntrySwipeDragOffset(targetRow, pendingOffset);
-    });
-  };
-
-  activeEntrySwipeCleanup = () => {
-    if (direction === "horizontal" || locked) closeEntrySwipe(row);
-    cleanup();
-  };
-  activeEntrySwipeRow = row;
-  row.addEventListener("pointermove", move);
-  row.addEventListener("pointerup", end);
-  row.addEventListener("pointercancel", end);
-  row.addEventListener("lostpointercapture", cancel);
-}
-
-function preventSwipeGhostClick(event) {
-  const row = event.currentTarget;
-  if (row.dataset.suppressClick !== "true") return;
-  event.preventDefault();
-  event.stopPropagation();
-}
-
-function setEntrySwipeOffset(row, offset, animate) {
-  const nextOffset = Math.round(offset);
-  row.dataset.swipeOffset = String(nextOffset);
-  syncEntrySwipeSide(row, nextOffset);
-  row.classList.toggle("is-settling", Boolean(animate));
-  row.style.setProperty("--swipe-x", `${nextOffset}px`);
-  if (animate) {
-    window.setTimeout(() => row.classList.remove("is-settling"), 260);
-  }
-}
-
-function setEntrySwipeDragOffset(row, offset) {
-  const nextOffset = Math.round(offset);
-  syncEntrySwipeSide(row, nextOffset);
-  row.style.setProperty("--swipe-x", `${nextOffset}px`);
-}
-
-function syncEntrySwipeSide(row, offset) {
-  const side = offset > 0 ? "leading" : offset < 0 ? "trailing" : "closed";
-  if (row.dataset.swipeSide === side) return;
-  row.dataset.swipeSide = side;
-  row.classList.toggle("is-open", side !== "closed");
-  row.classList.toggle("is-open-leading", side === "leading");
-  row.classList.toggle("is-open-trailing", side === "trailing");
-}
-
-function closeEntrySwipe(row) {
-  setEntrySwipeOffset(row, 0, true);
-}
-
-function closeOtherEntrySwipes(activeRow) {
-  nodes.entries.querySelectorAll(".entry-swipe.is-open").forEach((row) => {
-    if (row !== activeRow) closeEntrySwipe(row);
-  });
 }
 
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
-}
-
-function swipeHapticZone(offset, openThreshold, commitRight) {
-  if (offset >= commitRight) return "commit-right";
-  if (offset > openThreshold) return "open-right";
-  if (offset < -openThreshold) return "open-left";
-  return "closed";
 }
 
 function entryHighlightKey(food, mealType) {
@@ -1927,8 +1661,6 @@ function scaleParsedFood(index, multiplier) {
 async function deleteEntry(entryId, button) {
   if (!entryId) return;
   const entry = findTodayEntry(entryId);
-  const row = button?.closest?.(".entry-swipe");
-  if (row) closeEntrySwipe(row);
   triggerHaptic("medium");
   toast("Точно удалить?", {
     kind: "warning",
