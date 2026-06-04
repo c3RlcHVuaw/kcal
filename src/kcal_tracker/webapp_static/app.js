@@ -1153,100 +1153,81 @@ function initEntrySwipeActions() {
     if (row.dataset.swipeReady === "true") return;
     row.dataset.swipeReady = "true";
     row.addEventListener("pointerdown", handleEntrySwipePointerStart);
-    row.addEventListener("touchstart", handleEntrySwipeTouchStart, { passive: true });
     row.addEventListener("click", preventSwipeGhostClick, true);
   });
 }
 
+let activeEntrySwipeCleanup = null;
+let activeEntrySwipeRow = null;
+
 function handleEntrySwipePointerStart(event) {
   if (event.pointerType === "mouse" && event.button !== 0) return;
-  if (event.pointerType !== "mouse") return;
+  if (event.pointerType !== "mouse" && !event.isPrimary) return;
   if (event.target.closest("button, input, select, textarea, a")) return;
-  beginEntrySwipe(event.currentTarget, {
-    startX: event.clientX,
-    startY: event.clientY,
-    addMove: (move) => event.currentTarget.addEventListener("pointermove", move, { passive: false }),
-    addEnd: (end) => {
-      event.currentTarget.addEventListener("pointerup", end);
-      event.currentTarget.addEventListener("pointercancel", end);
-    },
-    removeMove: (move) => event.currentTarget.removeEventListener("pointermove", move),
-    removeEnd: (end) => {
-      event.currentTarget.removeEventListener("pointerup", end);
-      event.currentTarget.removeEventListener("pointercancel", end);
-    },
-    point: (moveEvent) => ({ x: moveEvent.clientX, y: moveEvent.clientY }),
-  });
+  beginEntrySwipe(event.currentTarget, event);
 }
 
-function handleEntrySwipeTouchStart(event) {
-  if (event.touches.length !== 1) return;
-  if (event.target.closest("button, input, select, textarea, a")) return;
-  const touch = event.touches[0];
-  beginEntrySwipe(event.currentTarget, {
-    startX: touch.clientX,
-    startY: touch.clientY,
-    addMove: (move) => document.addEventListener("touchmove", move, { passive: false }),
-    addEnd: (end) => {
-      document.addEventListener("touchend", end);
-      document.addEventListener("touchcancel", end);
-    },
-    removeMove: (move) => document.removeEventListener("touchmove", move),
-    removeEnd: (end) => {
-      document.removeEventListener("touchend", end);
-      document.removeEventListener("touchcancel", end);
-    },
-    point: (moveEvent) => {
-      const nextTouch = moveEvent.touches[0] || moveEvent.changedTouches[0];
-      return nextTouch ? { x: nextTouch.clientX, y: nextTouch.clientY } : null;
-    },
-  });
-}
-
-function beginEntrySwipe(row, gesture) {
+function beginEntrySwipe(row, startEvent) {
   const card = row.querySelector(".food-card");
   if (!card) return;
 
-  const startX = gesture.startX;
-  const startY = gesture.startY;
+  activeEntrySwipeCleanup?.();
+  activeEntrySwipeCleanup = null;
+
+  const startX = startEvent.clientX;
+  const startY = startEvent.clientY;
+  const pointerId = startEvent.pointerId;
   const openedOffset = Number(row.dataset.swipeOffset || 0);
   const maxRight = 106;
   const maxLeft = 226;
   const commitRight = 88;
   const openThreshold = 42;
-  const lockThreshold = 14;
+  const lockThreshold = 10;
+  const verticalCancelThreshold = 12;
   let currentOffset = openedOffset;
-  let tracking = false;
+  let direction = null;
   let locked = false;
   let frame = null;
   let pendingOffset = openedOffset;
+  let finished = false;
 
   closeOtherEntrySwipes(row);
 
+  try {
+    row.setPointerCapture(pointerId);
+  } catch {
+    // Some embedded browsers can refuse capture after a synthetic pointerdown.
+  }
+
   const move = (moveEvent) => {
-    const point = gesture.point(moveEvent);
-    if (!point) return;
-    const dx = point.x - startX;
-    const dy = point.y - startY;
+    if (moveEvent.pointerId !== pointerId) return;
+    const dx = moveEvent.clientX - startX;
+    const dy = moveEvent.clientY - startY;
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
-    if (!tracking && absX < lockThreshold && absY < lockThreshold) return;
-    if (!tracking) {
-      tracking = true;
-      locked = absX > lockThreshold && absX > absY * 1.35;
-      if (!locked) {
+
+    if (!direction) {
+      if (absX < lockThreshold && absY < verticalCancelThreshold) return;
+      if (absY > verticalCancelThreshold && absY > absX * 1.08) {
+        direction = "vertical";
         cleanup();
         return;
       }
+      if (absX <= absY + 2) return;
+      direction = "horizontal";
       row.classList.add("is-dragging");
-      moveEvent.preventDefault();
+      locked = true;
     }
+
     moveEvent.preventDefault();
     currentOffset = clamp(openedOffset + dx, -maxLeft, maxRight);
     queueEntrySwipeOffset(row, currentOffset);
   };
 
-  const end = () => {
+  const end = (endEvent) => {
+    if (endEvent.pointerId !== pointerId) return;
+    if (finished) return;
+    finished = true;
     if (!locked) {
       cleanup();
       return;
@@ -1274,13 +1255,32 @@ function beginEntrySwipe(row, gesture) {
   };
 
   const cleanup = () => {
+    if (activeEntrySwipeRow === row) {
+      activeEntrySwipeCleanup = null;
+      activeEntrySwipeRow = null;
+    }
     row.classList.remove("is-dragging");
     if (frame) {
       cancelAnimationFrame(frame);
       frame = null;
     }
-    gesture.removeMove(move);
-    gesture.removeEnd(end);
+    row.removeEventListener("pointermove", move);
+    row.removeEventListener("pointerup", end);
+    row.removeEventListener("pointercancel", end);
+    row.removeEventListener("lostpointercapture", cancel);
+    try {
+      if (row.hasPointerCapture(pointerId)) row.releasePointerCapture(pointerId);
+    } catch {
+      // Capture may already be gone after pointercancel/lostpointercapture.
+    }
+  };
+
+  const cancel = (cancelEvent) => {
+    if (cancelEvent.pointerId && cancelEvent.pointerId !== pointerId) return;
+    if (locked) {
+      closeEntrySwipe(row);
+    }
+    cleanup();
   };
 
   const queueEntrySwipeOffset = (targetRow, offset) => {
@@ -1292,8 +1292,15 @@ function beginEntrySwipe(row, gesture) {
     });
   };
 
-  gesture.addMove(move);
-  gesture.addEnd(end);
+  activeEntrySwipeCleanup = () => {
+    if (direction === "horizontal" || locked) closeEntrySwipe(row);
+    cleanup();
+  };
+  activeEntrySwipeRow = row;
+  row.addEventListener("pointermove", move);
+  row.addEventListener("pointerup", end);
+  row.addEventListener("pointercancel", end);
+  row.addEventListener("lostpointercapture", cancel);
 }
 
 function preventSwipeGhostClick(event) {
@@ -1305,13 +1312,10 @@ function preventSwipeGhostClick(event) {
 
 function setEntrySwipeOffset(row, offset, animate) {
   const nextOffset = Math.round(offset);
-  const card = row.querySelector(".food-card");
   row.dataset.swipeOffset = String(nextOffset);
   syncEntrySwipeSide(row, nextOffset);
   row.classList.toggle("is-settling", Boolean(animate));
-  if (card) {
-    card.style.transform = `translate3d(${nextOffset}px, 0, 0)`;
-  }
+  row.style.setProperty("--swipe-x", `${nextOffset}px`);
   if (animate) {
     window.setTimeout(() => row.classList.remove("is-settling"), 260);
   }
@@ -1319,11 +1323,8 @@ function setEntrySwipeOffset(row, offset, animate) {
 
 function setEntrySwipeDragOffset(row, offset) {
   const nextOffset = Math.round(offset);
-  const card = row.querySelector(".food-card");
   syncEntrySwipeSide(row, nextOffset);
-  if (card) {
-    card.style.transform = `translate3d(${nextOffset}px, 0, 0)`;
-  }
+  row.style.setProperty("--swipe-x", `${nextOffset}px`);
 }
 
 function syncEntrySwipeSide(row, offset) {
