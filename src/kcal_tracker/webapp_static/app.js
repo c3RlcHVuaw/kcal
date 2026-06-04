@@ -1214,7 +1214,6 @@ function beginEntrySwipe(row, gesture) {
   let currentOffset = openedOffset;
   let tracking = false;
   let locked = false;
-  let hapticZone = swipeHapticZone(openedOffset, openThreshold, commitRight);
   let frame = null;
   let pendingOffset = openedOffset;
 
@@ -1240,11 +1239,6 @@ function beginEntrySwipe(row, gesture) {
     }
     moveEvent.preventDefault();
     currentOffset = clamp(openedOffset + dx, -maxLeft, maxRight);
-    const nextHapticZone = swipeHapticZone(currentOffset, openThreshold, commitRight);
-    if (nextHapticZone !== hapticZone) {
-      hapticZone = nextHapticZone;
-      window.setTimeout(triggerSelectionHaptic, 0);
-    }
     queueEntrySwipeOffset(row, currentOffset);
   };
 
@@ -1290,7 +1284,7 @@ function beginEntrySwipe(row, gesture) {
     if (frame) return;
     frame = requestAnimationFrame(() => {
       frame = null;
-      setEntrySwipeOffset(targetRow, pendingOffset, false);
+      setEntrySwipeDragOffset(targetRow, pendingOffset);
     });
   };
 
@@ -1307,15 +1301,9 @@ function preventSwipeGhostClick(event) {
 
 function setEntrySwipeOffset(row, offset, animate) {
   const nextOffset = Math.round(offset);
-  const side = nextOffset > 0 ? "leading" : nextOffset < 0 ? "trailing" : "closed";
   const card = row.querySelector(".food-card");
   row.dataset.swipeOffset = String(nextOffset);
-  if (row.dataset.swipeSide !== side) {
-    row.dataset.swipeSide = side;
-    row.classList.toggle("is-open", side !== "closed");
-    row.classList.toggle("is-open-leading", side === "leading");
-    row.classList.toggle("is-open-trailing", side === "trailing");
-  }
+  syncEntrySwipeSide(row, nextOffset);
   row.classList.toggle("is-settling", Boolean(animate));
   if (card) {
     card.style.transform = `translate3d(${nextOffset}px, 0, 0)`;
@@ -1323,6 +1311,24 @@ function setEntrySwipeOffset(row, offset, animate) {
   if (animate) {
     window.setTimeout(() => row.classList.remove("is-settling"), 260);
   }
+}
+
+function setEntrySwipeDragOffset(row, offset) {
+  const nextOffset = Math.round(offset);
+  const card = row.querySelector(".food-card");
+  syncEntrySwipeSide(row, nextOffset);
+  if (card) {
+    card.style.transform = `translate3d(${nextOffset}px, 0, 0)`;
+  }
+}
+
+function syncEntrySwipeSide(row, offset) {
+  const side = offset > 0 ? "leading" : offset < 0 ? "trailing" : "closed";
+  if (row.dataset.swipeSide === side) return;
+  row.dataset.swipeSide = side;
+  row.classList.toggle("is-open", side !== "closed");
+  row.classList.toggle("is-open-leading", side === "leading");
+  row.classList.toggle("is-open-trailing", side === "trailing");
 }
 
 function closeEntrySwipe(row) {
