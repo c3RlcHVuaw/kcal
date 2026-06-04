@@ -1119,10 +1119,257 @@ h2 {
     border-color var(--motion-soft);
 }
 
+.entry-swipe {
+  --swipe-x: 0px;
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid var(--line);
+  background: transparent;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.entry-swipe .food-card {
+  z-index: 1;
+  border-top: 0;
+  background: var(--surface-solid);
+  transform: translate3d(var(--swipe-x), 0, 0);
+  will-change: transform;
+}
+
+.entry-swipe.is-settling .food-card {
+  transition: transform 260ms var(--motion-spring), background var(--motion-soft);
+}
+
+.entry-swipe-actions {
+  position: absolute;
+  inset: 7px 9px;
+  z-index: 0;
+  display: flex;
+  align-items: stretch;
+  overflow: visible;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-fast);
+}
+
+.entry-swipe.is-open-leading .entry-swipe-leading,
+.entry-swipe.is-open-trailing .entry-swipe-trailing {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.entry-swipe-leading {
+  justify-content: flex-start;
+}
+
+.entry-swipe-trailing {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.entry-swipe-action {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 18px 14px;
+  align-content: center;
+  justify-items: center;
+  min-width: 78px;
+  height: 100%;
+  gap: 4px;
+  padding: 0 9px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 18px;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 780;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+    0 12px 24px rgba(24, 42, 58, 0.13);
+  backdrop-filter: blur(16px) saturate(1.35);
+  -webkit-backdrop-filter: blur(16px) saturate(1.35);
+}
+
+.entry-swipe-action::before {
+  content: "";
+  position: absolute;
+  inset: 1px 1px auto;
+  height: 42%;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.32), transparent);
+  pointer-events: none;
+}
+
+.entry-swipe-action svg {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  stroke-width: 2.35;
+  fill: none;
+}
+
+.entry-swipe-action span {
+  position: relative;
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entry-swipe-action.repeat {
+  min-width: 98px;
+  background:
+    radial-gradient(circle at 28% 14%, rgba(255, 255, 255, 0.38), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 92%, #fff), color-mix(in srgb, var(--activity) 40%, var(--accent)));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.42),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+    0 12px 24px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.entry-swipe-action.edit {
+  background:
+    radial-gradient(circle at 28% 14%, rgba(255, 255, 255, 0.34), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--muted) 54%, #fff), color-mix(in srgb, var(--muted) 74%, #4c5968));
+  color: color-mix(in srgb, #fff 94%, var(--text));
+}
+
+.entry-swipe-action.delete {
+  min-width: 78px;
+  background:
+    radial-gradient(circle at 28% 14%, rgba(255, 255, 255, 0.36), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--danger) 70%, #ffb199), color-mix(in srgb, var(--danger) 94%, #d52935));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.08),
+    0 12px 24px color-mix(in srgb, var(--danger) 16%, transparent);
+}
+
+.entry-swipe-action.delete.confirm-delete {
+  min-width: 118px;
+  background:
+    radial-gradient(circle at 28% 14%, rgba(255, 255, 255, 0.32), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--danger) 76%, #fff), color-mix(in srgb, var(--danger) 88%, #15171d));
+}
+
+.entry-swipe-guide {
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  margin: 2px 0 8px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--line));
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), color-mix(in srgb, var(--surface-solid) 92%, transparent)),
+    var(--surface-solid);
+  box-shadow: 0 10px 24px rgba(24, 42, 58, 0.08);
+  animation: swipeGuideIn 420ms var(--motion-spring) both;
+}
+
+.entry-swipe-guide.is-hiding {
+  animation: swipeGuideOut 220ms var(--motion-soft) both;
+}
+
+.entry-swipe-guide-icon {
+  position: relative;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  overflow: hidden;
+}
+
+.entry-swipe-guide-icon span {
+  width: 22px;
+  height: 13px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--danger));
+  opacity: 0.82;
+}
+
+.entry-swipe-guide-icon i {
+  position: absolute;
+  width: 16px;
+  height: 20px;
+  border: 2px solid color-mix(in srgb, var(--text) 74%, transparent);
+  border-radius: 8px 8px 7px 7px;
+  background: var(--surface-solid);
+  box-shadow: 0 5px 12px rgba(24, 42, 58, 0.14);
+  animation: swipeGuideFinger 1800ms var(--motion-spring) 480ms 2 both;
+}
+
+.entry-swipe-guide strong {
+  display: block;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 820;
+  line-height: 1.15;
+}
+
+.entry-swipe-guide p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.entry-swipe-guide button {
+  min-height: 30px;
+  padding: 0 10px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 780;
+}
+
+@keyframes swipeGuideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+
+@keyframes swipeGuideOut {
+  to {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.98);
+  }
+}
+
+@keyframes swipeGuideFinger {
+  0%,
+  100% {
+    transform: translateX(0) rotate(-8deg);
+  }
+
+  42% {
+    transform: translateX(8px) rotate(4deg);
+  }
+
+  72% {
+    transform: translateX(-8px) rotate(-12deg);
+  }
+}
+
 .food-card:active,
 .food-pick-card:active,
 .parsed-food-card:active {
   transform: scale(0.985);
+}
+
+.entry-swipe .food-card:active {
+  transform: translate3d(var(--swipe-x), 0, 0);
 }
 
 .food-thumb {

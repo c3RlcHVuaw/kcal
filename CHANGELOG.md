@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-06-04
+
+- Added iOS-style swipe actions to Mini App diary food cards: swipe right to
+  repeat an entry, swipe left to edit or delete it, with a first-run gesture
+  guide.
+
 ## 2026-05-25
 
 - Simplified the Mini App UX after design review: removed the Lifesum-like
