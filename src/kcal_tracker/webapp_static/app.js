@@ -240,11 +240,6 @@ document.addEventListener("click", (event) => {
     openEntryEditor(Number(editButton.dataset.editEntry));
     return;
   }
-  const repeatButton = event.target.closest("[data-repeat-entry]");
-  if (repeatButton) {
-    repeatEntry(Number(repeatButton.dataset.repeatEntry));
-    return;
-  }
   const scaleButton = event.target.closest("[data-scale-parsed]");
   if (scaleButton) {
     scaleParsedFood(Number(scaleButton.dataset.index), Number(scaleButton.dataset.scaleParsed));
@@ -1064,21 +1059,14 @@ function renderFoodEntry(entry) {
           <span>${Math.round(entry.carbs)}У</span>
         </div>
         <div class="entry-actions">
-          <button type="button" data-repeat-entry="${entry.id}" aria-label="Повторить ${escapeHtml(entry.name)}">
-            <svg aria-hidden="true"><use href="#icon-refresh"></use></svg>
-            <span>Повторить</span>
-          </button>
           <button type="button" data-edit-entry="${entry.id}" aria-label="Изменить ${escapeHtml(entry.name)}">
-            <svg aria-hidden="true"><use href="#icon-edit"></use></svg>
-            <span>Изменить</span>
+            Изменить
           </button>
           <button type="button" data-favorite-entry="${entry.id}" aria-label="Сохранить ${escapeHtml(entry.name)} в шаблоны">
-            <svg aria-hidden="true"><use href="#icon-heart"></use></svg>
-            <span>В шаблон</span>
+            В шаблон
           </button>
           <button type="button" data-delete-entry="${entry.id}" aria-label="Удалить ${escapeHtml(entry.name)}">
-            <svg aria-hidden="true"><use href="#icon-trash"></use></svg>
-            <span>Удалить</span>
+            Удалить
           </button>
         </div>
       </div>
