@@ -3405,22 +3405,22 @@ body.sheet-open .tab-bar [data-view="food"] {
 /* Reference-style mini app polish */
 :root {
   color-scheme: light;
-  --bg: #f2f2f7;
-  --text: #1d1d1f;
-  --muted: #8a8f98;
-  --surface: rgba(255, 255, 255, 0.86);
+  --bg: #f3f6ff;
+  --text: #181b22;
+  --muted: #747c8b;
+  --surface: rgba(255, 255, 255, 0.9);
   --surface-solid: #ffffff;
-  --surface-soft: #f6f6f8;
-  --line: rgba(60, 60, 67, 0.1);
-  --accent: #19c985;
-  --accent-strong: #087d62;
-  --carbs: #ffad21;
-  --protein: #3f7cff;
-  --fat: #ef4fa0;
-  --activity: #12b8d7;
-  --danger: #ff4f5f;
-  --shadow-soft: 0 18px 34px rgba(31, 35, 42, 0.1);
-  --shadow-tight: 0 7px 18px rgba(31, 35, 42, 0.08);
+  --surface-soft: #eef4ff;
+  --line: rgba(45, 57, 82, 0.12);
+  --accent: #05c987;
+  --accent-strong: #027a5e;
+  --carbs: #ffad18;
+  --protein: #3978ff;
+  --fat: #f0449a;
+  --activity: #00b9d8;
+  --danger: #ff405d;
+  --shadow-soft: 0 18px 36px rgba(42, 72, 112, 0.13);
+  --shadow-tight: 0 8px 20px rgba(42, 72, 112, 0.1);
   --radius-md: 13px;
   --radius-lg: 15px;
   --radius-xl: 24px;
@@ -3428,30 +3428,33 @@ body.sheet-open .tab-bar [data-view="food"] {
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #101116;
+    --bg: #0e1118;
     --text: #f7f8fb;
-    --muted: #a7adb8;
-    --surface: rgba(30, 33, 41, 0.9);
-    --surface-solid: #1d2028;
+    --muted: #aab3c3;
+    --surface: rgba(28, 33, 44, 0.92);
+    --surface-solid: #1a202b;
     --surface-soft: rgba(255, 255, 255, 0.08);
     --line: rgba(255, 255, 255, 0.12);
-    --accent: #22dda0;
-    --accent-strong: #6bffd0;
-    --carbs: #ffc247;
-    --protein: #73a0ff;
-    --fat: #ff6ab2;
-    --activity: #31d6f0;
-    --danger: #ff625d;
+    --accent: #19e8a8;
+    --accent-strong: #77ffd3;
+    --carbs: #ffc83d;
+    --protein: #77a3ff;
+    --fat: #ff6fba;
+    --activity: #31dff5;
+    --danger: #ff626a;
   }
 }
 
 body {
   min-height: 100dvh;
   background:
-    linear-gradient(rgba(60, 60, 67, 0.11) 1.5px, transparent 1.5px),
-    linear-gradient(90deg, rgba(60, 60, 67, 0.11) 1.5px, transparent 1.5px),
-    #f4f4f7;
-  background-size: 30px 30px;
+    radial-gradient(circle at 14% -10%, color-mix(in srgb, var(--accent) 24%, transparent), transparent 31%),
+    radial-gradient(circle at 108% 4%, color-mix(in srgb, var(--protein) 22%, transparent), transparent 30%),
+    radial-gradient(circle at 50% 106%, color-mix(in srgb, var(--fat) 12%, transparent), transparent 28%),
+    linear-gradient(rgba(57, 120, 255, 0.1) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, rgba(5, 201, 135, 0.09) 1.5px, transparent 1.5px),
+    var(--bg);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 30px 30px, 30px 30px, 100% 100%;
 }
 
 body::before {
@@ -3459,7 +3462,7 @@ body::before {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.68), rgba(242, 242, 247, 0.96) 34%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.58), color-mix(in srgb, var(--bg) 88%, white) 34%, color-mix(in srgb, var(--bg) 96%, white));
 }
 
 .app-shell {
@@ -3470,7 +3473,7 @@ body::before {
 .app-header {
   margin: -10px -10px 8px;
   padding: var(--app-top-pad) 10px 8px;
-  background: linear-gradient(180deg, rgba(242, 242, 247, 0.9), rgba(242, 242, 247, 0.62) 72%, transparent);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 88%, white), color-mix(in srgb, var(--bg) 50%, transparent) 72%, transparent);
 }
 
 .app-header h1,
@@ -3494,9 +3497,9 @@ body::before {
   width: 36px;
   height: 36px;
   border: 0;
-  background: rgba(255, 255, 255, 0.86);
-  color: #1d1d1f;
-  box-shadow: 0 4px 14px rgba(31, 35, 42, 0.08);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), color-mix(in srgb, var(--surface-soft) 74%, white));
+  color: var(--text);
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--protein) 12%, transparent);
 }
 
 .component-card,
@@ -3510,10 +3513,12 @@ body::before {
 .week-chart,
 .weight-chart,
 .meal-section {
-  border-color: rgba(60, 60, 67, 0.08);
-  background: rgba(255, 255, 255, 0.9);
+  border-color: color-mix(in srgb, var(--protein) 10%, var(--line));
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 32%),
+    rgba(255, 255, 255, 0.92);
   box-shadow:
-    0 9px 22px rgba(31, 35, 42, 0.08),
+    0 10px 24px rgba(42, 72, 112, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(24px) saturate(1.25);
   -webkit-backdrop-filter: blur(24px) saturate(1.25);
@@ -3523,7 +3528,14 @@ body::before {
   min-height: 132px;
   padding: 15px;
   border-radius: 15px;
-  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line));
+  background:
+    radial-gradient(circle at 14% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 34%),
+    radial-gradient(circle at 100% 10%, color-mix(in srgb, var(--protein) 16%, transparent), transparent 34%),
+    #fff;
+  box-shadow:
+    0 16px 34px color-mix(in srgb, var(--protein) 13%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.84);
 }
 
 .calorie-main strong {
@@ -3547,25 +3559,25 @@ body::before {
 
 .progress-track {
   height: 7px;
-  background: linear-gradient(90deg, #f1f1f3, #ececf0);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--surface-soft) 86%, #fff), color-mix(in srgb, var(--protein) 10%, #edf2ff));
 }
 
 .progress-track span {
-  background: linear-gradient(90deg, #ff5f57, #ffb340, #5d8cff);
+  background: linear-gradient(90deg, var(--danger), var(--carbs), var(--accent), var(--protein));
 }
 
 .stats-link {
   min-height: 32px;
   padding: 8px 11px;
-  background: #f5f5f7;
+  background: color-mix(in srgb, var(--protein) 9%, #fff);
   box-shadow: none;
-  color: #8a8f98;
+  color: var(--muted);
   letter-spacing: 0;
   text-transform: none;
 }
 
 .stats-link b {
-  color: #5d8cff;
+  color: var(--protein);
 }
 
 .nutrition-overview {
@@ -3600,11 +3612,11 @@ body::before {
 }
 
 .good-status {
-  color: #35b77f;
+  color: var(--accent-strong);
 }
 
 .warn-status {
-  color: #ff7a45;
+  color: var(--danger);
 }
 
 .score-sparkline {
@@ -3623,17 +3635,17 @@ body::before {
 
 .score-sparkline i {
   height: 22px;
-  background: #a9c3ff;
+  background: color-mix(in srgb, var(--protein) 45%, #fff);
 }
 
 .score-sparkline i:nth-child(2n) {
   height: 38px;
-  background: #6f9aff;
+  background: var(--protein);
 }
 
 .score-sparkline i:nth-child(3n) {
   height: 50px;
-  background: #ff8f50;
+  background: var(--carbs);
 }
 
 .macro-bars {
@@ -3650,26 +3662,26 @@ body::before {
 }
 
 .macro-bars .protein {
-  background: #5d8cff;
+  background: var(--protein);
 }
 
 .macro-bars .carbs {
   height: 34px;
-  background: #ffb340;
+  background: var(--carbs);
 }
 
 .macro-bars .fat {
   height: 42px;
-  background: #ff5fa2;
+  background: var(--fat);
 }
 
 .macro-card {
   padding: 9px;
   border-radius: 14px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.035)),
-    rgba(255, 255, 255, 0.045);
-  border-color: rgba(255, 255, 255, 0.09);
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--protein) 10%, transparent), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.62));
+  border-color: color-mix(in srgb, var(--protein) 12%, var(--line));
 }
 
 .macro-card article {
@@ -3677,9 +3689,8 @@ body::before {
   padding: 8px 5px 7px;
   border-radius: 11px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.045)),
-    rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.055);
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-soft) 72%, #fff), rgba(255, 255, 255, 0.72));
+  border: 1px solid color-mix(in srgb, var(--accent) 8%, var(--line));
 }
 
 .macro-card span {
@@ -3697,15 +3708,15 @@ body::before {
 }
 
 .section-subtitle {
-  color: #9a9fa7;
+  color: var(--muted);
   font-size: 12px;
 }
 
 .text-button {
   min-height: 30px;
-  background: #fff;
-  color: #6e8dff;
-  box-shadow: 0 4px 12px rgba(31, 35, 42, 0.05);
+  background: color-mix(in srgb, var(--accent) 9%, #fff);
+  color: var(--accent-strong);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 9%, transparent);
 }
 
 .meal-section {
@@ -3735,8 +3746,8 @@ body::before {
 
 .meal-add {
   min-height: 30px;
-  background: #f6f6f8;
-  color: #6e8dff;
+  background: color-mix(in srgb, var(--accent) 10%, #fff);
+  color: var(--accent-strong);
   box-shadow: none;
 }
 
@@ -3750,8 +3761,10 @@ body::before {
   width: 42px;
   height: 42px;
   border-radius: 10px;
-  background: #f1f1f4;
-  color: #5d6570;
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.74), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 26%, #fff), color-mix(in srgb, var(--protein) 18%, #fff));
+  color: color-mix(in srgb, var(--protein) 72%, var(--text));
   font-size: 19px;
 }
 
@@ -3760,7 +3773,7 @@ body::before {
 }
 
 .food-card .entry-main b {
-  color: #5d6570;
+  color: color-mix(in srgb, var(--protein) 68%, var(--text));
   font-size: 12px;
 }
 
@@ -3772,7 +3785,7 @@ body::before {
   min-height: 18px;
   padding: 2px 6px;
   background: transparent;
-  color: #9a9fa7;
+  color: var(--muted);
   font-size: 11px;
 }
 
@@ -3783,8 +3796,8 @@ body::before {
 .food-card .entry-actions button {
   min-height: 28px;
   border-radius: 10px;
-  background: #f6f6f8;
-  color: #6e8dff;
+  background: color-mix(in srgb, var(--protein) 9%, #fff);
+  color: var(--protein);
   font-size: 11px;
   backdrop-filter: none;
 }
@@ -3809,7 +3822,7 @@ body::before {
   width: 44px;
   height: 4px;
   border-radius: 999px;
-  background: rgba(60, 60, 67, 0.18);
+  background: color-mix(in srgb, var(--protein) 24%, var(--line));
   transform: translateX(-50%);
 }
 
@@ -3817,10 +3830,10 @@ body::before {
   display: inline-block;
   margin-bottom: 10px;
   padding: 3px 7px;
-  border: 1px solid rgba(60, 60, 67, 0.11);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
   border-radius: 7px;
-  background: #f7f7f9;
-  color: #7c818b;
+  background: color-mix(in srgb, var(--accent) 8%, #fff);
+  color: var(--accent-strong);
   font-size: 10px;
 }
 
@@ -3832,7 +3845,7 @@ body::before {
   height: 38px;
   padding: 3px;
   border: 0;
-  background: #ededf1;
+  background: color-mix(in srgb, var(--protein) 9%, #eef2ff);
   box-shadow: none;
 }
 
@@ -3844,7 +3857,10 @@ body::before {
 .segmented button.active,
 .meal-picker button.active {
   background: #fff;
-  box-shadow: 0 3px 10px rgba(31, 35, 42, 0.08);
+  color: var(--protein);
+  box-shadow:
+    0 3px 12px color-mix(in srgb, var(--protein) 14%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--protein) 12%, transparent);
 }
 
 .food-text-panel {
@@ -3860,7 +3876,7 @@ body::before {
   padding: 3px;
   border: 0;
   border-radius: 13px;
-  background: #f0f0f4;
+  background: color-mix(in srgb, var(--accent) 8%, #eef2ff);
   box-shadow: none;
 }
 
@@ -3876,8 +3892,8 @@ textarea {
   min-height: 46px;
   border: 0;
   border-radius: 12px;
-  background: #f4f4f7;
-  box-shadow: inset 0 0 0 1px rgba(60, 60, 67, 0.06);
+  background: color-mix(in srgb, var(--surface-soft) 82%, #fff);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--protein) 8%, var(--line));
 }
 
 textarea {
@@ -3887,8 +3903,8 @@ textarea {
 
 .quick-prompts button {
   border: 0;
-  background: #f4f4f7;
-  color: #6e8dff;
+  background: color-mix(in srgb, var(--activity) 10%, #fff);
+  color: color-mix(in srgb, var(--activity) 72%, var(--text));
 }
 
 .media-actions {
@@ -3900,16 +3916,18 @@ textarea {
   place-items: center;
   border: 0;
   border-radius: 14px;
-  background: #fff;
+  background:
+    radial-gradient(circle at 18% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 36%),
+    #fff;
   text-align: center;
-  box-shadow: 0 7px 18px rgba(31, 35, 42, 0.08);
+  box-shadow: 0 9px 22px color-mix(in srgb, var(--protein) 12%, transparent);
 }
 
 .media-action svg {
   width: 25px;
   height: 25px;
   fill: none;
-  stroke: #1d1d1f;
+  stroke: var(--protein);
   stroke-linecap: round;
   stroke-linejoin: round;
   stroke-width: 2;
@@ -3930,14 +3948,14 @@ textarea {
 }
 
 .primary-button {
-  background: #1d1d1f;
-  box-shadow: none;
+  background: linear-gradient(135deg, var(--accent), var(--activity));
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 .secondary-button {
   border: 0;
-  background: #f4f4f7;
-  color: #1d1d1f;
+  background: color-mix(in srgb, var(--protein) 9%, #fff);
+  color: var(--text);
   box-shadow: none;
 }
 
@@ -3948,16 +3966,17 @@ textarea {
   padding: 6px;
   border: 0;
   border-radius: 30px;
-  background: rgba(255, 255, 255, 0.88);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), color-mix(in srgb, var(--surface-soft) 72%, #fff));
   box-shadow:
-    0 16px 32px rgba(31, 35, 42, 0.16),
+    0 16px 34px color-mix(in srgb, var(--protein) 16%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.86);
 }
 
 .tab-bar button {
   height: 48px;
   border-radius: 24px;
-  color: #8a8f98;
+  color: var(--muted);
 }
 
 .tab-bar [data-view="today"] {
@@ -3982,10 +4001,10 @@ textarea {
   padding: 0;
   margin: -12px auto 0;
   border-radius: 50%;
-  background: #1d1d1f;
+  background: linear-gradient(135deg, var(--accent), var(--activity));
   color: #fff;
   box-shadow:
-    0 13px 24px rgba(31, 35, 42, 0.26),
+    0 13px 26px color-mix(in srgb, var(--accent) 28%, transparent),
     0 0 0 7px rgba(255, 255, 255, 0.72);
   transform: translateY(var(--pulse-y));
 }
@@ -4011,13 +4030,13 @@ textarea {
 }
 
 .tab-bar button.active {
-  background: #f1f1f4;
-  color: #1d1d1f;
+  background: color-mix(in srgb, var(--protein) 10%, #fff);
+  color: var(--text);
   box-shadow: none;
 }
 
 .tab-bar [data-view="food"].active {
-  background: linear-gradient(180deg, #2a2a2d, #111113);
+  background: linear-gradient(135deg, var(--accent-strong), var(--protein));
   color: #fff;
 }
 
@@ -4066,8 +4085,8 @@ textarea {
 .food-add-scroll > .sheet-title {
   margin: 0 -14px 10px;
   padding: 22px 14px 10px;
-  border-bottom-color: rgba(60, 60, 67, 0.08);
-  background: rgba(255, 255, 255, 0.94);
+  border-bottom-color: color-mix(in srgb, var(--protein) 10%, var(--line));
+  background: color-mix(in srgb, var(--bg) 72%, #fff);
 }
 
 .food-add-scroll .food-text-panel,
@@ -4079,7 +4098,7 @@ textarea {
 .food-save-bar {
   margin: 0 -14px -14px;
   padding: 10px 14px calc(14px + env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.72), #fff 34%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 54%, transparent), color-mix(in srgb, var(--bg) 32%, #fff) 34%);
 }
 
 .toast:not(.hidden) {
@@ -5307,29 +5326,32 @@ body.is-free-user .premium-feature-note {
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --bg: #111217;
-    --text: #f5f5f7;
-    --muted: #9a9fa7;
-    --surface: rgba(30, 32, 38, 0.9);
-    --surface-solid: #1c1d23;
-    --surface-soft: rgba(255, 255, 255, 0.08);
-    --line: rgba(255, 255, 255, 0.1);
+    --bg: #0e1118;
+    --text: #f7f8fb;
+    --muted: #aab3c3;
+    --surface: rgba(28, 33, 44, 0.92);
+    --surface-solid: #1a202b;
+    --surface-soft: rgba(255, 255, 255, 0.09);
+    --line: rgba(255, 255, 255, 0.13);
   }
 
   body {
     background:
+      radial-gradient(circle at 10% -8%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 30%),
+      radial-gradient(circle at 106% 4%, color-mix(in srgb, var(--protein) 18%, transparent), transparent 30%),
+      radial-gradient(circle at 50% 106%, color-mix(in srgb, var(--fat) 12%, transparent), transparent 30%),
       linear-gradient(rgba(255, 255, 255, 0.055) 1.5px, transparent 1.5px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.055) 1.5px, transparent 1.5px),
-      #111217;
-    background-size: 30px 30px;
+      linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1.5px, transparent 1.5px),
+      var(--bg);
+    background-size: 100% 100%, 100% 100%, 100% 100%, 30px 30px, 30px 30px, 100% 100%;
   }
 
   body::before {
-    background: linear-gradient(180deg, rgba(20, 21, 27, 0.68), rgba(17, 18, 23, 0.98) 34%);
+    background: linear-gradient(180deg, rgba(14, 17, 24, 0.64), rgba(14, 17, 24, 0.98) 36%);
   }
 
   .app-header {
-    background: linear-gradient(180deg, rgba(17, 18, 23, 0.9), rgba(17, 18, 23, 0.62) 72%, transparent);
+    background: linear-gradient(180deg, rgba(14, 17, 24, 0.9), rgba(14, 17, 24, 0.62) 72%, transparent);
   }
 
   .component-card,
@@ -5348,7 +5370,10 @@ body.is-free-user .premium-feature-note {
   .nutrition-score-card,
   .macro-balance-card,
   .food-sheet-head {
-    background: rgba(30, 32, 38, 0.9);
+    border-color: color-mix(in srgb, var(--protein) 12%, var(--line));
+    background:
+      radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 34%),
+      rgba(28, 33, 44, 0.92);
     box-shadow:
       0 12px 26px rgba(0, 0, 0, 0.26),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -5357,10 +5382,9 @@ body.is-free-user .premium-feature-note {
   .icon-button,
   .media-action,
   .tab-bar,
-  .tab-bar [data-view="food"],
   .text-button {
-    background: rgba(35, 37, 44, 0.94);
-    color: #f5f5f7;
+    background: color-mix(in srgb, var(--surface-solid) 88%, var(--protein));
+    color: var(--text);
   }
 
   .macro-card article,
@@ -5374,41 +5398,41 @@ body.is-free-user .premium-feature-note {
   .food-card .entry-actions button,
   .food-sheet-head .caption,
   .meal-add {
-    background: rgba(255, 255, 255, 0.08);
-    color: #f5f5f7;
+    background: color-mix(in srgb, var(--surface-soft) 82%, var(--surface-solid));
+    color: var(--text);
   }
 
   .tab-bar button.active {
-    background: rgba(255, 255, 255, 0.1);
-    color: #f5f5f7;
+    background: color-mix(in srgb, var(--protein) 18%, var(--surface-solid));
+    color: var(--text);
   }
 
   .tab-bar [data-view="food"] {
-    background: #f5f5f7;
-    color: #111217;
+    background: linear-gradient(135deg, var(--accent), var(--activity));
+    color: #081015;
     box-shadow:
-      0 13px 24px rgba(0, 0, 0, 0.36),
-      0 0 0 7px rgba(17, 18, 23, 0.82);
+      0 13px 26px color-mix(in srgb, var(--accent) 28%, transparent),
+      0 0 0 7px rgba(14, 17, 24, 0.82);
   }
 
   .tab-bar [data-view="food"].active {
-    background: linear-gradient(180deg, #ffffff, #dfe1e7);
-    color: #111217;
+    background: linear-gradient(135deg, var(--accent-strong), var(--protein));
+    color: #081015;
   }
 
   .primary-button {
-    background: #f5f5f7;
-    color: #111217;
+    background: linear-gradient(135deg, var(--accent), var(--activity));
+    color: #081015;
   }
 
   .entry-edit-panel .sheet-title {
     border-bottom-color: rgba(255, 255, 255, 0.08);
-    background: rgba(30, 32, 38, 0.94);
+    background: color-mix(in srgb, var(--bg) 84%, var(--surface-solid));
   }
 
   .food-add-scroll > .sheet-title {
     border-bottom-color: rgba(255, 255, 255, 0.08);
-    background: rgba(30, 32, 38, 0.94);
+    background: color-mix(in srgb, var(--bg) 84%, var(--surface-solid));
   }
 
   .macro-edit-grid .edit-field {
@@ -5435,11 +5459,11 @@ body.is-free-user .premium-feature-note {
   }
 
   .sheet-actions {
-    background: linear-gradient(180deg, rgba(30, 32, 38, 0.72), #1e2026 34%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 68%, transparent), var(--bg) 34%);
   }
 
   .food-save-bar {
-    background: linear-gradient(180deg, rgba(30, 32, 38, 0.72), #1e2026 34%);
+    background: linear-gradient(180deg, color-mix(in srgb, var(--bg) 68%, transparent), var(--bg) 34%);
   }
 }
 
