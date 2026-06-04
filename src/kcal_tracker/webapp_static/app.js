@@ -27,6 +27,7 @@ const state = {
   entryHighlightTimer: null,
   loadingAll: false,
   hasActiveSubscription: false,
+  onboardingAutoChecked: false,
   onboardingStep: 0,
 };
 
@@ -824,7 +825,6 @@ if (!initData) {
 } else {
   loadAll();
 }
-maybeOpenOnboarding();
 
 window.addEventListener("unhandledrejection", (event) => {
   event.preventDefault();
@@ -891,6 +891,7 @@ async function loadAll() {
 async function loadToday() {
   state.today = await api("/webapp/me/today");
   renderToday(state.today);
+  maybeOpenOnboarding(state.today);
 }
 
 async function loadWeek() {
@@ -1974,7 +1975,13 @@ function showPremiumUpsell(feature = "Premium") {
   toast(`${feature}: открой подписку, чтобы снять ограничения`);
 }
 
-function maybeOpenOnboarding() {
+function maybeOpenOnboarding(today = state.today) {
+  if (state.onboardingAutoChecked) return;
+  state.onboardingAutoChecked = true;
+  if (today?.onboarding_completed) {
+    markOnboardingSeen();
+    return;
+  }
   if (hasSeenOnboarding()) return;
   window.setTimeout(() => openOnboarding(), 420);
 }
