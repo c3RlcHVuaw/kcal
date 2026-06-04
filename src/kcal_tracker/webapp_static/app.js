@@ -1148,20 +1148,63 @@ function initEntrySwipeActions() {
   nodes.entries.querySelectorAll("[data-swipe-entry]").forEach((row) => {
     if (row.dataset.swipeReady === "true") return;
     row.dataset.swipeReady = "true";
-    row.addEventListener("pointerdown", handleEntrySwipeStart);
+    row.addEventListener("pointerdown", handleEntrySwipePointerStart);
+    row.addEventListener("touchstart", handleEntrySwipeTouchStart, { passive: true });
     row.addEventListener("click", preventSwipeGhostClick, true);
   });
 }
 
-function handleEntrySwipeStart(event) {
+function handleEntrySwipePointerStart(event) {
   if (event.pointerType === "mouse" && event.button !== 0) return;
+  if (event.pointerType !== "mouse") return;
   if (event.target.closest("button, input, select, textarea, a")) return;
-  const row = event.currentTarget;
+  beginEntrySwipe(event.currentTarget, {
+    startX: event.clientX,
+    startY: event.clientY,
+    addMove: (move) => event.currentTarget.addEventListener("pointermove", move, { passive: false }),
+    addEnd: (end) => {
+      event.currentTarget.addEventListener("pointerup", end);
+      event.currentTarget.addEventListener("pointercancel", end);
+    },
+    removeMove: (move) => event.currentTarget.removeEventListener("pointermove", move),
+    removeEnd: (end) => {
+      event.currentTarget.removeEventListener("pointerup", end);
+      event.currentTarget.removeEventListener("pointercancel", end);
+    },
+    point: (moveEvent) => ({ x: moveEvent.clientX, y: moveEvent.clientY }),
+  });
+}
+
+function handleEntrySwipeTouchStart(event) {
+  if (event.touches.length !== 1) return;
+  if (event.target.closest("button, input, select, textarea, a")) return;
+  const touch = event.touches[0];
+  beginEntrySwipe(event.currentTarget, {
+    startX: touch.clientX,
+    startY: touch.clientY,
+    addMove: (move) => document.addEventListener("touchmove", move, { passive: false }),
+    addEnd: (end) => {
+      document.addEventListener("touchend", end);
+      document.addEventListener("touchcancel", end);
+    },
+    removeMove: (move) => document.removeEventListener("touchmove", move),
+    removeEnd: (end) => {
+      document.removeEventListener("touchend", end);
+      document.removeEventListener("touchcancel", end);
+    },
+    point: (moveEvent) => {
+      const nextTouch = moveEvent.touches[0] || moveEvent.changedTouches[0];
+      return nextTouch ? { x: nextTouch.clientX, y: nextTouch.clientY } : null;
+    },
+  });
+}
+
+function beginEntrySwipe(row, gesture) {
   const card = row.querySelector(".food-card");
   if (!card) return;
 
-  const startX = event.clientX;
-  const startY = event.clientY;
+  const startX = gesture.startX;
+  const startY = gesture.startY;
   const openedOffset = Number(row.dataset.swipeOffset || 0);
   const maxRight = 106;
   const maxLeft = 174;
@@ -1178,8 +1221,10 @@ function handleEntrySwipeStart(event) {
   closeOtherEntrySwipes(row);
 
   const move = (moveEvent) => {
-    const dx = moveEvent.clientX - startX;
-    const dy = moveEvent.clientY - startY;
+    const point = gesture.point(moveEvent);
+    if (!point) return;
+    const dx = point.x - startX;
+    const dy = point.y - startY;
     const absX = Math.abs(dx);
     const absY = Math.abs(dy);
     if (!tracking && absX < lockThreshold && absY < lockThreshold) return;
@@ -1198,7 +1243,7 @@ function handleEntrySwipeStart(event) {
     const nextHapticZone = swipeHapticZone(currentOffset, openThreshold, commitRight);
     if (nextHapticZone !== hapticZone) {
       hapticZone = nextHapticZone;
-      triggerSelectionHaptic();
+      window.setTimeout(triggerSelectionHaptic, 0);
     }
     queueEntrySwipeOffset(row, currentOffset);
   };
@@ -1236,9 +1281,8 @@ function handleEntrySwipeStart(event) {
       cancelAnimationFrame(frame);
       frame = null;
     }
-    row.removeEventListener("pointermove", move);
-    row.removeEventListener("pointerup", end);
-    row.removeEventListener("pointercancel", end);
+    gesture.removeMove(move);
+    gesture.removeEnd(end);
   };
 
   const queueEntrySwipeOffset = (targetRow, offset) => {
@@ -1250,9 +1294,8 @@ function handleEntrySwipeStart(event) {
     });
   };
 
-  row.addEventListener("pointermove", move, { passive: false });
-  row.addEventListener("pointerup", end);
-  row.addEventListener("pointercancel", end);
+  gesture.addMove(move);
+  gesture.addEnd(end);
 }
 
 function preventSwipeGhostClick(event) {
@@ -1264,12 +1307,19 @@ function preventSwipeGhostClick(event) {
 
 function setEntrySwipeOffset(row, offset, animate) {
   const nextOffset = Math.round(offset);
+  const side = nextOffset > 0 ? "leading" : nextOffset < 0 ? "trailing" : "closed";
+  const card = row.querySelector(".food-card");
   row.dataset.swipeOffset = String(nextOffset);
-  row.classList.toggle("is-open", nextOffset !== 0);
-  row.classList.toggle("is-open-leading", nextOffset > 0);
-  row.classList.toggle("is-open-trailing", nextOffset < 0);
+  if (row.dataset.swipeSide !== side) {
+    row.dataset.swipeSide = side;
+    row.classList.toggle("is-open", side !== "closed");
+    row.classList.toggle("is-open-leading", side === "leading");
+    row.classList.toggle("is-open-trailing", side === "trailing");
+  }
   row.classList.toggle("is-settling", Boolean(animate));
-  row.style.setProperty("--swipe-x", `${nextOffset}px`);
+  if (card) {
+    card.style.transform = `translate3d(${nextOffset}px, 0, 0)`;
+  }
   if (animate) {
     window.setTimeout(() => row.classList.remove("is-settling"), 260);
   }
@@ -2329,10 +2379,54 @@ function foodInitial(value) {
 }
 
 function toast(message) {
-  nodes.toast.textContent = message;
+  const text = String(message || "").trim();
+  const kind = toastKind(text);
+  nodes.toast.classList.remove("success", "warning", "info");
+  nodes.toast.classList.add(kind);
+  nodes.toast.innerHTML = `
+    <span class="toast-icon" aria-hidden="true">${toastIcon(kind)}</span>
+    <span class="toast-text">${escapeHtml(text)}</span>
+  `;
   nodes.toast.classList.remove("hidden");
   window.clearTimeout(toast.timer);
-  toast.timer = window.setTimeout(() => nodes.toast.classList.add("hidden"), 2200);
+  toast.timer = window.setTimeout(() => nodes.toast.classList.add("hidden"), 2600);
+}
+
+function toastKind(message) {
+  const text = message.toLowerCase();
+  if (
+    text.includes("не получилось")
+    || text.includes("ошибка")
+    || text.includes("лимит")
+    || text.includes("законч")
+    || text.includes("не найден")
+    || text.includes("не сработ")
+    || text.includes("попробуй")
+    || text.includes("заполни")
+    || text.includes("введи")
+    || text.includes("напиши")
+    || text.includes("нет ")
+  ) {
+    return "warning";
+  }
+  if (
+    text.includes("добав")
+    || text.includes("готов")
+    || text.includes("сохран")
+    || text.includes("обнов")
+    || text.includes("найден")
+    || text.includes("распознан")
+    || text.includes("примен")
+  ) {
+    return "success";
+  }
+  return "info";
+}
+
+function toastIcon(kind) {
+  if (kind === "success") return "✓";
+  if (kind === "warning") return "!";
+  return "i";
 }
 
 function setTextWithPulse(node, value) {
