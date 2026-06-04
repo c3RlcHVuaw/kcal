@@ -1167,26 +1167,31 @@ function handleEntrySwipeStart(event) {
   const maxLeft = 174;
   const commitRight = 88;
   const openThreshold = 42;
+  const lockThreshold = 14;
   let currentOffset = openedOffset;
   let tracking = false;
   let locked = false;
   let hapticZone = swipeHapticZone(openedOffset, openThreshold, commitRight);
+  let frame = null;
+  let pendingOffset = openedOffset;
 
   closeOtherEntrySwipes(row);
-  row.classList.add("is-dragging");
-  row.setPointerCapture?.(event.pointerId);
 
   const move = (moveEvent) => {
     const dx = moveEvent.clientX - startX;
     const dy = moveEvent.clientY - startY;
-    if (!tracking && Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+    if (!tracking && absX < lockThreshold && absY < lockThreshold) return;
     if (!tracking) {
       tracking = true;
-      locked = Math.abs(dx) > Math.abs(dy) * 1.15;
+      locked = absX > lockThreshold && absX > absY * 1.35;
       if (!locked) {
         cleanup();
         return;
       }
+      row.classList.add("is-dragging");
+      moveEvent.preventDefault();
     }
     moveEvent.preventDefault();
     currentOffset = clamp(openedOffset + dx, -maxLeft, maxRight);
@@ -1195,7 +1200,7 @@ function handleEntrySwipeStart(event) {
       hapticZone = nextHapticZone;
       triggerSelectionHaptic();
     }
-    setEntrySwipeOffset(row, currentOffset, false);
+    queueEntrySwipeOffset(row, currentOffset);
   };
 
   const end = () => {
@@ -1227,10 +1232,22 @@ function handleEntrySwipeStart(event) {
 
   const cleanup = () => {
     row.classList.remove("is-dragging");
-    row.releasePointerCapture?.(event.pointerId);
+    if (frame) {
+      cancelAnimationFrame(frame);
+      frame = null;
+    }
     row.removeEventListener("pointermove", move);
     row.removeEventListener("pointerup", end);
     row.removeEventListener("pointercancel", end);
+  };
+
+  const queueEntrySwipeOffset = (targetRow, offset) => {
+    pendingOffset = offset;
+    if (frame) return;
+    frame = requestAnimationFrame(() => {
+      frame = null;
+      setEntrySwipeOffset(targetRow, pendingOffset, false);
+    });
   };
 
   row.addEventListener("pointermove", move, { passive: false });
