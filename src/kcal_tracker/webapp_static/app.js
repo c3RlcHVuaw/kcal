@@ -1068,6 +1068,10 @@ function renderFoodEntry(entry) {
           <svg aria-hidden="true"><use href="#icon-edit"></use></svg>
           <span>Изменить</span>
         </button>
+        <button class="entry-swipe-action template" type="button" data-favorite-entry="${entry.id}" aria-label="Сохранить ${escapeHtml(entry.name)} в шаблоны">
+          <svg aria-hidden="true"><use href="#icon-heart"></use></svg>
+          <span>Шаблон</span>
+        </button>
         <button class="entry-swipe-action delete" type="button" data-delete-entry="${entry.id}" aria-label="Удалить ${escapeHtml(entry.name)}">
           <svg aria-hidden="true"><use href="#icon-trash"></use></svg>
           <span>Удалить</span>
@@ -1207,7 +1211,7 @@ function beginEntrySwipe(row, gesture) {
   const startY = gesture.startY;
   const openedOffset = Number(row.dataset.swipeOffset || 0);
   const maxRight = 106;
-  const maxLeft = 174;
+  const maxLeft = 226;
   const commitRight = 88;
   const openThreshold = 42;
   const lockThreshold = 14;

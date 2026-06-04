@@ -1178,7 +1178,7 @@ h2 {
 
 .entry-swipe-trailing {
   justify-content: flex-end;
-  gap: 8px;
+  gap: 5px;
 }
 
 .entry-swipe-action {
@@ -1188,12 +1188,12 @@ h2 {
   grid-template-rows: 18px 14px;
   align-content: center;
   justify-items: center;
-  min-width: 78px;
+  min-width: 70px;
   height: 100%;
   gap: 4px;
-  padding: 0 9px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 18px;
+  padding: 0 7px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 16px;
   color: #fff;
   font-size: 10px;
   font-weight: 780;
@@ -1233,8 +1233,12 @@ h2 {
   color: color-mix(in srgb, #fff 94%, var(--text));
 }
 
+.entry-swipe-action.template {
+  background: color-mix(in srgb, var(--protein) 74%, var(--accent));
+}
+
 .entry-swipe-action.delete {
-  min-width: 78px;
+  min-width: 70px;
   background: color-mix(in srgb, var(--danger) 88%, #ff8b78);
 }
 
