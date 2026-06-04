@@ -1,5 +1,6 @@
 const tg = window.Telegram?.WebApp;
 const initData = tg?.initData || "";
+const ONBOARDING_KEY = "kcal:onboarding:v1";
 
 const state = {
   today: null,
@@ -26,6 +27,7 @@ const state = {
   entryHighlightTimer: null,
   loadingAll: false,
   hasActiveSubscription: false,
+  onboardingStep: 0,
 };
 
 const nodes = {
@@ -142,7 +144,63 @@ const nodes = {
   entryEditSummaryWeight: document.querySelector("#entry-edit-summary-weight"),
   openBot: document.querySelector("#open-bot"),
   exportFood: document.querySelector("#export-food"),
+  onboarding: document.querySelector("#onboarding"),
+  onboardingClose: document.querySelector("#onboarding-close"),
+  onboardingSkip: document.querySelector("#onboarding-skip"),
+  onboardingBack: document.querySelector("#onboarding-back"),
+  onboardingNext: document.querySelector("#onboarding-next"),
+  onboardingStart: document.querySelector("#onboarding-start"),
+  onboardingStep: document.querySelector("#onboarding-step"),
+  onboardingTotal: document.querySelector("#onboarding-total"),
+  onboardingProgress: document.querySelector("#onboarding-progress"),
+  onboardingTitle: document.querySelector("#onboarding-title"),
+  onboardingText: document.querySelector("#onboarding-text"),
+  onboardingMenu: document.querySelector("#onboarding-menu"),
+  onboardingTips: document.querySelector("#onboarding-tips"),
 };
+
+const onboardingSteps = [
+  {
+    title: "Добро пожаловать в Kcal",
+    text: "Мини-апп держит день в одном месте: еда, вода, активность, вес и недельный прогресс.",
+    hint: "Начни с кнопки еды внизу: поиск, шаблоны, AI и ручной ввод живут в одном меню.",
+    items: [
+      ["Еда", "быстро добавить блюдо"],
+      ["День", "видеть остаток калорий"],
+      ["Прогресс", "понять ритм недели"],
+    ],
+  },
+  {
+    title: "Добавляй еду как удобно",
+    text: "Для обычного дня хватит поиска и недавних блюд. В окне добавления есть памятка «Что нажимать».",
+    hint: "Шаблоны пригодятся для любимых завтраков, кофе, перекусов и повторяющихся порций.",
+    items: [
+      ["Поиск", "готовые продукты"],
+      ["AI/Фото", "быстрый разбор"],
+      ["Точно", "ккал и БЖУ"],
+    ],
+  },
+  {
+    title: "Следи за балансом",
+    text: "Главная показывает, сколько уже съедено, сколько осталось, и где сейчас белки, жиры и углеводы.",
+    hint: "Если день получился плотнее обычного, добавь активность или просто смотри итог недели.",
+    items: [
+      ["Калории", "цель на день"],
+      ["БЖУ", "баланс макро"],
+      ["Вода", "короткая привычка"],
+    ],
+  },
+  {
+    title: "Пользуйся быстрым меню",
+    text: "В разделе «Ещё» лежат повтор вчерашнего дня, штрихкод, вес, активность, экспорт и повторный запуск обучения.",
+    hint: "Готово. Можно закрыть обучение и добавить первую запись.",
+    items: [
+      ["Как вчера", "повторить день"],
+      ["Штрихкод", "найти продукт"],
+      ["Вес", "видеть тренд"],
+    ],
+  },
+];
 
 tg?.ready();
 tg?.expand();
@@ -253,6 +311,19 @@ document.addEventListener("click", (event) => {
 nodes.repeatYesterday.addEventListener("click", repeatYesterday);
 nodes.openBot.addEventListener("click", openBotFromWebApp);
 nodes.exportFood.addEventListener("click", exportFood);
+nodes.onboardingClose?.addEventListener("click", () => closeOnboarding({ remember: true }));
+nodes.onboardingSkip?.addEventListener("click", () => closeOnboarding({ remember: true }));
+nodes.onboardingBack?.addEventListener("click", () => setOnboardingStep(state.onboardingStep - 1));
+nodes.onboardingNext?.addEventListener("click", () => setOnboardingStep(state.onboardingStep + 1));
+nodes.onboardingStart?.addEventListener("click", () => {
+  closeOnboarding({ remember: true });
+  openFoodAddSheet();
+});
+nodes.onboardingMenu?.addEventListener("click", (event) => {
+  const item = event.target.closest("[data-onboarding-step]");
+  if (!item) return;
+  setOnboardingStep(Number(item.dataset.onboardingStep));
+});
 nodes.foodAddClose.addEventListener("click", closeFoodAddSheet);
 nodes.foodAddSheet.addEventListener("click", (event) => {
   if (event.target === nodes.foodAddSheet) closeFoodAddSheet();
@@ -753,6 +824,7 @@ if (!initData) {
 } else {
   loadAll();
 }
+maybeOpenOnboarding();
 
 window.addEventListener("unhandledrejection", (event) => {
   event.preventDefault();
@@ -1871,6 +1943,9 @@ function handleMoreAction(action) {
     case "progress":
       switchView("progress");
       return;
+    case "onboarding":
+      openOnboarding({ force: true });
+      return;
     case "subscription":
     case "reminders":
     case "support":
@@ -1897,6 +1972,83 @@ function showPremiumUpsell(feature = "Premium") {
   card?.classList.add("is-highlighted");
   window.setTimeout(() => card?.classList.remove("is-highlighted"), 1800);
   toast(`${feature}: открой подписку, чтобы снять ограничения`);
+}
+
+function maybeOpenOnboarding() {
+  if (hasSeenOnboarding()) return;
+  window.setTimeout(() => openOnboarding(), 420);
+}
+
+function openOnboarding({ force = false } = {}) {
+  if (!nodes.onboarding) return;
+  if (!force && hasSeenOnboarding()) return;
+  state.onboardingStep = 0;
+  renderOnboardingStep();
+  lockPageScroll("onboarding");
+  nodes.onboarding.classList.remove("hidden");
+  triggerHaptic("light");
+}
+
+function closeOnboarding({ remember = false } = {}) {
+  if (!nodes.onboarding) return;
+  nodes.onboarding.classList.add("hidden");
+  if (remember) markOnboardingSeen();
+  unlockPageScroll("onboarding");
+}
+
+function setOnboardingStep(step) {
+  const max = onboardingSteps.length - 1;
+  state.onboardingStep = Math.max(0, Math.min(max, step));
+  renderOnboardingStep();
+  triggerHaptic("light");
+}
+
+function renderOnboardingStep() {
+  const total = onboardingSteps.length;
+  const step = onboardingSteps[state.onboardingStep] || onboardingSteps[0];
+  const current = state.onboardingStep + 1;
+  nodes.onboardingStep.textContent = current;
+  nodes.onboardingTotal.textContent = total;
+  nodes.onboardingProgress.style.width = `${(current / total) * 100}%`;
+  nodes.onboardingTitle.textContent = step.title;
+  nodes.onboardingText.textContent = step.text;
+  nodes.onboardingBack.disabled = state.onboardingStep === 0;
+  nodes.onboardingNext.classList.toggle("hidden", state.onboardingStep === total - 1);
+  nodes.onboardingStart.classList.toggle("hidden", state.onboardingStep !== total - 1);
+  nodes.onboardingMenu.innerHTML = onboardingSteps
+    .map((item, index) => `
+      <button type="button" data-onboarding-step="${index}" ${index === state.onboardingStep ? 'class="active"' : ""}>
+        <span>${index + 1}</span>
+        <b>${escapeHtml(item.title)}</b>
+      </button>
+    `)
+    .join("");
+  nodes.onboardingTips.innerHTML = step.items
+    .map((item) => `
+      <span>
+        <span>${escapeHtml(item[0])}</span>
+        <b>${escapeHtml(item[1])}</b>
+      </span>
+    `)
+    .join("");
+}
+
+function hasSeenOnboarding() {
+  try {
+    if (window.localStorage?.getItem(ONBOARDING_KEY) === "1") return true;
+  } catch {
+    // Storage can be unavailable in restricted webviews.
+  }
+  return document.cookie.split("; ").includes(`${ONBOARDING_KEY}=1`);
+}
+
+function markOnboardingSeen() {
+  try {
+    window.localStorage?.setItem(ONBOARDING_KEY, "1");
+  } catch {
+    // Storage can be unavailable in restricted webviews.
+  }
+  document.cookie = `${ONBOARDING_KEY}=1; max-age=31536000; path=/; samesite=lax`;
 }
 
 async function exportFood() {
