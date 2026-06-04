@@ -1185,21 +1185,23 @@ h2 {
   position: relative;
   overflow: hidden;
   display: grid;
-  grid-template-rows: 18px 14px;
+  grid-template-rows: 20px 13px;
   align-content: center;
   justify-items: center;
   min-width: 70px;
   height: 100%;
-  gap: 4px;
+  gap: 3px;
   padding: 0 7px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.34);
   border-radius: 16px;
   color: #fff;
   font-size: 10px;
   font-weight: 780;
   line-height: 1;
   white-space: nowrap;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  box-shadow:
+    0 10px 18px rgba(30, 35, 48, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
 }
 
 .entry-swipe-action::before {
@@ -1208,6 +1210,7 @@ h2 {
 
 .entry-swipe-action svg {
   position: relative;
+  display: block;
   width: 18px;
   height: 18px;
   stroke: currentColor;
@@ -1225,26 +1228,21 @@ h2 {
 
 .entry-swipe-action.repeat {
   min-width: 98px;
-  background: color-mix(in srgb, var(--accent) 86%, var(--activity));
+  background: linear-gradient(135deg, #17c982, #13b9ec);
 }
 
 .entry-swipe-action.edit {
-  background: color-mix(in srgb, var(--muted) 76%, #586575);
-  color: color-mix(in srgb, #fff 94%, var(--text));
+  background: linear-gradient(135deg, #497dff, #7b71ff);
+  color: #fff;
 }
 
 .entry-swipe-action.template {
-  background: color-mix(in srgb, var(--protein) 74%, var(--accent));
+  background: linear-gradient(135deg, #815dff, #ec5aa8);
 }
 
 .entry-swipe-action.delete {
   min-width: 70px;
-  background: color-mix(in srgb, var(--danger) 88%, #ff8b78);
-}
-
-.entry-swipe-action.delete.confirm-delete {
-  min-width: 118px;
-  background: color-mix(in srgb, var(--danger) 82%, #262a32);
+  background: linear-gradient(135deg, #ff405d, #ff7547);
 }
 
 .entry-swipe-guide {
@@ -1460,14 +1458,6 @@ h2 {
   text-overflow: ellipsis;
   backdrop-filter: blur(14px) saturate(1.25);
   -webkit-backdrop-filter: blur(14px) saturate(1.25);
-}
-
-.food-card .entry-actions button.confirm-delete {
-  background: color-mix(in srgb, var(--danger) 14%, var(--surface));
-  color: var(--danger);
-  box-shadow:
-    inset 0 0 0 1px color-mix(in srgb, var(--danger) 24%, transparent),
-    0 8px 18px color-mix(in srgb, var(--danger) 12%, transparent);
 }
 
 .food-card.is-highlighted {
@@ -2869,6 +2859,12 @@ body.sheet-open .tab-bar [data-view="food"] {
   -webkit-backdrop-filter: blur(28px) saturate(1.55);
 }
 
+.toast.has-action {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  max-width: 408px;
+  padding-right: 8px;
+}
+
 .toast-icon {
   display: grid;
   width: 28px;
@@ -2880,6 +2876,33 @@ body.sheet-open .tab-bar [data-view="food"] {
   font-size: 14px;
   font-weight: 900;
   line-height: 1;
+}
+
+.toast-action {
+  min-height: 34px;
+  padding: 0 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--activity));
+  color: #fff;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow:
+    0 9px 18px color-mix(in srgb, var(--accent) 22%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.toast.warning .toast-action {
+  background: linear-gradient(135deg, var(--danger), #ff784c);
+  box-shadow:
+    0 9px 18px color-mix(in srgb, var(--danger) 24%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.toast.is-busy .toast-action {
+  opacity: 0.58;
+  pointer-events: none;
 }
 
 .toast.success .toast-icon {
@@ -3389,18 +3412,37 @@ body.sheet-open .tab-bar [data-view="food"] {
   --surface-solid: #ffffff;
   --surface-soft: #f6f6f8;
   --line: rgba(60, 60, 67, 0.1);
-  --accent: #5fd29a;
-  --accent-strong: #2aa36f;
-  --carbs: #ffb340;
-  --protein: #5d8cff;
-  --fat: #ff5fa2;
-  --activity: #46c4d8;
-  --danger: #ff6b52;
+  --accent: #19c985;
+  --accent-strong: #087d62;
+  --carbs: #ffad21;
+  --protein: #3f7cff;
+  --fat: #ef4fa0;
+  --activity: #12b8d7;
+  --danger: #ff4f5f;
   --shadow-soft: 0 18px 34px rgba(31, 35, 42, 0.1);
   --shadow-tight: 0 7px 18px rgba(31, 35, 42, 0.08);
   --radius-md: 13px;
   --radius-lg: 15px;
   --radius-xl: 24px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101116;
+    --text: #f7f8fb;
+    --muted: #a7adb8;
+    --surface: rgba(30, 33, 41, 0.9);
+    --surface-solid: #1d2028;
+    --surface-soft: rgba(255, 255, 255, 0.08);
+    --line: rgba(255, 255, 255, 0.12);
+    --accent: #22dda0;
+    --accent-strong: #6bffd0;
+    --carbs: #ffc247;
+    --protein: #73a0ff;
+    --fat: #ff6ab2;
+    --activity: #31d6f0;
+    --danger: #ff625d;
+  }
 }
 
 body {
@@ -3745,11 +3787,6 @@ body::before {
   color: #6e8dff;
   font-size: 11px;
   backdrop-filter: none;
-}
-
-.food-card .entry-actions button.confirm-delete {
-  background: color-mix(in srgb, var(--danger) 13%, #fff);
-  color: var(--danger);
 }
 
 #view-food.active {

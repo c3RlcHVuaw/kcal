@@ -22,7 +22,6 @@ const state = {
   searchTimer: null,
   searchRequestId: 0,
   foodSearchAiLoading: false,
-  deleteConfirmTimer: null,
   swipeGuideDismissTimer: null,
   entryHighlightKeys: new Set(),
   entryHighlightTimer: null,
@@ -1927,57 +1926,76 @@ function scaleParsedFood(index, multiplier) {
 
 async function deleteEntry(entryId, button) {
   if (!entryId) return;
-  if (button && button.dataset.confirmDelete !== "true") {
-    armDeleteConfirm(button);
-    return;
-  }
-  if (button && isBusy(button)) return;
-  if (button) {
-    disarmDeleteConfirm(button);
-    setButtonBusy(button, "...");
-  }
-  try {
-    await api(`/webapp/me/entries/${entryId}`, { method: "DELETE" });
-    await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
-    toast("Запись удалена");
-  } catch {
-    toast("Не получилось удалить запись");
-  } finally {
-    if (button) restoreButton(button);
-  }
-}
-
-function armDeleteConfirm(button) {
-  clearDeleteConfirm();
-  button.dataset.confirmDelete = "true";
-  button.dataset.idleHtml = button.innerHTML;
-  button.dataset.idleLabel = button.getAttribute("aria-label") || "";
-  button.classList.add("confirm-delete");
-  button.textContent = "Точно удалить?";
-  button.setAttribute("aria-label", "Подтвердить удаление");
+  const entry = findTodayEntry(entryId);
+  const row = button?.closest?.(".entry-swipe");
+  if (row) closeEntrySwipe(row);
   triggerHaptic("medium");
-  state.deleteConfirmTimer = window.setTimeout(clearDeleteConfirm, 2600);
-}
-
-function clearDeleteConfirm() {
-  window.clearTimeout(state.deleteConfirmTimer);
-  state.deleteConfirmTimer = null;
-  document.querySelectorAll("[data-confirm-delete='true']").forEach((button) => {
-    disarmDeleteConfirm(button);
+  toast("Точно удалить?", {
+    kind: "warning",
+    actionLabel: "Удалить",
+    duration: 5200,
+    onAction: () => confirmDeleteEntry(entryId, entry),
   });
 }
 
-function disarmDeleteConfirm(button) {
-  button.classList.remove("confirm-delete");
-  button.innerHTML = button.dataset.idleHtml || "Удалить";
-  if (button.dataset.idleLabel) {
-    button.setAttribute("aria-label", button.dataset.idleLabel);
-  } else {
-    button.removeAttribute("aria-label");
+async function confirmDeleteEntry(entryId, entry) {
+  try {
+    await api(`/webapp/me/entries/${entryId}`, { method: "DELETE" });
+    await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
+    toast("Продукт удален", {
+      kind: "success",
+      actionLabel: "Вернуть",
+      duration: 5600,
+      onAction: () => restoreDeletedEntry(entry),
+    });
+  } catch {
+    toast("Не получилось удалить запись");
   }
-  delete button.dataset.confirmDelete;
-  delete button.dataset.idleHtml;
-  delete button.dataset.idleLabel;
+}
+
+async function restoreDeletedEntry(entry) {
+  if (!entry) {
+    toast("Не получилось вернуть");
+    return;
+  }
+  const payload = deletedEntryPayload(entry);
+  try {
+    const restored = await api("/webapp/me/entries", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    markEntryHighlights([restored], payload.meal_type);
+    await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
+    switchView("today");
+    toast("Продукт вернули");
+  } catch {
+    toast("Не получилось вернуть");
+  }
+}
+
+function findTodayEntry(entryId) {
+  const entries = state.today?.diary?.entries || [];
+  return entries.find((entry) => Number(entry.id) === Number(entryId)) || null;
+}
+
+function deletedEntryPayload(entry) {
+  return {
+    name: String(entry.name || "").trim(),
+    weight_g: numberOrNull(entry.weight_g),
+    kcal: numberOrNull(entry.kcal) ?? 0,
+    protein: numberOrNull(entry.protein) ?? 0,
+    fat: numberOrNull(entry.fat) ?? 0,
+    carbs: numberOrNull(entry.carbs) ?? 0,
+    confidence: numberOrNull(entry.confidence),
+    emoji: entry.emoji || null,
+    advice: entry.advice || null,
+    source_label: entry.source_label || null,
+    catalog_id: Number.isFinite(Number(entry.catalog_id)) ? Number(entry.catalog_id) : null,
+    is_ai_suggestion: Boolean(entry.is_ai_suggestion),
+    trust_score: numberOrNull(entry.trust_score),
+    source: "history",
+    meal_type: mealIdForEntry(entry),
+  };
 }
 
 async function favoriteEntry(entryId) {
@@ -2389,18 +2407,35 @@ function foodInitial(value) {
   return String(value || "Е").trim().slice(0, 1).toUpperCase();
 }
 
-function toast(message) {
+function toast(message, options = {}) {
   const text = String(message || "").trim();
-  const kind = toastKind(text);
+  const kind = options.kind || toastKind(text);
+  const actionLabel = String(options.actionLabel || "").trim();
   nodes.toast.classList.remove("success", "warning", "info");
   nodes.toast.classList.add(kind);
+  nodes.toast.classList.toggle("has-action", Boolean(actionLabel));
   nodes.toast.innerHTML = `
     <span class="toast-icon" aria-hidden="true">${toastIcon(kind)}</span>
     <span class="toast-text">${escapeHtml(text)}</span>
+    ${actionLabel ? `<button class="toast-action" type="button" data-toast-action>${escapeHtml(actionLabel)}</button>` : ""}
   `;
+  if (actionLabel && typeof options.onAction === "function") {
+    nodes.toast.querySelector("[data-toast-action]")?.addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      if (button.disabled) return;
+      button.disabled = true;
+      triggerHaptic("medium");
+      nodes.toast.classList.add("is-busy");
+      try {
+        await options.onAction();
+      } finally {
+        nodes.toast.classList.remove("is-busy");
+      }
+    }, { once: true });
+  }
   nodes.toast.classList.remove("hidden");
   window.clearTimeout(toast.timer);
-  toast.timer = window.setTimeout(() => nodes.toast.classList.add("hidden"), 2600);
+  toast.timer = window.setTimeout(() => nodes.toast.classList.add("hidden"), options.duration || 2600);
 }
 
 function toastKind(message) {
