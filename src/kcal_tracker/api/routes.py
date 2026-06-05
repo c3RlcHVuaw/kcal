@@ -35,6 +35,7 @@ from kcal_tracker.schemas import (
     WebAppFoodTextParseResult,
     WebAppFrequentFood,
     WebAppHabitSummary,
+    WebAppOnboardingComplete,
     WebAppPromoPlan,
     WebAppPromoValidate,
     WebAppPromoValidateResult,
@@ -733,6 +734,29 @@ async def webapp_update_weight_goal(
     await session.commit()
     await session.refresh(user)
     return weight_goal_summary(user)
+
+
+@router.post("/webapp/me/onboarding", response_model=WebAppToday)
+async def webapp_complete_onboarding(
+    payload: WebAppOnboardingComplete,
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WebAppToday:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    user.goal = payload.goal
+    user.gender = payload.gender
+    user.age = payload.age
+    user.height = payload.height
+    user.weight = payload.weight
+    user.activity = payload.activity
+    user.target_weight_kg = None if payload.goal == "maintain" else payload.target_weight_kg
+    user.weekly_weight_change_kg = None if payload.goal == "maintain" else payload.weekly_weight_change_kg
+    user.daily_kcal_target = calculate_daily_kcal_target(user)
+    apply_default_macro_targets(user)
+    user.onboarding_completed = True
+    await session.commit()
+    await session.refresh(user)
+    return await webapp_today(identity, session)
 
 
 @router.get("/webapp/me/frequent", response_model=list[WebAppFrequentFood])

@@ -158,6 +158,16 @@ const nodes = {
   onboardingText: document.querySelector("#onboarding-text"),
   onboardingMenu: document.querySelector("#onboarding-menu"),
   onboardingTips: document.querySelector("#onboarding-tips"),
+  profileOnboarding: document.querySelector("#profile-onboarding"),
+  profileOnboardingForm: document.querySelector("#profile-onboarding-form"),
+  profileOnboardingClose: document.querySelector("#profile-onboarding-close"),
+  setupGoal: document.querySelector("#setup-goal"),
+  setupGender: document.querySelector("#setup-gender"),
+  setupAge: document.querySelector("#setup-age"),
+  setupHeight: document.querySelector("#setup-height"),
+  setupWeight: document.querySelector("#setup-weight"),
+  setupActivity: document.querySelector("#setup-activity"),
+  setupTargetWeight: document.querySelector("#setup-target-weight"),
 };
 
 const onboardingSteps = [
@@ -173,7 +183,7 @@ const onboardingSteps = [
   },
   {
     title: "Добавляй еду как удобно",
-    text: "Для обычного дня хватит поиска и недавних блюд. В окне добавления есть памятка «Что нажимать».",
+    text: "Для обычного дня хватит поиска и недавних блюд. Способы добавления подписаны прямо в меню еды.",
     hint: "Шаблоны пригодятся для любимых завтраков, кофе, перекусов и повторяющихся порций.",
     items: [
       ["Поиск", "готовые продукты"],
@@ -325,6 +335,8 @@ nodes.onboardingMenu?.addEventListener("click", (event) => {
   if (!item) return;
   setOnboardingStep(Number(item.dataset.onboardingStep));
 });
+nodes.profileOnboardingClose?.addEventListener("click", closeProfileOnboarding);
+nodes.profileOnboardingForm?.addEventListener("submit", completeProfileOnboarding);
 nodes.foodAddClose.addEventListener("click", closeFoodAddSheet);
 nodes.foodAddSheet.addEventListener("click", (event) => {
   if (event.target === nodes.foodAddSheet) closeFoodAddSheet();
@@ -1982,8 +1994,60 @@ function maybeOpenOnboarding(today = state.today) {
     markOnboardingSeen();
     return;
   }
-  if (hasSeenOnboarding()) return;
-  window.setTimeout(() => openOnboarding(), 420);
+  window.setTimeout(() => openProfileOnboarding(), 420);
+}
+
+function openProfileOnboarding() {
+  if (!nodes.profileOnboarding || state.today?.onboarding_completed) return;
+  lockPageScroll("profile-onboarding");
+  nodes.profileOnboarding.classList.remove("hidden");
+  triggerHaptic("light");
+}
+
+function closeProfileOnboarding() {
+  if (!nodes.profileOnboarding) return;
+  nodes.profileOnboarding.classList.add("hidden");
+  unlockPageScroll("profile-onboarding");
+}
+
+async function completeProfileOnboarding(event) {
+  event.preventDefault();
+  const payload = {
+    goal: nodes.setupGoal.value,
+    gender: nodes.setupGender.value,
+    age: parseNumber(nodes.setupAge.value),
+    height: parseNumber(nodes.setupHeight.value),
+    weight: parseNumber(nodes.setupWeight.value),
+    activity: nodes.setupActivity.value,
+    target_weight_kg: parseNumber(nodes.setupTargetWeight.value),
+    weekly_weight_change_kg: null,
+  };
+  if (!payload.age || !payload.height || !payload.weight) {
+    toast("Заполни возраст, рост и вес");
+    return;
+  }
+  if (payload.goal === "maintain") {
+    payload.target_weight_kg = null;
+  }
+  const button = nodes.profileOnboardingForm.querySelector("button[type='submit']");
+  if (isBusy(button)) return;
+  setButtonBusy(button, "Сохраняю...");
+  try {
+    const today = await api("/webapp/me/onboarding", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+    state.today = today;
+    renderToday(today);
+    closeProfileOnboarding();
+    markOnboardingSeen();
+    await Promise.allSettled([loadWeek(), loadBody()]);
+    toast("Профиль настроен");
+  } catch {
+    toast("Не получилось настроить профиль");
+  } finally {
+    restoreButton(button);
+  }
 }
 
 function openOnboarding({ force = false } = {}) {

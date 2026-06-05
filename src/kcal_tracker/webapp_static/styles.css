@@ -2790,91 +2790,44 @@ body.sheet-open .tab-bar [data-view="food"] {
   display: none;
 }
 
-.food-help-guide {
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--surface-solid) 70%, transparent);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--glass-line) 64%, transparent);
+.profile-onboarding-panel {
+  gap: 16px;
 }
 
-.food-help-guide summary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-height: 52px;
-  padding: 11px 13px;
-  color: var(--text);
-  cursor: pointer;
-  list-style: none;
-}
-
-.food-help-guide summary::-webkit-details-marker {
-  display: none;
-}
-
-.food-help-guide summary::after {
-  content: "+";
-  display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface-solid));
-  color: var(--accent-strong);
-  font-size: 17px;
-  font-weight: 500;
-  line-height: 1;
-}
-
-.food-help-guide[open] summary::after {
-  content: "−";
-}
-
-.food-help-guide summary span,
-.food-help-list span {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 650;
-}
-
-.food-help-guide summary b {
-  grid-column: 1;
-  min-width: 0;
-  overflow: hidden;
-  color: var(--muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-  font-weight: 400;
-}
-
-.food-help-list {
-  display: grid;
-  gap: 1px;
-  max-height: min(312px, 42vh);
-  padding: 0 10px 10px;
-  overflow: auto;
-  overscroll-behavior: contain;
-}
-
-.food-help-list article {
-  display: grid;
-  grid-template-columns: 76px minmax(0, 1fr);
-  gap: 10px;
-  padding: 10px 3px;
-  border-top: 1px solid color-mix(in srgb, var(--line) 58%, transparent);
-}
-
-.food-help-list p {
-  margin: 0;
+.profile-onboarding .onboarding-head b {
   color: var(--muted);
   font-size: 12px;
   font-weight: 400;
-  line-height: 1.32;
+}
+
+.profile-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profile-setup-grid label {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.profile-setup-grid label:nth-child(6),
+.profile-setup-grid label:nth-child(7) {
+  grid-column: 1 / -1;
+}
+
+.profile-setup-grid span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.profile-setup-grid input,
+.profile-setup-grid select {
+  min-width: 0;
+  min-height: 44px;
+  border-radius: 14px;
 }
 
 .toast {

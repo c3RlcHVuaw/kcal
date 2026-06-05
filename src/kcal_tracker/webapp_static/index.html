@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/styles.css?v=bot-aware-onboarding-20260604" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=profile-setup-20260605" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -572,47 +572,6 @@
               </button>
             </div>
 
-            <details class="food-help-guide">
-              <summary>
-                <span>Что нажимать</span>
-                <b>короткое обучение по добавлению еды</b>
-              </summary>
-              <div class="food-help-list">
-                <article>
-                  <span>Поиск</span>
-                  <p>Введи продукт, блюдо или бренд. Кнопка со сканером справа открывает штрихкод.</p>
-                </article>
-                <article>
-                  <span>AI</span>
-                  <p>Опиши еду обычными словами. Подходит для сложных блюд и нескольких позиций сразу.</p>
-                </article>
-                <article>
-                  <span>Фото</span>
-                  <p>Выбери снимок блюда. Можно добавить уточнение про вес, соус или напиток рядом.</p>
-                </article>
-                <article>
-                  <span>Точно</span>
-                  <p>Ручной ввод: название, калории, граммы и БЖУ. Лучший вариант, когда значения известны.</p>
-                </article>
-                <article>
-                  <span>Недавние</span>
-                  <p>Блюда из истории. Кнопка плюс добавляет такую запись в выбранный прием пищи.</p>
-                </article>
-                <article>
-                  <span>Шаблоны</span>
-                  <p>Любимые продукты, которые ты сохранил через кнопку «В шаблон» на карточке еды.</p>
-                </article>
-                <article>
-                  <span>Приём пищи</span>
-                  <p>Завтрак, обед, ужин или перекус выбираются перед добавлением и влияют на раздел в дневнике.</p>
-                </article>
-                <article>
-                  <span>Назад</span>
-                  <p>Возвращает из AI, фото, точного ввода или штрихкода к общему меню добавления.</p>
-                </article>
-              </div>
-            </details>
-
             <section id="food-search-section" class="food-search-section hidden" aria-live="polite">
               <div class="food-add-section-head">
                 <h3>Результаты поиска</h3>
@@ -828,7 +787,66 @@
       </div>
     </section>
 
+    <section id="profile-onboarding" class="onboarding profile-onboarding hidden" role="dialog" aria-modal="true" aria-labelledby="profile-onboarding-title">
+      <form id="profile-onboarding-form" class="onboarding-panel profile-onboarding-panel">
+        <div class="onboarding-head">
+          <span>Первый вход</span>
+          <b>1/1</b>
+          <button id="profile-onboarding-close" type="button" aria-label="Закрыть">×</button>
+        </div>
+
+        <div class="onboarding-copy">
+          <h2 id="profile-onboarding-title">Настроим норму</h2>
+          <p>Эти данные нужны только для расчёта калорий и БЖУ. Потом всё можно поменять в разделе «Тело».</p>
+        </div>
+
+        <div class="profile-setup-grid">
+          <label>
+            <span>Цель</span>
+            <select id="setup-goal" name="goal">
+              <option value="loss">Снизить вес</option>
+              <option value="maintain">Поддерживать</option>
+              <option value="gain">Набрать вес</option>
+            </select>
+          </label>
+          <label>
+            <span>Пол</span>
+            <select id="setup-gender" name="gender">
+              <option value="female">Женский</option>
+              <option value="male">Мужской</option>
+            </select>
+          </label>
+          <label>
+            <span>Возраст</span>
+            <input id="setup-age" name="age" inputmode="numeric" placeholder="лет" required />
+          </label>
+          <label>
+            <span>Рост</span>
+            <input id="setup-height" name="height" inputmode="decimal" placeholder="см" required />
+          </label>
+          <label>
+            <span>Вес</span>
+            <input id="setup-weight" name="weight" inputmode="decimal" placeholder="кг" required />
+          </label>
+          <label>
+            <span>Активность</span>
+            <select id="setup-activity" name="activity">
+              <option value="low">Низкая</option>
+              <option value="medium" selected>Средняя</option>
+              <option value="high">Высокая</option>
+            </select>
+          </label>
+          <label>
+            <span>Желаемый вес</span>
+            <input id="setup-target-weight" name="target_weight_kg" inputmode="decimal" placeholder="кг" />
+          </label>
+        </div>
+
+        <button class="primary-button" type="submit">Сохранить и начать</button>
+      </form>
+    </section>
+
     <div id="toast" class="toast hidden"></div>
-    <script src="/app/static/app.js?v=bot-aware-onboarding-20260604" type="module"></script>
+    <script src="/app/static/app.js?v=profile-setup-20260605" type="module"></script>
   </body>
 </html>

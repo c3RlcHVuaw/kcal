@@ -153,6 +153,17 @@ class WeightGoalUpdate(BaseModel):
     weekly_weight_change_kg: float | None = Field(default=None, ge=0.1, le=1.5)
 
 
+class WebAppOnboardingComplete(BaseModel):
+    goal: str = Field(pattern="^(loss|maintain|gain)$")
+    gender: str = Field(pattern="^(male|female)$")
+    age: int = Field(ge=13, le=100)
+    height: float = Field(ge=100, le=240)
+    weight: float = Field(ge=30, le=250)
+    activity: str = Field(pattern="^(low|medium|high)$")
+    target_weight_kg: float | None = Field(default=None, ge=30, le=250)
+    weekly_weight_change_kg: float | None = Field(default=None, ge=0.1, le=1.5)
+
+
 class WeightGoalRead(BaseModel):
     goal: str | None
     current_weight_kg: float | None
