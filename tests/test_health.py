@@ -43,6 +43,9 @@ def test_seo_discovery_files_are_served() -> None:
     assert "Disallow: /app" in robots.text
     assert sitemap.status_code == 200
     assert "<loc>https://kcal-bot.ru/</loc>" in sitemap.text
+    assert "<loc>https://kcal-bot.ru/bot-dlya-podscheta-kaloriy</loc>" in sitemap.text
+    assert "<loc>https://kcal-bot.ru/kalorii-po-foto</loc>" in sitemap.text
+    assert "<loc>https://kcal-bot.ru/dnevnik-pitaniya-telegram</loc>" in sitemap.text
 
 
 def test_openapi_exposes_external_client_routes() -> None:

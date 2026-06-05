@@ -38,6 +38,21 @@ async def landing() -> FileResponse:
     return FileResponse(LANDING_STATIC_DIR / "index.html")
 
 
+@app.get("/bot-dlya-podscheta-kaloriy", include_in_schema=False)
+async def calorie_counter_bot_landing() -> FileResponse:
+    return FileResponse(LANDING_STATIC_DIR / "bot-dlya-podscheta-kaloriy.html")
+
+
+@app.get("/kalorii-po-foto", include_in_schema=False)
+async def photo_calorie_landing() -> FileResponse:
+    return FileResponse(LANDING_STATIC_DIR / "kalorii-po-foto.html")
+
+
+@app.get("/dnevnik-pitaniya-telegram", include_in_schema=False)
+async def telegram_food_diary_landing() -> FileResponse:
+    return FileResponse(LANDING_STATIC_DIR / "dnevnik-pitaniya-telegram.html")
+
+
 @app.get("/app", include_in_schema=False)
 async def telegram_webapp() -> FileResponse:
     return FileResponse(WEBAPP_STATIC_DIR / "index.html")
@@ -64,8 +79,27 @@ async def sitemap_xml() -> Response:
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         "  <url>\n"
         "    <loc>https://kcal-bot.ru/</loc>\n"
+        "    <lastmod>2026-06-05</lastmod>\n"
         "    <changefreq>weekly</changefreq>\n"
         "    <priority>1.0</priority>\n"
+        "  </url>\n"
+        "  <url>\n"
+        "    <loc>https://kcal-bot.ru/bot-dlya-podscheta-kaloriy</loc>\n"
+        "    <lastmod>2026-06-05</lastmod>\n"
+        "    <changefreq>monthly</changefreq>\n"
+        "    <priority>0.8</priority>\n"
+        "  </url>\n"
+        "  <url>\n"
+        "    <loc>https://kcal-bot.ru/kalorii-po-foto</loc>\n"
+        "    <lastmod>2026-06-05</lastmod>\n"
+        "    <changefreq>monthly</changefreq>\n"
+        "    <priority>0.8</priority>\n"
+        "  </url>\n"
+        "  <url>\n"
+        "    <loc>https://kcal-bot.ru/dnevnik-pitaniya-telegram</loc>\n"
+        "    <lastmod>2026-06-05</lastmod>\n"
+        "    <changefreq>monthly</changefreq>\n"
+        "    <priority>0.8</priority>\n"
         "  </url>\n"
         "</urlset>\n",
         media_type="application/xml; charset=utf-8",
