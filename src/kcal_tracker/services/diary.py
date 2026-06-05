@@ -70,6 +70,8 @@ class DiaryService:
             meal_type=payload.meal_type,
             source=payload.source,
             confidence=payload.confidence,
+            photo_thumb_data_url=payload.photo_thumb_data_url,
+            photo_thumb_expires_at=payload.photo_thumb_expires_at,
         )
         self.session.add(entry)
         await self.session.commit()
@@ -139,6 +141,8 @@ class DiaryService:
             meal_type=entry.meal_type,
             source=entry.source,
             confidence=entry.confidence,
+            photo_thumb_data_url=entry.photo_thumb_data_url,
+            photo_thumb_expires_at=entry.photo_thumb_expires_at,
         )
         await self.session.delete(entry)
         await self.session.commit()
@@ -590,6 +594,8 @@ class DiaryService:
             confidence=entry.confidence,
             source=entry.source,
             meal_type=entry.meal_type,
+            photo_thumb_data_url=_active_photo_thumb_data_url(entry),
+            photo_thumb_expires_at=_active_photo_thumb_expires_at(entry),
         )
 
 
@@ -604,7 +610,24 @@ def estimate_from_entry(entry: FoodEntry) -> FoodEstimate:
         emoji=entry.emoji,
         advice=entry.advice,
         confidence=entry.confidence,
+        photo_thumb_data_url=_active_photo_thumb_data_url(entry),
+        photo_thumb_expires_at=_active_photo_thumb_expires_at(entry),
     )
+
+
+def _active_photo_thumb_expires_at(entry: FoodEntry) -> datetime | None:
+    expires_at = entry.photo_thumb_expires_at
+    if expires_at is None:
+        return None
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    return expires_at if expires_at > datetime.now(UTC) else None
+
+
+def _active_photo_thumb_data_url(entry: FoodEntry) -> str | None:
+    if _active_photo_thumb_expires_at(entry) is None:
+        return None
+    return entry.photo_thumb_data_url
 
 
 def _normalize_food_query(text: str) -> str:

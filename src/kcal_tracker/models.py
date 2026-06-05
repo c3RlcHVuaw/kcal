@@ -13,6 +13,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -138,6 +139,8 @@ class FoodEntry(Base):
     meal_type: Mapped[str | None] = mapped_column(String(32))
     source: Mapped[str] = mapped_column(String(32), nullable=False)
     confidence: Mapped[float | None] = mapped_column(Float)
+    photo_thumb_data_url: Mapped[str | None] = mapped_column(Text)
+    photo_thumb_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

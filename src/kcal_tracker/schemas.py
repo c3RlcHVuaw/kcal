@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class FoodEstimate(BaseModel):
@@ -19,6 +19,8 @@ class FoodEstimate(BaseModel):
     catalog_id: int | None = None
     is_ai_suggestion: bool = False
     trust_score: float | None = Field(default=None, ge=0, le=1)
+    photo_thumb_data_url: str | None = Field(default=None, max_length=70000)
+    photo_thumb_expires_at: datetime | None = None
 
 
 class FoodEstimateList(BaseModel):
@@ -38,6 +40,19 @@ class FoodEntryRead(FoodEntryCreate):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def hide_expired_photo_thumb(self) -> FoodEntryRead:
+        expires_at = self.photo_thumb_expires_at
+        if expires_at is None:
+            self.photo_thumb_data_url = None
+            return self
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        if expires_at <= datetime.now(UTC):
+            self.photo_thumb_data_url = None
+            self.photo_thumb_expires_at = None
+        return self
 
 
 class FoodEntryUpdate(FoodEstimate):

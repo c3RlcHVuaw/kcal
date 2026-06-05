@@ -1,14 +1,18 @@
 from __future__ import annotations
 
 import asyncio
+import base64
+import io
 import json
 import logging
 import re
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
+from PIL import Image, ImageOps
 from redis.asyncio import Redis
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -399,6 +403,13 @@ async def webapp_parse_food_photo(
     await usage.record_request(user, "webapp_photo")
     if not estimates.foods or (estimates.foods[0].confidence or 0) < 0.35:
         raise HTTPException(status_code=422, detail="Food was not recognized")
+
+    photo_thumb_data_url = _make_photo_thumb_data_url(image_bytes)
+    photo_thumb_expires_at = datetime.now(UTC) + timedelta(days=1)
+    if photo_thumb_data_url:
+        for food in estimates.foods:
+            food.photo_thumb_data_url = photo_thumb_data_url
+            food.photo_thumb_expires_at = photo_thumb_expires_at
 
     return WebAppFoodTextParseResult(
         foods=estimates.foods,
@@ -1204,6 +1215,23 @@ def _number_from_string(value: str) -> float | None:
             return float(match.group())
         except ValueError:
             return None
+
+
+def _make_photo_thumb_data_url(image_bytes: bytes) -> str | None:
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as image:
+            image = ImageOps.exif_transpose(image)
+            if image.mode not in {"RGB", "L"}:
+                image = image.convert("RGB")
+            image.thumbnail((360, 360), Image.Resampling.LANCZOS)
+            output = io.BytesIO()
+            image.save(output, format="JPEG", quality=68, optimize=True)
+    except Exception:
+        logger.debug("Failed to create food photo thumbnail", exc_info=True)
+        return None
+    encoded = base64.b64encode(output.getvalue()).decode("ascii")
+    data_url = f"data:image/jpeg;base64,{encoded}"
+    return data_url if len(data_url) <= 70000 else None
 
 
 @dataclass(frozen=True)

@@ -1149,7 +1149,7 @@ function renderFoodEntry(entry) {
   const highlightClass = isEntryHighlighted(entry) ? " is-highlighted" : "";
   return `
     <article class="entry food-card${highlightClass}">
-      <div class="food-thumb">${escapeHtml(entry.emoji || foodInitial(entry.name))}</div>
+      ${renderFoodThumb(entry)}
       <div class="food-content">
         <div class="entry-main">
           <strong>${escapeHtml(entry.name)}</strong>
@@ -1175,6 +1175,23 @@ function renderFoodEntry(entry) {
       </div>
     </article>
   `;
+}
+
+function renderFoodThumb(food) {
+  if (isActivePhotoThumb(food)) {
+    return `
+      <div class="food-thumb has-photo">
+        <img src="${escapeHtml(food.photo_thumb_data_url)}" alt="" loading="lazy" />
+      </div>
+    `;
+  }
+  return `<div class="food-thumb">${escapeHtml(food.emoji || foodInitial(food.name))}</div>`;
+}
+
+function isActivePhotoThumb(food) {
+  if (!food?.photo_thumb_data_url || !food.photo_thumb_expires_at) return false;
+  const expiresAt = new Date(food.photo_thumb_expires_at).getTime();
+  return Number.isFinite(expiresAt) && expiresAt > Date.now();
 }
 
 function clamp(value, min, max) {
@@ -1568,7 +1585,7 @@ function renderParsedFoods(result) {
   nodes.saveParsedFood.disabled = false;
   nodes.foodPreviewList.innerHTML = state.parsedFoods.map((food, index) => `
     <article class="parsed-food-card entry food-card${state.expandedParsedFood === index ? " is-expanded" : ""}" data-index="${index}">
-      <div class="food-thumb">${escapeHtml(food.emoji || foodInitial(food.name))}</div>
+      ${renderFoodThumb(food)}
       <div class="food-content">
         <div class="entry-main">
           <strong>${escapeHtml(food.name || "Еда")}</strong>
@@ -1645,7 +1662,10 @@ function openEntryEditor(entryId) {
   nodes.entryEditFat.value = formatInput(entry.fat);
   nodes.entryEditCarbs.value = formatInput(entry.carbs);
   nodes.entryEditMeal.value = mealIdForEntry(entry);
-  nodes.entryEditThumb.textContent = entry.emoji || foodInitial(entry.name);
+  nodes.entryEditThumb.classList.toggle("has-photo", isActivePhotoThumb(entry));
+  nodes.entryEditThumb.innerHTML = isActivePhotoThumb(entry)
+    ? `<img src="${escapeHtml(entry.photo_thumb_data_url)}" alt="" />`
+    : escapeHtml(entry.emoji || foodInitial(entry.name));
   state.editingEntryBase = {
     weight_g: numberOrNull(entry.weight_g),
     kcal: numberOrNull(entry.kcal) ?? 0,
@@ -1816,6 +1836,8 @@ function deletedEntryPayload(entry) {
     catalog_id: Number.isFinite(Number(entry.catalog_id)) ? Number(entry.catalog_id) : null,
     is_ai_suggestion: Boolean(entry.is_ai_suggestion),
     trust_score: numberOrNull(entry.trust_score),
+    photo_thumb_data_url: isActivePhotoThumb(entry) ? entry.photo_thumb_data_url : null,
+    photo_thumb_expires_at: isActivePhotoThumb(entry) ? entry.photo_thumb_expires_at : null,
     source: "history",
     meal_type: mealIdForEntry(entry),
   };
@@ -2346,6 +2368,8 @@ function normalizeParsedFood(food) {
     catalog_id: Number.isFinite(Number(food.catalog_id)) ? Number(food.catalog_id) : null,
     is_ai_suggestion: Boolean(food.is_ai_suggestion),
     trust_score: numberOrNull(food.trust_score),
+    photo_thumb_data_url: isActivePhotoThumb(food) ? food.photo_thumb_data_url : null,
+    photo_thumb_expires_at: isActivePhotoThumb(food) ? food.photo_thumb_expires_at : null,
   };
 }
 
