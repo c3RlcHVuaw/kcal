@@ -409,6 +409,7 @@ async function parseFoodText(event) {
   const submit = nodes.foodTextForm.querySelector("button[type='submit']");
   if (isBusy(submit)) return;
   setButtonBusy(submit, "Разбираю...");
+  setAiProcessing(nodes.foodTextForm, true);
   try {
     const result = await api("/webapp/me/food/parse-text", {
       method: "POST",
@@ -423,6 +424,7 @@ async function parseFoodText(event) {
     toast(message);
     if (error.status === 402) showPremiumUpsell("AI разбор еды");
   } finally {
+    setAiProcessing(nodes.foodTextForm, false);
     restoreButton(submit);
   }
 }
@@ -437,6 +439,8 @@ async function parseFoodPhoto() {
 
   if (isBusy(nodes.foodPhotoButton)) return;
   setButtonBusy(nodes.foodPhotoButton, "Распознаю...");
+  const photoPanel = nodes.foodPhotoButton.closest("[data-add-panel]");
+  setAiProcessing(photoPanel, true);
   try {
     const result = await apiForm("/webapp/me/food/parse-photo", form);
     setParsedFoods(result);
@@ -449,6 +453,7 @@ async function parseFoodPhoto() {
     if (error.status === 402) showPremiumUpsell("Распознавание фото");
   } finally {
     nodes.foodPhotoInput.value = "";
+    setAiProcessing(photoPanel, false);
     restoreButton(nodes.foodPhotoButton);
   }
 }
@@ -2480,6 +2485,12 @@ function flashFoodPickAdded(button) {
       button.innerHTML = '<svg aria-hidden="true"><use href="#icon-plus"></use></svg>';
     }
   }, 1400);
+}
+
+function setAiProcessing(container, active) {
+  if (!container) return;
+  container.classList.toggle("is-ai-processing", active);
+  container.querySelector("[data-ai-processing]")?.classList.toggle("hidden", !active);
 }
 
 function setButtonBusy(button, label) {
