@@ -89,7 +89,6 @@
       </a>
       <nav>
         <a href="#why">Зачем</a>
-        <a href="#screens">Экраны</a>
         <a href="#add-food">Как записывать</a>
         <a href="#inside">Что внутри</a>
         <a href="#day-flow">Один день</a>
@@ -122,12 +121,20 @@
           </ul>
         </div>
 
-        <div class="real-hero-shot" aria-label="Интерфейсы Kcal Bot">
+        <div class="real-hero-shot hero-phone-pair" aria-label="Пример Kcal Bot в Telegram">
           <img
-            src="/landing/static/interface-composite.png"
-            alt="Интерфейсы Kcal Bot: Telegram-чат, проверка AI-оценки и Mini App с дневником питания"
-            width="1280"
-            height="980"
+            class="phone-shot phone-shot-chat"
+            src="/landing/static/screen-telegram-food.jpg"
+            alt="Telegram-чат Kcal Bot с распознаванием еды по фото"
+            width="620"
+            height="1348"
+          />
+          <img
+            class="phone-shot phone-shot-today"
+            src="/landing/static/screen-miniapp-today.jpg"
+            alt="Экран сегодня в Mini App Kcal Bot"
+            width="620"
+            height="1348"
           />
         </div>
       </section>
@@ -161,45 +168,6 @@
         </div>
       </section>
 
-      <section id="screens" class="section screens-section" aria-labelledby="screens-title">
-        <div class="split-heading">
-          <h2 id="screens-title">В лендинге показываем продукт, а не обещание “магии”</h2>
-          <p>
-            Эти экраны собраны на интерфейсе Kcal Bot с демонстрационными данными:
-            так пользователь видит путь от сообщения до проверки и дневника.
-          </p>
-        </div>
-        <div class="screens-grid">
-          <figure>
-            <img
-              src="/landing/static/interface-telegram.png"
-              alt="Telegram-чат Kcal Bot с примером записи еды"
-              width="720"
-              height="1080"
-            />
-            <figcaption>Telegram-чат: еду можно отправить обычным сообщением.</figcaption>
-          </figure>
-          <figure>
-            <img
-              src="/landing/static/interface-ai-review.png"
-              alt="Экран проверки AI-оценки еды перед сохранением"
-              width="720"
-              height="1080"
-            />
-            <figcaption>Проверка: расчет сохраняется только после подтверждения.</figcaption>
-          </figure>
-          <figure>
-            <img
-              src="/landing/static/interface-miniapp-today.png"
-              alt="Telegram Mini App Kcal Bot со сводкой калорий и БЖУ за день"
-              width="720"
-              height="1080"
-            />
-            <figcaption>Mini App: остаток калорий, БЖУ, вода и дневник за день.</figcaption>
-          </figure>
-        </div>
-      </section>
-
       <section id="add-food" class="section add-section" aria-labelledby="add-title">
         <div class="section-heading">
           <span class="section-kicker">Записывать можно как удобно</span>
@@ -222,6 +190,22 @@
             <b>Штрихкод</b>
             <p>Для продуктов из магазина: скан, проверка, сохранение в дневник.</p>
           </article>
+        </div>
+        <div class="context-showcase food-showcase">
+          <div>
+            <span class="section-kicker">Когда нужно быстро</span>
+            <h3>Откройте добавление еды и выберите самый короткий путь</h3>
+            <p>
+              Поиск, AI-описание, фото, точные калории и штрихкод лежат на одном экране.
+              Не нужно вспоминать, где в приложении спрятана нужная форма.
+            </p>
+          </div>
+          <img
+            src="/landing/static/screen-miniapp-add-food.jpg"
+            alt="Экран добавления еды в Kcal Bot"
+            width="620"
+            height="1348"
+          />
         </div>
       </section>
 
@@ -254,6 +238,22 @@
             <h3>Напоминания без давления</h3>
             <p>Мягкие подсказки помогают вернуться к дневнику, а не ругают за пропуски.</p>
           </article>
+        </div>
+        <div class="context-showcase progress-showcase">
+          <img
+            src="/landing/static/screen-miniapp-progress.jpg"
+            alt="Экран прогресса питания в Kcal Bot"
+            width="620"
+            height="1348"
+          />
+          <div>
+            <span class="section-kicker">После пары дней</span>
+            <h3>Видно, держится ли неделя рядом с целью</h3>
+            <p>
+              Прогресс показывает среднюю калорийность, дни с записями и отклонение от цели.
+              Это помогает не оценивать похудение по одному удачному или неудачному дню.
+            </p>
+          </div>
         </div>
       </section>
 
