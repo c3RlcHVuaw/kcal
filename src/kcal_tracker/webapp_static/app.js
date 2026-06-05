@@ -216,11 +216,14 @@ const onboardingSteps = [
 tg?.ready();
 tg?.expand();
 tg?.setHeaderColor?.("secondary_bg_color");
-tg?.setBackgroundColor?.(window.matchMedia("(prefers-color-scheme: dark)").matches ? "#0d1117" : "#f3f6f8");
+applyThemeMode();
 applyTelegramSafeArea();
-["viewportChanged", "safeAreaChanged", "contentSafeAreaChanged"].forEach((eventName) => {
+["themeChanged", "viewportChanged", "safeAreaChanged", "contentSafeAreaChanged"].forEach((eventName) => {
   try {
-    tg?.onEvent?.(eventName, applyTelegramSafeArea);
+    tg?.onEvent?.(eventName, () => {
+      if (eventName === "themeChanged") applyThemeMode();
+      applyTelegramSafeArea();
+    });
   } catch {
     // Older Telegram clients can reject newer inset events.
   }
@@ -864,6 +867,16 @@ function applyTelegramSafeArea() {
     Number(tg?.contentSafeAreaInset?.top) || 0,
   );
   document.documentElement.style.setProperty("--telegram-top-safe-js", `${top}px`);
+}
+
+function isDarkTheme() {
+  return tg?.colorScheme === "dark" || window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function applyThemeMode() {
+  const isDark = isDarkTheme();
+  document.body.classList.toggle("theme-dark", isDark);
+  tg?.setBackgroundColor?.(isDark ? "#0d1117" : "#f3f6f8");
 }
 
 function triggerHaptic(style = "light") {
