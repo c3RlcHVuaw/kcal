@@ -28,6 +28,12 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+kcal_tracker = [
+    "landing_static/*",
+    "webapp_static/*",
+]
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8,<9",

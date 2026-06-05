@@ -23,6 +23,28 @@ def test_webapp_shell_is_served() -> None:
     assert "tab-bar" in response.text
 
 
+def test_landing_page_is_served_with_seo_metadata() -> None:
+    with TestClient(app) as client:
+        response = client.get("/")
+
+    assert response.status_code == 200
+    assert "Kcal Bot - бот для подсчета калорий в Telegram" in response.text
+    assert '<link rel="canonical" href="https://kcal-bot.ru/" />' in response.text
+    assert "https://t.me/trackerkcal_bot" in response.text
+
+
+def test_seo_discovery_files_are_served() -> None:
+    with TestClient(app) as client:
+        robots = client.get("/robots.txt")
+        sitemap = client.get("/sitemap.xml")
+
+    assert robots.status_code == 200
+    assert "Sitemap: https://kcal-bot.ru/sitemap.xml" in robots.text
+    assert "Disallow: /app" in robots.text
+    assert sitemap.status_code == 200
+    assert "<loc>https://kcal-bot.ru/</loc>" in sitemap.text
+
+
 def test_openapi_exposes_external_client_routes() -> None:
     with TestClient(app) as client:
         response = client.get("/openapi.json")

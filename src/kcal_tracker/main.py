@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from kcal_tracker.api.routes import router
@@ -28,12 +28,48 @@ app = FastAPI(title="Kcal Tracker API", version="0.1.0", lifespan=lifespan)
 app.include_router(router)
 
 WEBAPP_STATIC_DIR = Path(__file__).resolve().parent / "webapp_static"
+LANDING_STATIC_DIR = Path(__file__).resolve().parent / "landing_static"
 app.mount("/app/static", StaticFiles(directory=WEBAPP_STATIC_DIR), name="webapp-static")
+app.mount("/landing/static", StaticFiles(directory=LANDING_STATIC_DIR), name="landing-static")
+
+
+@app.get("/", include_in_schema=False)
+async def landing() -> FileResponse:
+    return FileResponse(LANDING_STATIC_DIR / "index.html")
 
 
 @app.get("/app", include_in_schema=False)
 async def telegram_webapp() -> FileResponse:
     return FileResponse(WEBAPP_STATIC_DIR / "index.html")
+
+
+@app.get("/robots.txt", include_in_schema=False)
+async def robots_txt() -> PlainTextResponse:
+    return PlainTextResponse(
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Disallow: /app\n"
+        "Disallow: /webapp/\n"
+        "Disallow: /users/\n"
+        "Disallow: /integrations/\n"
+        "Sitemap: https://kcal-bot.ru/sitemap.xml\n",
+        media_type="text/plain; charset=utf-8",
+    )
+
+
+@app.get("/sitemap.xml", include_in_schema=False)
+async def sitemap_xml() -> Response:
+    return Response(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        "  <url>\n"
+        "    <loc>https://kcal-bot.ru/</loc>\n"
+        "    <changefreq>weekly</changefreq>\n"
+        "    <priority>1.0</priority>\n"
+        "  </url>\n"
+        "</urlset>\n",
+        media_type="application/xml; charset=utf-8",
+    )
 
 
 @app.middleware("http")
