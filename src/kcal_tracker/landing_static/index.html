@@ -48,6 +48,38 @@
         "description": "Telegram-бот для подсчета калорий, БЖУ, воды, веса и прогресса с AI-разбором еды по фото, тексту, голосу и штрихкоду."
       }
     </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Подходит ли Kcal Bot для похудения?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Да. Kcal Bot помогает держать дневную цель по калориям, видеть остаток до цели, БЖУ, воду, вес и недельную динамику."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Можно ли считать калории по фото?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Да. Бот предлагает AI-оценку блюда по фото, но не сохраняет ее автоматически: пользователь проверяет порцию, калории и БЖУ перед сохранением."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Нужно ли устанавливать отдельное приложение?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Нет. Основной сценарий работает в Telegram, а подробный дневник открывается как Telegram Mini App."
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <header class="site-header" aria-label="Навигация">
@@ -59,6 +91,7 @@
         <a href="#why">Зачем</a>
         <a href="#add-food">Как записывать</a>
         <a href="#inside">Что внутри</a>
+        <a href="#day-flow">Один день</a>
         <a href="#faq">FAQ</a>
       </nav>
       <a class="header-action" href="https://t.me/trackerkcal_bot">Открыть бота</a>
@@ -67,24 +100,24 @@
     <main>
       <section class="hero" aria-labelledby="hero-title">
         <div class="hero-copy-block">
-          <p class="eyebrow">Дневник питания прямо в Telegram</p>
-          <h1 id="hero-title">Считать калории проще, когда не надо открывать приложение</h1>
+          <p class="eyebrow">Для похудения без ручного дневника</p>
+          <h1 id="hero-title">Худеть проще, когда дневник питания ведется одним сообщением в Telegram</h1>
           <p class="hero-copy">
-            Kcal Bot принимает фото, голос, текст и штрихкоды, считает калории и БЖУ,
-            а потом показывает, сколько осталось до цели. Без таблиц, ручного поиска и
-            ощущения, что дневник питания стал второй работой.
+            Не хочется искать продукты, взвешивать каждую порцию и заполнять таблицы?
+            Отправьте фото, голос, текст или штрихкод. Kcal Bot предложит расчет,
+            попросит проверить его и покажет, сколько калорий осталось до цели.
           </p>
           <div class="hero-actions">
             <a class="primary-action" href="https://t.me/trackerkcal_bot">
               Начать в Telegram
               <span aria-hidden="true">→</span>
             </a>
-            <a class="secondary-action" href="#add-food">Как это работает</a>
+            <a class="secondary-action" href="#day-flow">Посмотреть, как работает</a>
           </div>
           <ul class="proof-list" aria-label="Ключевые преимущества">
-            <li>AI-оценка всегда перед сохранением</li>
-            <li>Mini App для дневника и прогресса</li>
-            <li>Вода, вес, активность и напоминания</li>
+            <li>Не сохраняет AI-оценку без проверки</li>
+            <li>Показывает остаток калорий на сегодня</li>
+            <li>Помогает вернуться, если дневник заброшен</li>
           </ul>
         </div>
 
@@ -96,14 +129,18 @@
               <em>online</em>
             </div>
             <div class="chat-stack">
-              <div class="bubble user-bubble">Завтрак: омлет 2 яйца, сыр, кофе</div>
+              <div class="bubble user-bubble">Омлет 2 яйца, сыр, кофе без сахара</div>
               <div class="bubble bot-bubble">
-                <span>Нашел завтрак</span>
+                <span>Похоже на завтрак</span>
                 <strong>512 ккал</strong>
                 <small>Б 31 г · Ж 34 г · У 18 г</small>
-                <button type="button">Сохранить</button>
+                <div class="bot-actions">
+                  <button type="button">Сохранить</button>
+                  <button type="button">Исправить</button>
+                </div>
               </div>
-              <div class="bubble user-bubble photo-bubble">Фото обеда</div>
+              <div class="bubble user-bubble photo-bubble">Фото обеда + “соус отдельно”</div>
+              <div class="bubble bot-note">После сохранения: осталось 648 ккал до цели</div>
             </div>
           </div>
           <div class="dashboard-panel">
@@ -124,6 +161,7 @@
               <li><span>Завтрак</span><b>512</b></li>
               <li><span>Обед</span><b>734</b></li>
               <li><span>Вода</span><b>1.25 л</b></li>
+              <li><span>Вес</span><b>-0.4 кг/нед</b></li>
             </ul>
           </div>
         </div>
@@ -212,6 +250,57 @@
             <h3>Напоминания без давления</h3>
             <p>Мягкие подсказки помогают вернуться к дневнику, а не ругают за пропуски.</p>
           </article>
+        </div>
+      </section>
+
+      <section id="day-flow" class="section day-flow-section" aria-labelledby="day-flow-title">
+        <div class="split-heading">
+          <h2 id="day-flow-title">Один день с ботом выглядит проще, чем еще одна таблица</h2>
+          <p>
+            Цель не в идеальном учете, а в регулярности. Бот снижает ручную работу,
+            чтобы дневник не бросался через три дня.
+          </p>
+        </div>
+        <div class="day-flow">
+          <article>
+            <span>Утро</span>
+            <h3>Напишите завтрак обычным языком</h3>
+            <p>“Омлет 2 яйца, сыр, кофе” - бот предложит калории и БЖУ.</p>
+          </article>
+          <article>
+            <span>Обед</span>
+            <h3>Сфотографируйте сложное блюдо</h3>
+            <p>Для кафе и доставки можно отправить фото и уточнить порцию или соус.</p>
+          </article>
+          <article>
+            <span>Вечер</span>
+            <h3>Посмотрите остаток до цели</h3>
+            <p>Mini App покажет, сколько осталось калорий, белка, воды и где неделя идет ровно.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section seo-links-section" aria-labelledby="seo-links-title">
+        <div class="section-heading">
+          <span class="section-kicker">Полезные сценарии</span>
+          <h2 id="seo-links-title">Выберите, как вам удобнее начать</h2>
+        </div>
+        <div class="seo-link-grid">
+          <a href="/bot-dlya-podscheta-kaloriy">
+            <span>Для старта</span>
+            <strong>Бот для подсчета калорий</strong>
+            <p>Как вести дневник питания в Telegram без отдельного приложения.</p>
+          </a>
+          <a href="/kalorii-po-foto">
+            <span>Для кафе и доставки</span>
+            <strong>Калории по фото</strong>
+            <p>Когда еда сложная, а считать каждый ингредиент руками не хочется.</p>
+          </a>
+          <a href="/dnevnik-pitaniya-telegram">
+            <span>Для регулярности</span>
+            <strong>Дневник питания в Telegram</strong>
+            <p>Еда, вода, вес, активность и прогресс в одном месте.</p>
+          </a>
         </div>
       </section>
 

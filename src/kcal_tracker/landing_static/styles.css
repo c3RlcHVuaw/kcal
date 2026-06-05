@@ -102,11 +102,11 @@ button {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(360px, 0.8fr);
+  grid-template-columns: minmax(0, 1.18fr) minmax(340px, 0.72fr);
   align-items: center;
-  gap: clamp(36px, 7vw, 96px);
+  gap: clamp(28px, 5vw, 56px);
   min-height: calc(100vh - 85px);
-  padding: clamp(56px, 7vw, 96px) clamp(18px, 5vw, 64px) clamp(64px, 8vw, 112px);
+  padding: clamp(42px, 5vw, 70px) clamp(18px, 5vw, 64px) clamp(56px, 6vw, 84px);
   background:
     linear-gradient(120deg, rgba(204, 234, 168, 0.42), transparent 36%),
     linear-gradient(180deg, #fbf8ef 0%, var(--paper) 100%);
@@ -137,8 +137,9 @@ p {
 
 h1 {
   margin-bottom: 24px;
-  font-size: clamp(48px, 7.6vw, 104px);
-  line-height: 0.94;
+  max-width: 900px;
+  font-size: clamp(38px, 4.8vw, 64px);
+  line-height: 1.04;
   letter-spacing: 0;
 }
 
@@ -156,10 +157,10 @@ h3 {
 }
 
 .hero-copy {
-  max-width: 650px;
-  margin-bottom: 30px;
+  max-width: 620px;
+  margin-bottom: 24px;
   color: var(--ink-soft);
-  font-size: clamp(18px, 2vw, 22px);
+  font-size: clamp(17px, 1.6vw, 20px);
   line-height: 1.55;
 }
 
@@ -220,7 +221,7 @@ h3 {
 .product-demo {
   position: relative;
   display: grid;
-  min-height: 600px;
+  min-height: 560px;
   isolation: isolate;
 }
 
@@ -325,6 +326,26 @@ h3 {
   background: var(--green);
   color: #ffffff;
   font-weight: 850;
+}
+
+.bot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.bot-actions button:last-child {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.bot-note {
+  width: 88%;
+  border: 1px solid rgba(15, 143, 104, 0.16);
+  background: #f1f8f2;
+  color: var(--green-dark);
+  font-weight: 800;
 }
 
 .photo-bubble {
@@ -571,6 +592,107 @@ h3 {
   text-transform: uppercase;
 }
 
+.day-flow-section {
+  background: #fbf8ef;
+}
+
+.day-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.day-flow article {
+  position: relative;
+  min-height: 270px;
+  overflow: hidden;
+  border: 1px solid rgba(24, 33, 29, 0.1);
+  border-radius: 24px;
+  padding: 28px;
+  background: #ffffff;
+}
+
+.day-flow article::after {
+  position: absolute;
+  right: 24px;
+  bottom: 22px;
+  width: 88px;
+  height: 88px;
+  border: 1px solid rgba(15, 143, 104, 0.14);
+  border-radius: 50%;
+  background: #eef7ef;
+  content: "";
+}
+
+.day-flow span {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  margin-bottom: 34px;
+  border-radius: 999px;
+  padding: 0 13px;
+  background: var(--ink);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.day-flow p {
+  max-width: 330px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.seo-links-section {
+  background: #eef4ec;
+}
+
+.seo-link-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.seo-link-grid a {
+  display: grid;
+  min-height: 230px;
+  align-content: start;
+  border: 1px solid rgba(24, 33, 29, 0.1);
+  border-radius: 24px;
+  padding: 26px;
+  background: #fffdf8;
+  transition:
+    border-color 0.18s ease,
+    transform 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.seo-link-grid a:hover {
+  border-color: rgba(15, 143, 104, 0.34);
+  box-shadow: 0 18px 42px rgba(25, 35, 30, 0.1);
+  transform: translateY(-2px);
+}
+
+.seo-link-grid span {
+  margin-bottom: 28px;
+  color: var(--green-dark);
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.seo-link-grid strong {
+  margin-bottom: 12px;
+  font-size: 24px;
+  line-height: 1.1;
+}
+
+.seo-link-grid p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 .cta-section {
   display: flex;
   align-items: center;
@@ -715,7 +837,9 @@ details p {
 
   .pain-grid,
   .method-grid,
-  .inside-grid {
+  .inside-grid,
+  .day-flow,
+  .seo-link-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -758,7 +882,9 @@ details p {
 
   .pain-grid,
   .method-grid,
-  .inside-grid {
+  .inside-grid,
+  .day-flow,
+  .seo-link-grid {
     grid-template-columns: 1fr;
   }
 
@@ -803,7 +929,8 @@ details p {
   }
 
   h1 {
-    font-size: clamp(42px, 13vw, 60px);
+    font-size: clamp(36px, 11.2vw, 52px);
+    line-height: 1.02;
   }
 
   h2 {
@@ -812,6 +939,16 @@ details p {
 
   .macro-row {
     grid-template-columns: 1fr;
+  }
+
+  .bot-bubble,
+  .bot-note {
+    width: 100%;
+  }
+
+  .day-flow article,
+  .seo-link-grid a {
+    min-height: auto;
   }
 
   .site-footer {
