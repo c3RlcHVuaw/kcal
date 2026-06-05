@@ -9,7 +9,7 @@ from kcal_tracker.config import settings
 from kcal_tracker.schemas import FoodEstimate, FoodEstimateList
 from kcal_tracker.services.food_insights import enrich_food_payload
 
-FOOD_RECOGNITION_PROMPT = """Распознай еду на фото.
+FOOD_RECOGNITION_PROMPT = """Распознай только еду, которая явно видна на фото.
 
 Верни только строгий JSON такого вида:
 {
@@ -28,9 +28,18 @@ FOOD_RECOGNITION_PROMPT = """Распознай еду на фото.
   ]
 }
 
-Правила:
-- Все названия в поле name пиши по-русски: "латте", "гречка с курицей", "банан".
-- Если видно несколько продуктов, верни каждый отдельной позицией.
+Жёсткие правила видимости:
+- Возвращай только съедобные объекты, которые реально видны на фото или прямо названы пользователем в уточнении.
+- Не добавляй типичные продукты из контекста, завтрак-комбо, гарниры, напитки, фрукты, кашу, кофе или соусы,
+  если их не видно и пользователь их не упомянул.
+- Не считай аксессуары, упаковку, текст на упаковке, фон, стол, технику, чехлы, провода и другие предметы едой.
+- Если на фото один упакованный продукт или один предмет еды, верни ровно одну позицию.
+- Если продукт в упаковке с читаемым названием, используй видимое название/тип продукта, а не придумывай соседние блюда.
+- Если не уверен, что второй объект является едой, не возвращай его.
+- Если видно несколько отдельных продуктов на тарелке/столе, верни каждый отдельной позицией.
+
+Общие правила:
+- Все названия в поле name пиши по-русски: "шоколадный маффин", "гречка с курицей", "банан".
 - Если пользователь дал текстовое уточнение к фото, обязательно учти его:
   граммовку, состав, соусы, скрытые продукты, половину/часть порции и любые исправления.
 - Если на фото видна не вся тарелка или пользователь указал долю порции,
@@ -172,7 +181,10 @@ class AIFoodService:
             temperature=0.2,
             timeout=20,
         )
-        return self._parse_foods(response.choices[0].message.content)
+        return self._parse_foods(
+            response.choices[0].message.content,
+            strict_visible_single=not normalize_photo_text_hint(text_hint),
+        )
 
     async def parse_text(self, text: str) -> FoodEstimateList:
         if self.client is None:
@@ -232,7 +244,12 @@ class AIFoodService:
         )
         return self._parse_foods(response.choices[0].message.content)
 
-    def _parse_foods(self, content: str | None) -> FoodEstimateList:
+    def _parse_foods(
+        self,
+        content: str | None,
+        *,
+        strict_visible_single: bool = False,
+    ) -> FoodEstimateList:
         if not content:
             return FoodEstimateList(foods=[])
         data = json.loads(content)
@@ -256,11 +273,16 @@ class AIFoodService:
                     )
                 )
             )
+        if strict_visible_single:
+            foods = limit_visible_photo_foods(foods)
         return FoodEstimateList(foods=foods)
 
 
 def photo_recognition_user_text(text_hint: str | None = None) -> str:
-    base = "Оцени еду на фото. Названия продуктов верни на русском."
+    base = (
+        "Оцени только явно видимую еду на фото. "
+        "Не добавляй продукты, которых не видно."
+    )
     hint = normalize_photo_text_hint(text_hint)
     if not hint:
         return base
@@ -286,3 +308,28 @@ def normalize_photo_text_hint(text_hint: str | None) -> str | None:
         return None
     hint = " ".join(text_hint.strip().split())
     return hint[:500] if hint else None
+
+
+def limit_visible_photo_foods(foods: list[FoodEstimate]) -> list[FoodEstimate]:
+    if len(foods) <= 1:
+        return foods
+
+    ranked = sorted(
+        foods,
+        key=lambda food: (
+            food.confidence or 0,
+            food.kcal or 0,
+            food.weight_g or 0,
+        ),
+        reverse=True,
+    )
+    top = ranked[0]
+    second = ranked[1]
+
+    if len(foods) > 2:
+        return [top]
+    if (top.confidence or 0) >= 0.6 and (second.confidence or 0) <= (top.confidence or 0) - 0.12:
+        return [top]
+    if (top.kcal or 0) >= max((second.kcal or 0) * 1.8, 180):
+        return [top]
+    return ranked[:2]
