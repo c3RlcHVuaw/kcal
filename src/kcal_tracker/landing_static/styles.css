@@ -102,7 +102,7 @@ button {
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.18fr) minmax(340px, 0.72fr);
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 0.9fr);
   align-items: center;
   gap: clamp(28px, 5vw, 56px);
   min-height: calc(100vh - 85px);
@@ -216,6 +216,33 @@ h3 {
   color: var(--ink-soft);
   font-size: 14px;
   font-weight: 700;
+}
+
+.real-hero-shot {
+  position: relative;
+  align-self: center;
+}
+
+.real-hero-shot::before {
+  position: absolute;
+  z-index: -1;
+  inset: 9% -2% 5% 6%;
+  border-radius: 42px;
+  background:
+    radial-gradient(circle at 22% 20%, rgba(239, 139, 87, 0.18), transparent 34%),
+    radial-gradient(circle at 88% 80%, rgba(93, 127, 168, 0.18), transparent 32%),
+    #ffffff;
+  box-shadow: var(--shadow);
+  content: "";
+}
+
+.real-hero-shot img {
+  display: block;
+  width: min(720px, 100%);
+  height: auto;
+  border: 1px solid rgba(24, 33, 29, 0.1);
+  border-radius: 32px;
+  box-shadow: 0 22px 56px rgba(25, 35, 30, 0.12);
 }
 
 .product-demo {
@@ -469,6 +496,7 @@ h3 {
 }
 
 .problem-section,
+.screens-section,
 .inside-section,
 .faq {
   background: var(--surface);
@@ -522,6 +550,36 @@ h3 {
 .faq p {
   color: var(--muted);
   line-height: 1.6;
+}
+
+.screens-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.screens-grid figure {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 28px;
+  padding: 16px;
+  background: #fffdf8;
+}
+
+.screens-grid img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 22px;
+  box-shadow: 0 14px 34px rgba(25, 35, 30, 0.1);
+}
+
+.screens-grid figcaption {
+  margin-top: 14px;
+  color: var(--ink-soft);
+  font-size: 15px;
+  font-weight: 750;
+  line-height: 1.45;
 }
 
 .add-section {
@@ -831,11 +889,16 @@ details p {
     max-width: 860px;
   }
 
+  .real-hero-shot img {
+    width: min(860px, 100%);
+  }
+
   .product-demo {
     min-height: 520px;
   }
 
   .pain-grid,
+  .screens-grid,
   .method-grid,
   .inside-grid,
   .day-flow,
@@ -881,6 +944,7 @@ details p {
   }
 
   .pain-grid,
+  .screens-grid,
   .method-grid,
   .inside-grid,
   .day-flow,

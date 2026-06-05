@@ -89,6 +89,7 @@
       </a>
       <nav>
         <a href="#why">Зачем</a>
+        <a href="#screens">Экраны</a>
         <a href="#add-food">Как записывать</a>
         <a href="#inside">Что внутри</a>
         <a href="#day-flow">Один день</a>
@@ -121,49 +122,13 @@
           </ul>
         </div>
 
-        <div class="product-demo" aria-label="Пример интерфейса Kcal Bot">
-          <div class="telegram-panel">
-            <div class="panel-bar">
-              <img src="/landing/static/bot-avatar.jpg" alt="" />
-              <strong>Kcal Bot</strong>
-              <em>online</em>
-            </div>
-            <div class="chat-stack">
-              <div class="bubble user-bubble">Омлет 2 яйца, сыр, кофе без сахара</div>
-              <div class="bubble bot-bubble">
-                <span>Похоже на завтрак</span>
-                <strong>512 ккал</strong>
-                <small>Б 31 г · Ж 34 г · У 18 г</small>
-                <div class="bot-actions">
-                  <button type="button">Сохранить</button>
-                  <button type="button">Исправить</button>
-                </div>
-              </div>
-              <div class="bubble user-bubble photo-bubble">Фото обеда + “соус отдельно”</div>
-              <div class="bubble bot-note">После сохранения: осталось 648 ккал до цели</div>
-            </div>
-          </div>
-          <div class="dashboard-panel">
-            <div class="dashboard-head">
-              <div>
-                <span>Сегодня</span>
-                <strong>Осталось 648 ккал</strong>
-              </div>
-              <i>72%</i>
-            </div>
-            <div class="progress-line"><span></span></div>
-            <div class="macro-row">
-              <div><b>96</b><span>белки</span></div>
-              <div><b>58</b><span>жиры</span></div>
-              <div><b>184</b><span>углеводы</span></div>
-            </div>
-            <ul class="day-list">
-              <li><span>Завтрак</span><b>512</b></li>
-              <li><span>Обед</span><b>734</b></li>
-              <li><span>Вода</span><b>1.25 л</b></li>
-              <li><span>Вес</span><b>-0.4 кг/нед</b></li>
-            </ul>
-          </div>
+        <div class="real-hero-shot" aria-label="Интерфейсы Kcal Bot">
+          <img
+            src="/landing/static/interface-composite.png"
+            alt="Интерфейсы Kcal Bot: Telegram-чат, проверка AI-оценки и Mini App с дневником питания"
+            width="1280"
+            height="980"
+          />
         </div>
       </section>
 
@@ -193,6 +158,45 @@
             <h3>Нужно видеть день целиком</h3>
             <p>Остаток калорий, БЖУ, вода, вес и активность собраны в Mini App.</p>
           </article>
+        </div>
+      </section>
+
+      <section id="screens" class="section screens-section" aria-labelledby="screens-title">
+        <div class="split-heading">
+          <h2 id="screens-title">В лендинге показываем продукт, а не обещание “магии”</h2>
+          <p>
+            Эти экраны собраны на интерфейсе Kcal Bot с демонстрационными данными:
+            так пользователь видит путь от сообщения до проверки и дневника.
+          </p>
+        </div>
+        <div class="screens-grid">
+          <figure>
+            <img
+              src="/landing/static/interface-telegram.png"
+              alt="Telegram-чат Kcal Bot с примером записи еды"
+              width="720"
+              height="1080"
+            />
+            <figcaption>Telegram-чат: еду можно отправить обычным сообщением.</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="/landing/static/interface-ai-review.png"
+              alt="Экран проверки AI-оценки еды перед сохранением"
+              width="720"
+              height="1080"
+            />
+            <figcaption>Проверка: расчет сохраняется только после подтверждения.</figcaption>
+          </figure>
+          <figure>
+            <img
+              src="/landing/static/interface-miniapp-today.png"
+              alt="Telegram Mini App Kcal Bot со сводкой калорий и БЖУ за день"
+              width="720"
+              height="1080"
+            />
+            <figcaption>Mini App: остаток калорий, БЖУ, вода и дневник за день.</figcaption>
+          </figure>
         </div>
       </section>
 
