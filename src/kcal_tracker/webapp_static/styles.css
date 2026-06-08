@@ -2969,6 +2969,121 @@ body.sheet-open .tab-bar [data-view="food"] {
   overflow-wrap: anywhere;
 }
 
+.ai-limit-screen {
+  position: fixed;
+  z-index: 120;
+  inset: 0;
+  display: grid;
+  place-items: end center;
+  padding: 18px;
+}
+
+.ai-limit-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.ai-limit-panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(100%, 420px);
+  gap: 16px;
+  border: 1px solid rgba(207, 216, 232, 0.95);
+  border-radius: 34px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(217, 246, 231, 0.9), transparent 34%),
+    linear-gradient(180deg, #ffffff, #f7faff);
+  box-shadow: 0 24px 70px rgba(20, 31, 50, 0.26);
+  animation: sheetIn var(--motion-spring) both;
+}
+
+.ai-limit-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgba(207, 216, 232, 0.9);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.ai-limit-mark {
+  display: grid;
+  width: 62px;
+  height: 62px;
+  place-items: center;
+  border-radius: 22px;
+  background: linear-gradient(135deg, var(--accent), var(--activity));
+  color: #ffffff;
+  font-size: 22px;
+  font-weight: 950;
+  box-shadow: 0 16px 30px rgba(91, 200, 170, 0.28);
+}
+
+.ai-limit-panel > span {
+  width: fit-content;
+  border-radius: 999px;
+  padding: 7px 12px;
+  background: rgba(224, 248, 237, 0.9);
+  color: var(--accent-dark);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.ai-limit-panel h2 {
+  max-width: 330px;
+  margin: 0;
+  font-size: 34px;
+  line-height: 0.98;
+  letter-spacing: 0;
+}
+
+.ai-limit-panel p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.48;
+}
+
+.ai-limit-benefits {
+  display: grid;
+  gap: 10px;
+}
+
+.ai-limit-benefits div {
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(207, 216, 232, 0.78);
+  border-radius: 22px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.ai-limit-benefits b {
+  font-size: 16px;
+}
+
+.ai-limit-benefits span {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.ai-limit-panel .primary-button,
+.ai-limit-panel .secondary-button {
+  min-height: 56px;
+}
+
 @keyframes toastIn {
   from {
     opacity: 0;
@@ -5811,6 +5926,10 @@ body.sheet-open {
   left: 0;
   right: 0;
   width: 100%;
+  overflow: hidden;
+}
+
+body.paywall-open {
   overflow: hidden;
 }
 

@@ -218,14 +218,7 @@ async def today_ai_usage(
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
 
-    usage_service = AIUsageService(session)
-    used_today = await usage_service.today_count(user)
-    daily_limit = user_ai_daily_limit(user)
-    return AIUsageSummary(
-        used_today=used_today,
-        remaining_today=10**9 if daily_limit is None else max(daily_limit - used_today, 0),
-        daily_limit=0 if daily_limit is None else daily_limit,
-    )
+    return await _ai_usage_summary(user, AIUsageService(session))
 
 
 @router.post("/users/{telegram_id}/entries", response_model=FoodEntryRead)
@@ -282,18 +275,12 @@ async def webapp_today(
     wellness = WellnessService(session)
     latest_weight = await wellness.latest_weight(user)
     usage_service = AIUsageService(session)
-    used_today = await usage_service.today_count(user)
-    daily_limit = user_ai_daily_limit(user)
     return WebAppToday(
         user=user,
         diary=diary,
         water_ml=await wellness.today_water_ml(user),
         latest_weight_kg=latest_weight.weight_kg if latest_weight else user.weight,
-        ai_usage=AIUsageSummary(
-            used_today=used_today,
-            remaining_today=10**9 if daily_limit is None else max(daily_limit - used_today, 0),
-            daily_limit=0 if daily_limit is None else daily_limit,
-        ),
+        ai_usage=await _ai_usage_summary(user, usage_service),
         onboarding_completed=user.onboarding_completed,
         has_active_subscription=has_active_subscription(user),
         subscription_plan=user.subscription_plan,
@@ -329,7 +316,7 @@ async def webapp_parse_food_text(
             foods=[estimate_from_entry(history_entry)],
             source="history",
             ai_used=False,
-            remaining_ai_today=await AIUsageService(session).remaining_today(user),
+            remaining_ai_today=await _remaining_ai_for_webapp(user, AIUsageService(session)),
         )
 
     common_estimate = None if _should_parse_food_text_with_ai(text) else estimate_common_food(text)
@@ -339,12 +326,12 @@ async def webapp_parse_food_text(
             foods=[common_estimate],
             source="common",
             ai_used=False,
-            remaining_ai_today=await AIUsageService(session).remaining_today(user),
+            remaining_ai_today=await _remaining_ai_for_webapp(user, AIUsageService(session)),
         )
 
     usage = AIUsageService(session)
     try:
-        await usage.ensure_allowed(user)
+        await _ensure_webapp_ai_allowed(user, usage)
     except AILimitReachedError as exc:
         raise HTTPException(status_code=402, detail="AI limit reached") from exc
 
@@ -362,7 +349,7 @@ async def webapp_parse_food_text(
         foods=estimates.foods,
         source="ai",
         ai_used=True,
-        remaining_ai_today=await usage.remaining_today(user),
+        remaining_ai_today=await _remaining_ai_for_webapp(user, usage),
     )
 
 
@@ -386,7 +373,7 @@ async def webapp_parse_food_photo(
     user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
     usage = AIUsageService(session)
     try:
-        await usage.ensure_allowed(user)
+        await _ensure_webapp_ai_allowed(user, usage)
     except AILimitReachedError as exc:
         raise HTTPException(status_code=402, detail="AI limit reached") from exc
 
@@ -415,7 +402,7 @@ async def webapp_parse_food_photo(
         foods=estimates.foods,
         source="photo",
         ai_used=True,
-        remaining_ai_today=await usage.remaining_today(user),
+        remaining_ai_today=await _remaining_ai_for_webapp(user, usage),
     )
 
 
@@ -516,12 +503,14 @@ async def webapp_search_food(
     deduped = _dedupe_food_estimates(estimates, limit=8)
     if (force_ai or not deduped) and len(text) >= 4 and normalize_barcode(text) is None:
         try:
-            await usage.ensure_allowed(user)
+            await _ensure_webapp_ai_allowed(user, usage)
             ai_estimates = await AIFoodService().parse_text(text)
             await usage.record_request(user, "webapp_food_search_ai")
             ai_used = True
             deduped = _dedupe_food_estimates(mark_ai_suggestions(ai_estimates.foods), limit=3)
-        except AILimitReachedError:
+        except AILimitReachedError as exc:
+            if force_ai:
+                raise HTTPException(status_code=402, detail="AI limit reached") from exc
             logger.info("Web app food search AI suggestion skipped: limit reached")
         except Exception:
             logger.debug("Web app food search AI suggestion failed", exc_info=True)
@@ -530,7 +519,7 @@ async def webapp_search_food(
         foods=deduped,
         source="food_search",
         ai_used=ai_used,
-        remaining_ai_today=await usage.remaining_today(user),
+        remaining_ai_today=await _remaining_ai_for_webapp(user, usage),
     )
 
 
@@ -543,7 +532,7 @@ async def webapp_refine_food(
     user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
     usage = AIUsageService(session)
     try:
-        await usage.ensure_allowed(user)
+        await _ensure_webapp_ai_allowed(user, usage)
     except AILimitReachedError as exc:
         raise HTTPException(status_code=402, detail="AI limit reached") from exc
 
@@ -561,7 +550,7 @@ async def webapp_refine_food(
         foods=[estimates.foods[0]],
         source=payload.source,
         ai_used=True,
-        remaining_ai_today=await usage.remaining_today(user),
+        remaining_ai_today=await _remaining_ai_for_webapp(user, usage),
     )
 
 
@@ -1232,6 +1221,43 @@ def _make_photo_thumb_data_url(image_bytes: bytes) -> str | None:
     encoded = base64.b64encode(output.getvalue()).decode("ascii")
     data_url = f"data:image/jpeg;base64,{encoded}"
     return data_url if len(data_url) <= 70000 else None
+
+
+async def _ai_usage_summary(user, usage_service: AIUsageService) -> AIUsageSummary:
+    used_today = await usage_service.today_count(user)
+    daily_limit = user_ai_daily_limit(user)
+    daily_remaining = 10**9 if daily_limit is None else max(daily_limit - used_today, 0)
+    if has_active_subscription(user):
+        return AIUsageSummary(
+            used_today=used_today,
+            remaining_today=daily_remaining,
+            daily_limit=0 if daily_limit is None else daily_limit,
+        )
+
+    lifetime_used = await usage_service.lifetime_count(user)
+    trial_remaining = max(settings.ai_trial_request_limit - lifetime_used, 0)
+    return AIUsageSummary(
+        used_today=used_today,
+        remaining_today=min(daily_remaining, trial_remaining),
+        daily_limit=0 if daily_limit is None else daily_limit,
+        trial_used=lifetime_used,
+        trial_remaining=trial_remaining,
+        trial_limit=settings.ai_trial_request_limit,
+        is_trial=True,
+    )
+
+
+async def _remaining_ai_for_webapp(user, usage_service: AIUsageService) -> int:
+    if has_active_subscription(user):
+        return await usage_service.remaining_today(user)
+    return min(await usage_service.remaining_today(user), await usage_service.remaining_trial(user))
+
+
+async def _ensure_webapp_ai_allowed(user, usage_service: AIUsageService, request_count: int = 1) -> None:
+    if has_active_subscription(user):
+        await usage_service.ensure_allowed(user, request_count=request_count)
+        return
+    await usage_service.ensure_trial_allowed(user, request_count=request_count)
 
 
 @dataclass(frozen=True)

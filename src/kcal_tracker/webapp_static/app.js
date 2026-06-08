@@ -27,6 +27,7 @@ const state = {
   entryHighlightTimer: null,
   loadingAll: false,
   hasActiveSubscription: false,
+  aiUsage: null,
   onboardingAutoChecked: false,
   onboardingStep: 0,
 };
@@ -970,6 +971,7 @@ async function loadFavorites() {
 function renderToday(data) {
   const diary = data.diary;
   state.hasActiveSubscription = Boolean(data.has_active_subscription);
+  state.aiUsage = data.ai_usage;
   document.body.classList.toggle("is-free-user", !state.hasActiveSubscription);
   document.body.classList.toggle("is-premium-user", state.hasActiveSubscription);
   const progress = diary.target_kcal > 0 ? Math.min(diary.kcal / diary.target_kcal, 1) : 0;
@@ -991,13 +993,9 @@ function renderToday(data) {
   setTextWithPulse(nodes.activityTotal, `${Math.round(diary.activity_kcal)} ккал активности`);
   setTextWithPulse(nodes.weightValue, data.latest_weight_kg ? `${formatNumber(data.latest_weight_kg)} кг` : "Записать");
   setTextWithPulse(nodes.weightGoal, data.weight_goal.forecast_text);
-  const aiUsageText = data.ai_usage.daily_limit
-    ? `${data.ai_usage.used_today} / ${data.ai_usage.daily_limit}`
-    : `${data.ai_usage.used_today} / ∞`;
+  const aiUsageText = formatAiUsageValue(data.ai_usage);
   setTextWithPulse(nodes.aiUsage, aiUsageText);
-  setTextWithPulse(nodes.moreAiCaption, data.ai_usage.daily_limit
-    ? `${Math.max(data.ai_usage.daily_limit - data.ai_usage.used_today, 0)} осталось`
-    : "без дневного лимита");
+  setTextWithPulse(nodes.moreAiCaption, formatAiUsageCaption(data.ai_usage));
   nodes.goalKind.value = data.weight_goal.goal || "maintain";
   nodes.goalWeight.value = data.weight_goal.target_weight_kg ? formatNumber(data.weight_goal.target_weight_kg) : "";
   nodes.goalPace.value = data.weight_goal.weekly_weight_change_kg ? formatNumber(data.weight_goal.weekly_weight_change_kg) : "";
@@ -1385,6 +1383,29 @@ function renderPromo(result) {
     `;
   }).join("");
   toast("Промокод применён");
+}
+
+function formatAiUsageValue(usage) {
+  if (!usage) return "0 / 0";
+  if (usage.is_trial) {
+    const trialLimit = Number(usage.trial_limit || 0);
+    const trialUsed = Math.min(Number(usage.trial_used || 0), trialLimit);
+    return `${trialUsed} / ${trialLimit}`;
+  }
+  return usage.daily_limit
+    ? `${usage.used_today} / ${usage.daily_limit}`
+    : `${usage.used_today} / ∞`;
+}
+
+function formatAiUsageCaption(usage) {
+  if (!usage) return "загрузка";
+  if (usage.is_trial) {
+    const remaining = Math.max(Number(usage.trial_remaining || 0), 0);
+    return remaining ? `${remaining} пробных осталось` : "пробные закончились";
+  }
+  return usage.daily_limit
+    ? `${Math.max(usage.daily_limit - usage.used_today, 0)} осталось`
+    : "без дневного лимита";
 }
 
 function renderReusableFood(container, items) {
@@ -2020,11 +2041,72 @@ function openBotFromWebApp() {
 function showPremiumUpsell(feature = "Premium") {
   closeFoodAddSheet();
   closeFoodReviewSheet();
-  switchView("more");
-  const card = document.querySelector(".more-premium-card");
-  card?.classList.add("is-highlighted");
-  window.setTimeout(() => card?.classList.remove("is-highlighted"), 1800);
-  toast(`${feature}: открой подписку, чтобы снять ограничения`);
+  openAiLimitScreen(feature);
+}
+
+function openAiLimitScreen(feature = "AI") {
+  const screen = ensureAiLimitScreen();
+  const title = screen.querySelector("[data-ai-limit-title]");
+  const subtitle = screen.querySelector("[data-ai-limit-subtitle]");
+  const counter = screen.querySelector("[data-ai-limit-counter]");
+  const usage = state.aiUsage;
+  const remaining = Number(usage?.trial_remaining ?? usage?.remaining_today ?? 0);
+
+  title.textContent = remaining <= 0
+    ? "Пробные AI-запросы закончились"
+    : "Для этого действия нужна подписка";
+  subtitle.textContent = `${feature} доступен в подписке: можно разбирать еду текстом, фото и уточнениями без ручного поиска.`;
+  counter.textContent = usage?.is_trial
+    ? `${formatAiUsageValue(usage)} пробных AI-запросов`
+    : "AI-доступ ограничен";
+
+  screen.classList.remove("hidden");
+  document.body.classList.add("paywall-open");
+  screen.querySelector("[data-ai-limit-subscribe]")?.focus({ preventScroll: true });
+  toast("Открой подписку, чтобы продолжить с AI");
+}
+
+function closeAiLimitScreen() {
+  document.querySelector("#ai-limit-screen")?.classList.add("hidden");
+  document.body.classList.remove("paywall-open");
+}
+
+function ensureAiLimitScreen() {
+  let screen = document.querySelector("#ai-limit-screen");
+  if (screen) return screen;
+  screen = document.createElement("section");
+  screen.id = "ai-limit-screen";
+  screen.className = "ai-limit-screen hidden";
+  screen.setAttribute("aria-modal", "true");
+  screen.setAttribute("role", "dialog");
+  screen.innerHTML = `
+    <div class="ai-limit-backdrop" data-ai-limit-close></div>
+    <div class="ai-limit-panel">
+      <button class="ai-limit-close" type="button" data-ai-limit-close aria-label="Закрыть">×</button>
+      <div class="ai-limit-mark">AI</div>
+      <span data-ai-limit-counter>Пробные запросы</span>
+      <h2 data-ai-limit-title>Пробные AI-запросы закончились</h2>
+      <p data-ai-limit-subtitle>Открой подписку, чтобы продолжить разбирать еду через AI.</p>
+      <div class="ai-limit-benefits">
+        <div><b>Фото еды</b><span>кафе, доставка, сложные блюда</span></div>
+        <div><b>Текст и голос</b><span>обычным языком без таблиц</span></div>
+        <div><b>Уточнения</b><span>порции, соусы, граммы и БЖУ</span></div>
+      </div>
+      <button class="primary-button" type="button" data-ai-limit-subscribe>Купить подписку</button>
+      <button class="secondary-button" type="button" data-ai-limit-close>Пока вручную</button>
+    </div>
+  `;
+  screen.addEventListener("click", (event) => {
+    if (event.target.closest("[data-ai-limit-subscribe]")) {
+      openBotFromWebApp();
+      return;
+    }
+    if (event.target.closest("[data-ai-limit-close]")) {
+      closeAiLimitScreen();
+    }
+  });
+  document.body.append(screen);
+  return screen;
 }
 
 function maybeOpenOnboarding(today = state.today) {

@@ -160,6 +160,10 @@ class AIUsageSummary(BaseModel):
     used_today: int
     remaining_today: int
     daily_limit: int
+    trial_used: int = 0
+    trial_remaining: int | None = None
+    trial_limit: int | None = None
+    is_trial: bool = False
 
 
 class WeightGoalUpdate(BaseModel):
