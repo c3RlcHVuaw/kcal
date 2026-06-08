@@ -5596,6 +5596,129 @@ body.theme-dark .tab-bar [data-view="food"].active {
   color: #081015;
 }
 
+/* iOS-style radius pass */
+:root {
+  --radius-xs: 10px;
+  --radius-sm: 14px;
+  --radius-md: 18px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+}
+
+.component-card,
+.summary-panel,
+.form-panel,
+.details-card,
+.grouped-list,
+.action-list,
+.metric-grid article,
+.metric-grid button,
+.week-chart,
+.weight-chart,
+.meal-section,
+.calorie-card,
+.macro-card,
+.nutrition-score-card,
+.macro-balance-card,
+.food-sheet-head,
+.food-text-panel,
+.food-pick-card,
+.food-ai-search-card,
+.entry-edit-card,
+.more-premium-card,
+.progress-insight-card,
+.onboarding-panel,
+.profile-onboarding-panel,
+.toast {
+  border-radius: var(--radius-xl);
+}
+
+.macro-card article,
+.food-card,
+.food-thumb,
+.meal-picker,
+.segmented,
+.media-action,
+.food-ai-cta,
+.premium-feature-note,
+.entry-edit-summary,
+.macro-edit-grid .edit-field,
+.add-mode-actions button,
+.food-ai-search-orb,
+.food-add-overview,
+.food-add-macro-row span,
+.sheet-actions,
+.food-save-bar {
+  border-radius: var(--radius-lg);
+}
+
+input,
+select,
+textarea,
+.quick-prompts button,
+.primary-button,
+.secondary-button,
+.text-button,
+.stats-link,
+.entry-actions button,
+.food-card .entry-actions button,
+.meal-picker button,
+.segmented button,
+.mode-screen-head button,
+.food-search-field,
+#food-add-sheet textarea,
+#food-add-sheet input,
+#food-add-sheet .primary-button,
+#food-add-sheet .quick-prompts button,
+.edit-field input,
+.edit-field select,
+.macro-edit-grid .edit-field input,
+.refine-form .secondary-button,
+.barcode-inline .secondary-button,
+.toast-action {
+  border-radius: var(--radius-md);
+}
+
+.sheet-panel,
+.entry-edit-panel,
+.food-review-panel {
+  border-radius: 30px 30px 24px 24px;
+}
+
+.food-add-scroll > .sheet-title,
+.entry-edit-panel .sheet-title {
+  border-radius: 30px 30px 18px 18px;
+}
+
+#food-add-sheet .food-add-panel,
+#food-add-sheet .add-mode-panel {
+  border-radius: 0;
+}
+
+.tab-bar {
+  border-radius: 34px;
+}
+
+.tab-bar button {
+  border-radius: 28px;
+}
+
+.tab-bar [data-view="food"],
+.icon-button,
+.row-action,
+.food-pick-add,
+.day-switcher button,
+#food-add-sheet #food-add-close,
+.macro-ring,
+.progress-track,
+.progress-track span,
+.food-add-overview > i,
+.food-add-macro-row i,
+.score-sparkline i,
+.macro-bars i {
+  border-radius: 999px;
+}
+
 html,
 body {
   touch-action: pan-y;
