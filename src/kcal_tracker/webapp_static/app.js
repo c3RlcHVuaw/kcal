@@ -1387,9 +1387,10 @@ function renderPromo(result) {
 
 function formatAiUsageValue(usage) {
   if (!usage) return "0 / 0";
-  if (usage.is_trial) {
-    const trialLimit = Number(usage.trial_limit || 0);
-    const trialUsed = Math.min(Number(usage.trial_used || 0), trialLimit);
+  if (usage.is_trial || !state.hasActiveSubscription) {
+    const trialLimit = Number(usage.trial_limit || 3);
+    const fallbackUsed = Number(usage.used_today || 0);
+    const trialUsed = Math.min(Number(usage.trial_used ?? fallbackUsed), trialLimit);
     return `${trialUsed} / ${trialLimit}`;
   }
   return usage.daily_limit
@@ -1399,8 +1400,11 @@ function formatAiUsageValue(usage) {
 
 function formatAiUsageCaption(usage) {
   if (!usage) return "загрузка";
-  if (usage.is_trial) {
-    const remaining = Math.max(Number(usage.trial_remaining || 0), 0);
+  if (usage.is_trial || !state.hasActiveSubscription) {
+    const trialLimit = Number(usage.trial_limit || 3);
+    const fallbackUsed = Number(usage.used_today || 0);
+    const fallbackRemaining = Math.max(trialLimit - fallbackUsed, 0);
+    const remaining = Math.max(Number(usage.trial_remaining ?? fallbackRemaining), 0);
     return remaining ? `${remaining} пробных осталось` : "пробные закончились";
   }
   return usage.daily_limit
