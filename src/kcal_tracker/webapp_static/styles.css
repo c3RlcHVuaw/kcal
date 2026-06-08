@@ -3622,7 +3622,8 @@ body::before {
 }
 
 .progress-track span {
-  background: linear-gradient(90deg, var(--danger), var(--carbs), var(--accent), var(--protein));
+  background: linear-gradient(90deg, var(--accent-strong), var(--accent), var(--activity));
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 26%, transparent);
 }
 
 .stats-link {
