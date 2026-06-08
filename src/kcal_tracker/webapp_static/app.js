@@ -1390,8 +1390,9 @@ function formatAiUsageValue(usage) {
   if (usage.is_trial || !state.hasActiveSubscription) {
     const trialLimit = Number(usage.trial_limit || 3);
     const fallbackUsed = Number(usage.used_today || 0);
-    const trialUsed = Math.min(Number(usage.trial_used ?? fallbackUsed), trialLimit);
-    return `${trialUsed} / ${trialLimit}`;
+    const fallbackRemaining = Math.max(trialLimit - fallbackUsed, 0);
+    const remaining = Math.max(Number(usage.trial_remaining ?? fallbackRemaining), 0);
+    return `${remaining} / ${trialLimit}`;
   }
   return usage.daily_limit
     ? `${usage.used_today} / ${usage.daily_limit}`
@@ -2025,21 +2026,33 @@ function handleMoreAction(action) {
       openOnboarding({ force: true });
       return;
     case "subscription":
+      openBotFromWebApp("subscription");
+      return;
     case "reminders":
+      openBotFromWebApp("reminders");
+      return;
     case "support":
-      openBotFromWebApp();
+      openBotFromWebApp("support");
       return;
     default:
       toast("Скоро добавим");
   }
 }
 
-function openBotFromWebApp() {
+function openBotFromWebApp(target = "landing") {
+  const payloads = new Set(["landing", "subscription", "reminders", "support"]);
+  const payload = payloads.has(target) ? target : "landing";
+  const url = `https://t.me/trackerkcal_bot?start=${payload}`;
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(url);
+    window.setTimeout(() => tg.close(), 250);
+    return;
+  }
   if (tg) {
     tg.close();
     return;
   }
-  toast("В Telegram откроется бот");
+  window.location.href = url;
 }
 
 function showPremiumUpsell(feature = "Premium") {
@@ -2102,7 +2115,7 @@ function ensureAiLimitScreen() {
   `;
   screen.addEventListener("click", (event) => {
     if (event.target.closest("[data-ai-limit-subscribe]")) {
-      openBotFromWebApp();
+      openBotFromWebApp("subscription");
       return;
     }
     if (event.target.closest("[data-ai-limit-close]")) {
