@@ -103,6 +103,10 @@ class WebAppPromoValidateResult(BaseModel):
     plans: list[WebAppPromoPlan] = Field(default_factory=list)
 
 
+class WebAppSubscriptionPlans(BaseModel):
+    plans: list[WebAppPromoPlan]
+
+
 class ActivityEstimate(BaseModel):
     name: str
     kcal: float = Field(ge=0)

@@ -2257,6 +2257,138 @@ textarea:focus {
   transform: translateY(-2px);
 }
 
+.subscription-flow {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  transition:
+    border-color var(--motion-soft),
+    box-shadow var(--motion-soft),
+    transform var(--motion-fast);
+}
+
+.subscription-flow.is-highlighted {
+  border-color: color-mix(in srgb, var(--accent) 54%, var(--line));
+  box-shadow:
+    0 18px 44px color-mix(in srgb, var(--accent) 18%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+  transform: translateY(-2px);
+}
+
+.subscription-plan-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.subscription-plan-card {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 14% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 38%),
+    color-mix(in srgb, var(--surface) 92%, #fff);
+  box-shadow: var(--shadow-soft);
+  color: var(--text);
+  text-align: left;
+  transition:
+    border-color var(--motion-soft),
+    box-shadow var(--motion-soft),
+    transform var(--motion-fast),
+    background var(--motion-soft);
+}
+
+.subscription-plan-card.active {
+  border-color: color-mix(in srgb, var(--accent) 62%, var(--line));
+  background:
+    radial-gradient(circle at 14% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 42%),
+    color-mix(in srgb, var(--surface) 88%, #fff);
+  box-shadow:
+    0 18px 40px color-mix(in srgb, var(--accent) 15%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+  transform: translateY(-1px);
+}
+
+.subscription-plan-card span {
+  width: fit-content;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 760;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.subscription-plan-card strong {
+  font-size: 22px;
+  line-height: 1.08;
+}
+
+.subscription-plan-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.subscription-plan-card b {
+  margin-top: 3px;
+  font-size: 21px;
+  line-height: 1;
+}
+
+.subscription-plan-card em {
+  color: var(--muted);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 680;
+}
+
+.subscription-pay-methods {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--muted-surface) 72%, #fff);
+}
+
+.subscription-pay-methods button {
+  min-width: 0;
+  min-height: 44px;
+  border: 0;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 760;
+  transition:
+    background var(--motion-soft),
+    box-shadow var(--motion-soft),
+    color var(--motion-soft),
+    transform var(--motion-fast);
+}
+
+.subscription-pay-methods button.active {
+  background: var(--accent);
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--accent) 24%, transparent);
+  color: #fff;
+}
+
+.subscription-flow .primary-button {
+  min-height: 54px;
+  border-radius: 18px;
+}
+
+.subscription-flow > .muted {
+  margin: 0;
+  text-align: center;
+}
+
 .more-service-list button[data-more-action] span::after {
   content: "в боте";
   display: inline-block;

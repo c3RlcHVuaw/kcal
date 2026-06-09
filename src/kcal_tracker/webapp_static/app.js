@@ -1,6 +1,22 @@
 const tg = window.Telegram?.WebApp;
 const initData = tg?.initData || "";
 const ONBOARDING_KEY = "kcal:onboarding:v1";
+const FALLBACK_SUBSCRIPTION_PLANS = [
+  {
+    code: "basic",
+    title: "Старт",
+    rub: 299,
+    stars: 499,
+    daily_limit: 30,
+  },
+  {
+    code: "unlimited",
+    title: "Безлимит",
+    rub: 699,
+    stars: 1199,
+    daily_limit: null,
+  },
+];
 
 const state = {
   today: null,
@@ -23,6 +39,10 @@ const state = {
   searchTimer: null,
   searchRequestId: 0,
   foodSearchAiLoading: false,
+  subscriptionPlans: [],
+  subscriptionPromo: null,
+  selectedSubscriptionPlan: "basic",
+  selectedSubscriptionMethod: "sbp",
   entryHighlightKeys: new Set(),
   entryHighlightTimer: null,
   loadingAll: false,
@@ -131,6 +151,10 @@ const nodes = {
   promoCode: document.querySelector("#promo-code"),
   promoStatus: document.querySelector("#promo-status"),
   promoResult: document.querySelector("#promo-result"),
+  subscriptionFlow: document.querySelector("#subscription-flow"),
+  subscriptionPlans: document.querySelector("#subscription-plans"),
+  subscriptionConnect: document.querySelector("#subscription-connect"),
+  subscriptionHint: document.querySelector("#subscription-hint"),
   entryEditor: document.querySelector("#entry-editor"),
   entryEditForm: document.querySelector("#entry-edit-form"),
   entryEditClose: document.querySelector("#entry-edit-close"),
@@ -321,11 +345,22 @@ document.addEventListener("click", (event) => {
   const moreAction = event.target.closest("[data-more-action]");
   if (moreAction) {
     handleMoreAction(moreAction.dataset.moreAction);
+    return;
+  }
+  const planButton = event.target.closest("[data-subscription-plan]");
+  if (planButton) {
+    selectSubscriptionPlan(planButton.dataset.subscriptionPlan);
+    return;
+  }
+  const methodButton = event.target.closest("[data-subscription-method]");
+  if (methodButton) {
+    selectSubscriptionMethod(methodButton.dataset.subscriptionMethod);
   }
 });
 nodes.repeatYesterday.addEventListener("click", repeatYesterday);
 nodes.openBot.addEventListener("click", openBotFromWebApp);
 nodes.exportFood.addEventListener("click", exportFood);
+nodes.subscriptionConnect?.addEventListener("click", connectSubscription);
 nodes.onboardingClose?.addEventListener("click", () => closeOnboarding({ remember: true }));
 nodes.onboardingSkip?.addEventListener("click", () => closeOnboarding({ remember: true }));
 nodes.onboardingBack?.addEventListener("click", () => setOnboardingStep(state.onboardingStep - 1));
@@ -843,6 +878,7 @@ nodes.entryEditForm.addEventListener("submit", async (event) => {
 if (!initData) {
   nodes.authWarning.classList.remove("hidden");
   renderEmptyApp();
+  loadSubscriptionPlans();
 } else {
   loadAll();
 }
@@ -911,6 +947,7 @@ async function loadAll() {
     loadBody(),
     loadFrequent(),
     loadFavorites(),
+    loadSubscriptionPlans(),
   ]);
   state.loadingAll = false;
   restoreButton(nodes.refresh);
@@ -966,6 +1003,20 @@ async function loadFavorites() {
     meta: item.weight_g ? `${formatNumber(item.weight_g)} г` : "шаблон",
     action: () => addFavorite(item.id, item),
   })));
+}
+
+async function loadSubscriptionPlans() {
+  if (!initData) {
+    state.subscriptionPlans = FALLBACK_SUBSCRIPTION_PLANS;
+    renderSubscriptionPlans();
+    return;
+  }
+  const data = await api("/webapp/me/subscription/plans");
+  state.subscriptionPlans = data.plans || [];
+  if (!state.subscriptionPlans.some((plan) => plan.code === state.selectedSubscriptionPlan)) {
+    state.selectedSubscriptionPlan = state.subscriptionPlans[0]?.code || "basic";
+  }
+  renderSubscriptionPlans();
 }
 
 function renderToday(data) {
@@ -1363,12 +1414,15 @@ function renderBody(data) {
 function renderPromo(result) {
   nodes.promoResult.classList.remove("hidden");
   if (!result.valid) {
+    state.subscriptionPromo = null;
     nodes.promoStatus.textContent = "Промокод не найден или уже закончился";
     nodes.promoResult.innerHTML = "";
+    renderSubscriptionPlans();
     toast("Промокод не применился");
     return;
   }
 
+  state.subscriptionPromo = result;
   nodes.promoStatus.textContent = `${result.code}: скидка ${result.discount_percent}%`;
   nodes.promoResult.innerHTML = result.plans.map((plan) => {
     const limit = plan.daily_limit ? `${plan.daily_limit} AI/день` : "без дневного лимита";
@@ -1382,7 +1436,74 @@ function renderPromo(result) {
       </div>
     `;
   }).join("");
+  renderSubscriptionPlans();
   toast("Промокод применён");
+}
+
+function renderSubscriptionPlans() {
+  if (!nodes.subscriptionPlans) return;
+  const plans = subscriptionPlansForDisplay();
+  if (!plans.length) {
+    nodes.subscriptionPlans.innerHTML = '<div class="empty-state">Тарифы загружаются...</div>';
+    return;
+  }
+  nodes.subscriptionPlans.innerHTML = plans.map((plan) => {
+    const active = plan.code === state.selectedSubscriptionPlan;
+    const limit = plan.daily_limit ? `${plan.daily_limit} AI в день` : "без дневного лимита";
+    const accent = plan.code === "unlimited" ? "Максимум" : "Старт";
+    return `
+      <button class="subscription-plan-card ${active ? "active" : ""}" type="button" data-subscription-plan="${escapeHtml(plan.code)}">
+        <span>${escapeHtml(accent)}</span>
+        <strong>${escapeHtml(plan.title)}</strong>
+        <p>${escapeHtml(limit)}</p>
+        <b>${plan.rub} ₽ <em>или ${plan.stars} ⭐</em></b>
+      </button>
+    `;
+  }).join("");
+  renderSubscriptionMethodState();
+}
+
+function subscriptionPlansForDisplay() {
+  return state.subscriptionPromo?.valid && state.subscriptionPromo.plans?.length
+    ? state.subscriptionPromo.plans
+    : state.subscriptionPlans;
+}
+
+function selectSubscriptionPlan(planCode) {
+  if (!planCode) return;
+  state.selectedSubscriptionPlan = planCode;
+  renderSubscriptionPlans();
+  triggerSelectionHaptic();
+}
+
+function selectSubscriptionMethod(method) {
+  if (!["sbp", "auto", "stars"].includes(method)) return;
+  state.selectedSubscriptionMethod = method;
+  renderSubscriptionMethodState();
+  triggerSelectionHaptic();
+}
+
+function renderSubscriptionMethodState() {
+  document.querySelectorAll("[data-subscription-method]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.subscriptionMethod === state.selectedSubscriptionMethod);
+  });
+  const plan = subscriptionPlansForDisplay().find((item) => item.code === state.selectedSubscriptionPlan);
+  if (!nodes.subscriptionHint || !plan) return;
+  const methodText = {
+    sbp: "СБП",
+    auto: "карта/SberPay",
+    stars: "звёзды Telegram",
+  }[state.selectedSubscriptionMethod];
+  nodes.subscriptionHint.textContent = `Откроем бота: ${plan.title}, ${methodText}. Там создастся счёт.`;
+}
+
+function connectSubscription() {
+  const plan = subscriptionPlansForDisplay().find((item) => item.code === state.selectedSubscriptionPlan);
+  if (!plan) {
+    toast("Тарифы ещё загружаются");
+    return;
+  }
+  openBotFromWebApp(`subscription_${plan.code}_${state.selectedSubscriptionMethod}`);
 }
 
 function formatAiUsageValue(usage) {
@@ -2026,7 +2147,7 @@ function handleMoreAction(action) {
       openOnboarding({ force: true });
       return;
     case "subscription":
-      openBotFromWebApp("subscription");
+      openSubscriptionFlow();
       return;
     case "reminders":
       openBotFromWebApp("reminders");
@@ -2041,7 +2162,8 @@ function handleMoreAction(action) {
 
 function openBotFromWebApp(target = "landing") {
   const payloads = new Set(["landing", "subscription", "reminders", "support"]);
-  const payload = payloads.has(target) ? target : "landing";
+  const subscriptionPayload = /^subscription_(basic|unlimited)_(sbp|auto|stars)$/.test(target);
+  const payload = payloads.has(target) || subscriptionPayload ? target : "landing";
   const url = `https://t.me/trackerkcal_bot?start=${payload}`;
   if (tg?.openTelegramLink) {
     tg.openTelegramLink(url);
@@ -2053,6 +2175,20 @@ function openBotFromWebApp(target = "landing") {
     return;
   }
   window.location.href = url;
+}
+
+function openSubscriptionFlow() {
+  closeAiLimitScreen();
+  switchView("more");
+  if (!state.subscriptionPlans.length) {
+    loadSubscriptionPlans().catch(() => toast("Не получилось загрузить тарифы"));
+  }
+  window.setTimeout(() => {
+    nodes.subscriptionFlow?.scrollIntoView({ behavior: "smooth", block: "start" });
+    nodes.subscriptionConnect?.focus({ preventScroll: true });
+  }, 120);
+  nodes.subscriptionFlow?.classList.add("is-highlighted");
+  window.setTimeout(() => nodes.subscriptionFlow?.classList.remove("is-highlighted"), 1200);
 }
 
 function showPremiumUpsell(feature = "Premium") {
@@ -2115,7 +2251,7 @@ function ensureAiLimitScreen() {
   `;
   screen.addEventListener("click", (event) => {
     if (event.target.closest("[data-ai-limit-subscribe]")) {
-      openBotFromWebApp("subscription");
+      openSubscriptionFlow();
       return;
     }
     if (event.target.closest("[data-ai-limit-close]")) {

@@ -43,6 +43,7 @@ from kcal_tracker.schemas import (
     WebAppPromoPlan,
     WebAppPromoValidate,
     WebAppPromoValidateResult,
+    WebAppSubscriptionPlans,
     WebAppToday,
     WebAppWaterCreate,
     WebAppWeightCreate,
@@ -579,6 +580,26 @@ async def webapp_validate_promo(
             )
             for plan in subscription_plans().values()
         ],
+    )
+
+
+@router.get("/webapp/me/subscription/plans", response_model=WebAppSubscriptionPlans)
+async def webapp_subscription_plans(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WebAppSubscriptionPlans:
+    await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    return WebAppSubscriptionPlans(
+        plans=[
+            WebAppPromoPlan(
+                code=plan.code,
+                title=plan.title,
+                rub=plan.rub,
+                stars=plan.stars,
+                daily_limit=plan.daily_limit,
+            )
+            for plan in subscription_plans().values()
+        ]
     )
 
 
