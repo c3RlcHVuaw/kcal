@@ -43,6 +43,8 @@ const state = {
   subscriptionPromo: null,
   selectedSubscriptionPlan: "basic",
   selectedSubscriptionMethod: "sbp",
+  subscriptionExpiresAt: null,
+  subscriptionDaysLeft: null,
   entryHighlightKeys: new Set(),
   entryHighlightTimer: null,
   loadingAll: false,
@@ -152,6 +154,11 @@ const nodes = {
   promoStatus: document.querySelector("#promo-status"),
   promoResult: document.querySelector("#promo-result"),
   subscriptionFlow: document.querySelector("#subscription-flow"),
+  subscriptionStatus: document.querySelector("#subscription-status"),
+  subscriptionStatusLabel: document.querySelector("#subscription-status-label"),
+  subscriptionStatusTitle: document.querySelector("#subscription-status-title"),
+  subscriptionStatusText: document.querySelector("#subscription-status-text"),
+  subscriptionStatusMeta: document.querySelector("#subscription-status-meta"),
   subscriptionCaption: document.querySelector("#subscription-caption"),
   subscriptionTitle: document.querySelector("#subscription-title"),
   subscriptionSubtitle: document.querySelector("#subscription-subtitle"),
@@ -823,24 +830,8 @@ nodes.activityForm.addEventListener("submit", async (event) => {
 nodes.promoForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   const code = nodes.promoCode.value.trim();
-  if (!code) {
-    toast("Введи промокод");
-    return;
-  }
   const button = nodes.promoForm.querySelector("button[type='submit']");
-  if (isBusy(button)) return;
-  setButtonBusy(button, "Проверяю...");
-  try {
-    const result = await api("/webapp/me/promos/validate", {
-      method: "POST",
-      body: JSON.stringify({ code }),
-    });
-    renderPromo(result);
-  } catch {
-    toast("Не получилось проверить промокод");
-  } finally {
-    restoreButton(button);
-  }
+  await validatePromoCode(code, button);
 });
 
 nodes.entryEditForm.addEventListener("submit", async (event) => {
@@ -1025,10 +1016,14 @@ async function loadSubscriptionPlans() {
 function renderToday(data) {
   const diary = data.diary;
   state.hasActiveSubscription = Boolean(data.has_active_subscription);
+  state.subscriptionExpiresAt = data.subscription_expires_at || null;
+  state.subscriptionDaysLeft = data.subscription_days_left ?? null;
   state.aiUsage = data.ai_usage;
   document.body.classList.toggle("is-free-user", !state.hasActiveSubscription);
   document.body.classList.toggle("is-premium-user", state.hasActiveSubscription);
   renderSubscriptionCopy();
+  renderSubscriptionStatus();
+  renderAiBadges();
   const progress = diary.target_kcal > 0 ? Math.min(diary.kcal / diary.target_kcal, 1) : 0;
   setProgressValue(nodes.kcalProgress, "width", `${Math.round(progress * 100)}%`);
   setTextWithPulse(nodes.kcalPercent, `${Math.round(progress * 100)}%`);
@@ -1444,9 +1439,33 @@ function renderPromo(result) {
   toast("Промокод применён");
 }
 
+async function validatePromoCode(code, button) {
+  if (!code) {
+    toast("Введи промокод");
+    return false;
+  }
+  if (button && isBusy(button)) return false;
+  if (button) setButtonBusy(button, "Проверяю...");
+  try {
+    const result = await api("/webapp/me/promos/validate", {
+      method: "POST",
+      body: JSON.stringify({ code }),
+    });
+    renderPromo(result);
+    if (result.valid) openSubscriptionFlow({ highlight: false });
+    return Boolean(result.valid);
+  } catch {
+    toast("Не получилось проверить промокод");
+    return false;
+  } finally {
+    if (button) restoreButton(button);
+  }
+}
+
 function renderSubscriptionPlans() {
   if (!nodes.subscriptionPlans) return;
   renderSubscriptionCopy();
+  renderSubscriptionStatus();
   const plans = subscriptionPlansForDisplay();
   if (!plans.length) {
     nodes.subscriptionPlans.innerHTML = '<div class="empty-state">Тарифы загружаются...</div>';
@@ -1519,6 +1538,50 @@ function renderSubscriptionCopy() {
   if (nodes.subscriptionConnect) {
     nodes.subscriptionConnect.textContent = isRenewal ? "Продолжить продление" : "Продолжить подключение";
   }
+}
+
+function renderSubscriptionStatus() {
+  if (!nodes.subscriptionStatus) return;
+  const isActive = state.hasActiveSubscription;
+  const isExpiring = isActive && Number(state.subscriptionDaysLeft ?? 99) <= 2;
+  const expiresText = state.subscriptionExpiresAt
+    ? formatDateTime(state.subscriptionExpiresAt)
+    : "";
+  nodes.subscriptionStatus.classList.toggle("is-active", isActive);
+  nodes.subscriptionStatus.classList.toggle("is-expiring", isExpiring);
+  nodes.subscriptionStatusLabel.textContent = isExpiring
+    ? "Скоро закончится"
+    : isActive ? "Premium активен" : "Premium";
+  nodes.subscriptionStatusTitle.textContent = isExpiring
+    ? "Premium скоро закончится"
+    : isActive
+      ? "Подписка работает"
+      : "AI для дневника питания";
+  nodes.subscriptionStatusText.textContent = isExpiring
+    ? "Продлите заранее: новый срок добавится к текущему, оставшиеся дни не пропадут."
+    : isActive
+      ? "Фото, текст, голос и уточнения уже доступны. Продление добавит новый срок к текущему."
+      : "Фото, текст, голос и уточнения помогают вести дневник без ручного поиска.";
+  nodes.subscriptionStatusMeta.innerHTML = isActive
+    ? `
+      <span><b>${escapeHtml(expiresText)}</b><em>активна до</em></span>
+      <span><b>${state.subscriptionDaysLeft ?? "—"}</b><em>дней осталось</em></span>
+      <span><b>${escapeHtml(formatAiUsageCaption(state.aiUsage))}</b><em>AI сегодня</em></span>
+    `
+    : `
+      <span><b>${escapeHtml(formatAiUsageValue(state.aiUsage))}</b><em>пробные AI</em></span>
+      <span><b>30 дней</b><em>срок тарифа</em></span>
+      <span><b>ручной ввод</b><em>остаётся бесплатным</em></span>
+    `;
+}
+
+function renderAiBadges() {
+  const text = state.hasActiveSubscription
+    ? "Premium"
+    : `AI ${formatAiUsageValue(state.aiUsage)}`;
+  document.querySelectorAll(".premium-badge").forEach((badge) => {
+    badge.textContent = text;
+  });
 }
 
 function connectSubscription() {
@@ -2201,18 +2264,19 @@ function openBotFromWebApp(target = "landing") {
   window.location.href = url;
 }
 
-function openSubscriptionFlow() {
+function openSubscriptionFlow(options = {}) {
+  const { highlight = true } = options;
   closeAiLimitScreen();
-  switchView("more");
+  switchView("subscription");
   if (!state.subscriptionPlans.length) {
     loadSubscriptionPlans().catch(() => toast("Не получилось загрузить тарифы"));
   }
-  window.setTimeout(() => {
-    nodes.subscriptionFlow?.scrollIntoView({ behavior: "smooth", block: "start" });
-    nodes.subscriptionConnect?.focus({ preventScroll: true });
-  }, 120);
-  nodes.subscriptionFlow?.classList.add("is-highlighted");
-  window.setTimeout(() => nodes.subscriptionFlow?.classList.remove("is-highlighted"), 1200);
+  renderSubscriptionStatus();
+  renderSubscriptionCopy();
+  if (highlight) {
+    nodes.subscriptionFlow?.classList.add("is-highlighted");
+    window.setTimeout(() => nodes.subscriptionFlow?.classList.remove("is-highlighted"), 1200);
+  }
 }
 
 function showPremiumUpsell(feature = "Premium") {
@@ -2232,7 +2296,9 @@ function openAiLimitScreen(feature = "AI") {
   title.textContent = remaining <= 0
     ? "Пробные AI-запросы закончились"
     : "Для этого действия нужна подписка";
-  subtitle.textContent = `${feature} доступен в подписке: можно разбирать еду текстом, фото и уточнениями без ручного поиска.`;
+  subtitle.textContent = remaining <= 0
+    ? `Сегодня AI уже помог ${Number(usage?.trial_limit || 3)} раза. Дальше можно добавить еду вручную или открыть Premium.`
+    : `${feature} доступен в подписке: можно разбирать еду текстом, фото и уточнениями без ручного поиска.`;
   counter.textContent = usage?.is_trial
     ? `${formatAiUsageValue(usage)} пробных AI-запросов`
     : "AI-доступ ограничен";
@@ -2269,6 +2335,10 @@ function ensureAiLimitScreen() {
         <div><b>Текст и голос</b><span>обычным языком без таблиц</span></div>
         <div><b>Уточнения</b><span>порции, соусы, граммы и БЖУ</span></div>
       </div>
+      <form class="ai-limit-promo" data-ai-limit-promo-form>
+        <input data-ai-limit-promo-code autocomplete="off" placeholder="Промокод" />
+        <button class="secondary-button" type="submit">Применить</button>
+      </form>
       <button class="primary-button" type="button" data-ai-limit-subscribe>Купить подписку</button>
       <button class="secondary-button" type="button" data-ai-limit-close>Пока вручную</button>
     </div>
@@ -2281,6 +2351,15 @@ function ensureAiLimitScreen() {
     if (event.target.closest("[data-ai-limit-close]")) {
       closeAiLimitScreen();
     }
+  });
+  screen.addEventListener("submit", async (event) => {
+    const form = event.target.closest("[data-ai-limit-promo-form]");
+    if (!form) return;
+    event.preventDefault();
+    const input = form.querySelector("[data-ai-limit-promo-code]");
+    const button = form.querySelector("button[type='submit']");
+    const ok = await validatePromoCode(input?.value.trim() || "", button);
+    if (ok) closeAiLimitScreen();
   });
   document.body.append(screen);
   return screen;
@@ -2559,6 +2638,18 @@ function parseNumber(value) {
 
 function formatNumber(value) {
   return Number(value).toLocaleString("ru-RU", { maximumFractionDigits: 1 });
+}
+
+function formatDateTime(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 function formatInput(value) {

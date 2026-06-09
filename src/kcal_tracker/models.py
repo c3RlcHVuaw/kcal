@@ -77,6 +77,7 @@ class User(Base):
     last_dinner_reminder_date: Mapped[date | None] = mapped_column(Date)
     last_weight_reminder_date: Mapped[date | None] = mapped_column(Date)
     last_inactivity_reminder_date: Mapped[date | None] = mapped_column(Date)
+    last_subscription_reminder_date: Mapped[date | None] = mapped_column(Date)
     apple_health_token: Mapped[str | None] = mapped_column(String(64), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()

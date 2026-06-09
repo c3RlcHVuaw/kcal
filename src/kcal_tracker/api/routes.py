@@ -285,6 +285,8 @@ async def webapp_today(
         onboarding_completed=user.onboarding_completed,
         has_active_subscription=has_active_subscription(user),
         subscription_plan=user.subscription_plan,
+        subscription_expires_at=user.subscription_expires_at,
+        subscription_days_left=_subscription_days_left(user),
         weight_goal=weight_goal_summary(user),
     )
 
@@ -1266,6 +1268,16 @@ async def _ai_usage_summary(user, usage_service: AIUsageService) -> AIUsageSumma
         trial_limit=settings.ai_trial_request_limit,
         is_trial=True,
     )
+
+
+def _subscription_days_left(user) -> int | None:
+    if not has_active_subscription(user) or user.subscription_expires_at is None:
+        return None
+    expires_at = user.subscription_expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    delta = expires_at - datetime.now(UTC)
+    return max(0, delta.days + (1 if delta.seconds else 0))
 
 
 async def _remaining_ai_for_webapp(user, usage_service: AIUsageService) -> int:

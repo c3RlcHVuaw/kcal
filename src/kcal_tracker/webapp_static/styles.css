@@ -2257,6 +2257,111 @@ textarea:focus {
   transform: translateY(-2px);
 }
 
+.subscription-entry-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+}
+
+.subscription-entry-card h2 {
+  margin: 3px 0 4px;
+  font-size: 22px;
+  line-height: 1.08;
+}
+
+.subscription-entry-card .primary-button {
+  min-width: 132px;
+  min-height: 48px;
+  border-radius: 17px;
+}
+
+.subscription-view {
+  gap: 14px;
+}
+
+.subscription-status-card {
+  display: grid;
+  gap: 12px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 42%),
+    linear-gradient(145deg, #ffffff, color-mix(in srgb, var(--accent) 6%, #f7faff));
+}
+
+.subscription-status-card.is-active {
+  border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+  box-shadow:
+    0 18px 46px color-mix(in srgb, var(--accent) 16%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.subscription-status-card.is-expiring {
+  border-color: color-mix(in srgb, var(--carbs) 56%, var(--line));
+  background:
+    radial-gradient(circle at 16% 0%, color-mix(in srgb, var(--carbs) 22%, transparent), transparent 42%),
+    linear-gradient(145deg, #ffffff, color-mix(in srgb, var(--carbs) 7%, #f7faff));
+  box-shadow:
+    0 18px 46px color-mix(in srgb, var(--carbs) 18%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--carbs) 20%, transparent);
+}
+
+.subscription-status-card h2 {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1;
+}
+
+.subscription-status-meta {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.subscription-status-meta span {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+  padding: 12px 10px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 62%, transparent);
+}
+
+.subscription-status-meta b,
+.subscription-status-meta em {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subscription-status-meta b {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.05;
+}
+
+.subscription-status-meta em {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.subscription-status-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.subscription-status-actions .secondary-button {
+  min-height: 46px;
+  border-radius: 16px;
+}
+
 .subscription-flow {
   display: grid;
   gap: 14px;
@@ -2387,6 +2492,53 @@ textarea:focus {
 .subscription-flow > .muted {
   margin: 0;
   text-align: center;
+}
+
+.subscription-compare,
+.subscription-faq {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.plan-fit-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.plan-fit-grid div {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--surface) 88%, #fff);
+}
+
+.plan-fit-grid b {
+  color: var(--text);
+  font-size: 18px;
+}
+
+.plan-fit-grid span,
+.subscription-faq p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.42;
+}
+
+.subscription-faq details {
+  padding: 13px 14px;
+  border: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.subscription-faq summary {
+  color: var(--text);
+  font-weight: 800;
+  cursor: pointer;
 }
 
 .more-service-list button[data-more-action] span::after {
@@ -3218,6 +3370,24 @@ body.sheet-open .tab-bar [data-view="food"] {
   font-size: 14px;
 }
 
+.ai-limit-promo {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.ai-limit-promo input {
+  min-width: 0;
+  height: 52px;
+  border: 1px solid rgba(207, 216, 232, 0.86);
+  border-radius: 18px;
+  padding: 0 14px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 740;
+}
+
 .ai-limit-panel .primary-button,
 .ai-limit-panel .secondary-button {
   min-height: 56px;
@@ -3598,6 +3768,16 @@ body.sheet-open .tab-bar [data-view="food"] {
   }
 
   .more-premium-card .secondary-button {
+    width: 100%;
+  }
+
+  .subscription-entry-card,
+  .subscription-status-actions,
+  .subscription-status-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-entry-card .primary-button {
     width: 100%;
   }
 

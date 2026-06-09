@@ -6,8 +6,9 @@ from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
+from kcal_tracker.bot.keyboards import subscription_cta_keyboard
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.models import FoodEntry, User
 from kcal_tracker.services.diary import DiaryService
@@ -23,6 +24,8 @@ logger = logging.getLogger(__name__)
 INACTIVITY_REMINDER_DAYS = 3
 INACTIVITY_REMINDER_REPEAT_DAYS = 7
 INACTIVITY_REMINDER_TIME = "12:00"
+SUBSCRIPTION_RENEWAL_REMINDER_DAYS = 2
+SUBSCRIPTION_RENEWAL_REMINDER_TIME = "11:00"
 
 
 async def reminder_loop(bot: Bot) -> None:
@@ -36,11 +39,29 @@ async def reminder_loop(bot: Bot) -> None:
 
 async def _send_due_reminders(bot: Bot) -> None:
     async with SessionLocal() as session:
-        result = await session.execute(select(User).where(User.reminders_enabled.is_(True)))
+        result = await session.execute(
+            select(User).where(
+                or_(
+                    User.reminders_enabled.is_(True),
+                    User.subscription_expires_at.is_not(None),
+                )
+            )
+        )
         users = list(result.scalars())
         for user in users:
             now = datetime.now(ZoneInfo(user.timezone))
             today = now.date()
+            if _subscription_renewal_reminder_due(now, user):
+                await bot.send_message(
+                    user.telegram_id,
+                    _subscription_renewal_reminder_text(user, now),
+                    reply_markup=subscription_cta_keyboard(),
+                )
+                user.last_subscription_reminder_date = today
+
+            if not user.reminders_enabled:
+                continue
+
             if (
                 user.weight_reminders_enabled
                 and _is_due(
@@ -198,6 +219,46 @@ def _inactivity_reminder_text(
         "Вернёмся мягко: просто запиши один приём пищи или напиши примерно, что было. "
         "Без идеальности, нам важнее снова поймать ритм."
     )
+
+
+def _subscription_renewal_reminder_due(now: datetime, user: User) -> bool:
+    if user.subscription_expires_at is None:
+        return False
+    if user.last_subscription_reminder_date is not None:
+        days_since_last = (now.date() - user.last_subscription_reminder_date).days
+        if days_since_last < 7:
+            return False
+    if not _is_due(now, SUBSCRIPTION_RENEWAL_REMINDER_TIME, user.last_subscription_reminder_date):
+        return False
+    expires_at = user.subscription_expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    local_expires_at = expires_at.astimezone(now.tzinfo or ZoneInfo("Europe/Samara"))
+    days_left = (local_expires_at.date() - now.date()).days
+    return 0 <= days_left <= SUBSCRIPTION_RENEWAL_REMINDER_DAYS
+
+
+def _subscription_renewal_reminder_text(user: User, now: datetime) -> str:
+    expires_at = user.subscription_expires_at
+    if expires_at is None:
+        return "Premium скоро закончится. Можно продлить без перерыва в разделе «💎 Подписка»."
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    local_expires_at = expires_at.astimezone(now.tzinfo or ZoneInfo("Europe/Samara"))
+    days_left = max(0, (local_expires_at.date() - now.date()).days)
+    day_text = "сегодня" if days_left == 0 else f"через {days_left} {plural_day(days_left)}"
+    return (
+        f"Premium закончится {day_text}, {local_expires_at:%d.%m}.\n"
+        "Можно продлить сейчас: новый срок добавится к текущему, без потери оставшихся дней."
+    )
+
+
+def plural_day(count: int) -> str:
+    if count % 10 == 1 and count % 100 != 11:
+        return "день"
+    if 2 <= count % 10 <= 4 and not 12 <= count % 100 <= 14:
+        return "дня"
+    return "дней"
 
 
 def _breakfast_reminder_intro(summary) -> str:

@@ -228,6 +228,8 @@ class WebAppToday(BaseModel):
     onboarding_completed: bool = False
     has_active_subscription: bool = False
     subscription_plan: str | None = None
+    subscription_expires_at: datetime | None = None
+    subscription_days_left: int | None = None
     weight_goal: WeightGoalRead
 
 
