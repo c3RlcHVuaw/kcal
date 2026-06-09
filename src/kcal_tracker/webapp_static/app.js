@@ -152,6 +152,9 @@ const nodes = {
   promoStatus: document.querySelector("#promo-status"),
   promoResult: document.querySelector("#promo-result"),
   subscriptionFlow: document.querySelector("#subscription-flow"),
+  subscriptionCaption: document.querySelector("#subscription-caption"),
+  subscriptionTitle: document.querySelector("#subscription-title"),
+  subscriptionSubtitle: document.querySelector("#subscription-subtitle"),
   subscriptionPlans: document.querySelector("#subscription-plans"),
   subscriptionConnect: document.querySelector("#subscription-connect"),
   subscriptionHint: document.querySelector("#subscription-hint"),
@@ -1025,6 +1028,7 @@ function renderToday(data) {
   state.aiUsage = data.ai_usage;
   document.body.classList.toggle("is-free-user", !state.hasActiveSubscription);
   document.body.classList.toggle("is-premium-user", state.hasActiveSubscription);
+  renderSubscriptionCopy();
   const progress = diary.target_kcal > 0 ? Math.min(diary.kcal / diary.target_kcal, 1) : 0;
   setProgressValue(nodes.kcalProgress, "width", `${Math.round(progress * 100)}%`);
   setTextWithPulse(nodes.kcalPercent, `${Math.round(progress * 100)}%`);
@@ -1442,6 +1446,7 @@ function renderPromo(result) {
 
 function renderSubscriptionPlans() {
   if (!nodes.subscriptionPlans) return;
+  renderSubscriptionCopy();
   const plans = subscriptionPlansForDisplay();
   if (!plans.length) {
     nodes.subscriptionPlans.innerHTML = '<div class="empty-state">Тарифы загружаются...</div>';
@@ -1494,7 +1499,26 @@ function renderSubscriptionMethodState() {
     auto: "карта/SberPay",
     stars: "звёзды Telegram",
   }[state.selectedSubscriptionMethod];
-  nodes.subscriptionHint.textContent = `Откроем бота: ${plan.title}, ${methodText}. Там создастся счёт.`;
+  const actionText = state.hasActiveSubscription ? "продление" : "подключение";
+  nodes.subscriptionHint.textContent = `Откроем бота: ${plan.title}, ${methodText}. Там создастся счёт на ${actionText}.`;
+}
+
+function renderSubscriptionCopy() {
+  const isRenewal = state.hasActiveSubscription;
+  if (nodes.subscriptionCaption) {
+    nodes.subscriptionCaption.textContent = isRenewal ? "Продление" : "Подключение";
+  }
+  if (nodes.subscriptionTitle) {
+    nodes.subscriptionTitle.textContent = isRenewal ? "Продлите подписку" : "Выберите подписку";
+  }
+  if (nodes.subscriptionSubtitle) {
+    nodes.subscriptionSubtitle.textContent = isRenewal
+      ? "Выберите тариф и способ оплаты. Новый срок добавится к текущей подписке."
+      : "Тариф, промокод и способ оплаты. Счёт создаст бот.";
+  }
+  if (nodes.subscriptionConnect) {
+    nodes.subscriptionConnect.textContent = isRenewal ? "Продолжить продление" : "Продолжить подключение";
+  }
 }
 
 function connectSubscription() {
@@ -2434,7 +2458,6 @@ function switchView(view) {
   const active = document.querySelector(`#view-${view}`);
   nodes.screenTitle.textContent = active?.dataset.title || "Kcal";
   document.body.dataset.view = view;
-  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function switchFoodTab(tab) {

@@ -17,6 +17,7 @@ from kcal_tracker.database import SessionLocal
 from kcal_tracker.services.growth import GrowthService
 from kcal_tracker.services.subscriptions import (
     SUBSCRIPTION_PLAN_BASIC,
+    has_active_subscription,
     subscription_plan,
     subscription_plans,
 )
@@ -50,7 +51,7 @@ async def start(message: Message, state: FSMContext) -> None:
     if start_payload in {"subscription_basic", "subscription_unlimited"}:
         plan_code = start_payload.removeprefix("subscription_")
         await message.answer(
-            _subscription_plan_text(plan_code),
+            _subscription_plan_text(plan_code, is_renewal=has_active_subscription(user)),
             reply_markup=subscription_payment_method_keyboard(plan_code),
         )
         return
@@ -58,7 +59,11 @@ async def start(message: Message, state: FSMContext) -> None:
         plan_code, method = _subscription_payment_payload(start_payload)
         if plan_code is not None and method is not None:
             await message.answer(
-                _subscription_payment_text(plan_code, method),
+                _subscription_payment_text(
+                    plan_code,
+                    method,
+                    is_renewal=has_active_subscription(user),
+                ),
                 reply_markup=subscription_payment_method_keyboard(plan_code),
             )
             return
@@ -114,32 +119,49 @@ def _subscription_payment_payload(payload: str) -> tuple[str | None, str | None]
     return plan_code, method
 
 
-def _subscription_plan_text(plan_code: str) -> str:
+def _subscription_plan_text(plan_code: str, *, is_renewal: bool = False) -> str:
     plan = subscription_plan(plan_code)
     limit = "без дневного лимита" if plan.daily_limit is None else f"{plan.daily_limit} AI-запросов в день"
+    title = "Продление" if is_renewal else "Тариф"
+    note = (
+        "Новый срок добавится к текущей подписке."
+        if is_renewal
+        else "Выберите способ оплаты ниже."
+    )
     return "\n".join(
         [
-            f"Тариф «{plan.title}»",
+            f"{title} «{plan.title}»",
             "",
             f"30 дней, {limit}.",
             f"Цена: {plan.rub} ₽ или {plan.stars} ⭐.",
             "",
-            "Выберите способ оплаты ниже.",
+            note,
         ]
     )
 
 
-def _subscription_payment_text(plan_code: str, method: str) -> str:
+def _subscription_payment_text(
+    plan_code: str,
+    method: str,
+    *,
+    is_renewal: bool = False,
+) -> str:
     plan = subscription_plan(plan_code or SUBSCRIPTION_PLAN_BASIC)
     method_text = {
         "sbp": "СБП",
         "auto": "Карта/SberPay",
         "stars": "Звёзды Telegram",
     }[method]
+    title = "Продление" if is_renewal else "Подключение"
+    note = (
+        "После оплаты новый срок добавится к текущей подписке."
+        if is_renewal
+        else "Нажмите кнопку ниже, чтобы создать счёт."
+    )
     return "\n".join(
         [
-            f"Подключение «{plan.title}»",
+            f"{title} «{plan.title}»",
             "",
-            f"Вы выбрали {method_text}. Нажмите кнопку ниже, чтобы создать счёт.",
+            f"Вы выбрали {method_text}. {note}",
         ]
     )

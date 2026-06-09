@@ -3107,7 +3107,10 @@ body.sheet-open .tab-bar [data-view="food"] {
   inset: 0;
   display: grid;
   place-items: end center;
-  padding: 18px;
+  padding:
+    max(18px, env(safe-area-inset-top))
+    18px
+    max(18px, env(safe-area-inset-bottom));
 }
 
 .ai-limit-backdrop {
@@ -3123,6 +3126,7 @@ body.sheet-open .tab-bar [data-view="food"] {
   z-index: 1;
   display: grid;
   width: min(100%, 420px);
+  max-height: calc(100dvh - max(36px, env(safe-area-inset-top)) - max(36px, env(safe-area-inset-bottom)));
   gap: 16px;
   border: 1px solid rgba(207, 216, 232, 0.95);
   border-radius: 34px;
@@ -3131,6 +3135,9 @@ body.sheet-open .tab-bar [data-view="food"] {
     radial-gradient(circle at 18% 0%, rgba(217, 246, 231, 0.9), transparent 34%),
     linear-gradient(180deg, #ffffff, #f7faff);
   box-shadow: 0 24px 70px rgba(20, 31, 50, 0.26);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   animation: sheetIn var(--motion-spring) both;
 }
 
