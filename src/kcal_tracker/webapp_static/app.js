@@ -360,6 +360,11 @@ document.querySelectorAll("[data-add-mode-back]").forEach((button) => {
   button.addEventListener("click", () => switchAddMode("browse"));
 });
 
+document.querySelector("[data-open-food-tour]")?.addEventListener("click", () => {
+  closeFoodAddSheet();
+  window.setTimeout(() => openOnboarding({ force: true, startStep: 1 }), 180);
+});
+
 document.querySelectorAll("[data-food-example]").forEach((button) => {
   button.addEventListener("click", () => {
     switchAddMode("ai");
@@ -2833,11 +2838,11 @@ async function completeProfileOnboarding(event) {
   }
 }
 
-function openOnboarding({ force = false } = {}) {
+function openOnboarding({ force = false, startStep = 0 } = {}) {
   if (!nodes.onboarding) return;
   if (!force && hasSeenOnboarding()) return;
   if (document.body.dataset.view !== "today") switchView("today");
-  state.onboardingStep = 0;
+  state.onboardingStep = Math.max(0, Math.min(onboardingSteps.length - 1, startStep));
   renderOnboardingStep();
   lockPageScroll("onboarding");
   nodes.onboarding.classList.remove("hidden");

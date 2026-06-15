@@ -3401,11 +3401,12 @@ body.sheet-open .tab-bar [data-view="food"] {
   top: var(--spotlight-top, 120px);
   width: var(--spotlight-width, 260px);
   height: var(--spotlight-height, 120px);
-  border: 2px solid rgba(5, 201, 135, 0.95);
-  border-radius: 24px;
+  border: 2px solid color-mix(in srgb, var(--accent) 82%, white);
+  border-radius: var(--radius-xl);
   box-shadow:
-    0 0 0 9999px rgba(0, 0, 0, 0.78),
-    0 0 34px rgba(5, 201, 135, 0.28);
+    0 0 0 9999px rgba(10, 18, 26, 0.58),
+    0 0 34px color-mix(in srgb, var(--accent) 28%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.54);
   pointer-events: none;
   transition:
     left var(--motion-spring),
@@ -3422,18 +3423,20 @@ body.sheet-open .tab-bar [data-view="food"] {
   width: var(--tour-panel-width, min(390px, calc(100vw - 32px)));
   max-height: min(430px, calc(100dvh - 32px));
   margin: 0;
-  padding: 18px;
+  padding: 16px;
   overflow: visible;
-  border: 1.5px solid rgba(5, 126, 255, 0.64);
-  border-radius: 22px;
-  background: rgba(16, 24, 42, 0.94);
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-radius: var(--radius-xl);
+  background:
+    radial-gradient(circle at 8% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 34%),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface-solid) 94%, transparent), color-mix(in srgb, var(--surface-soft) 92%, transparent));
   box-shadow:
-    0 28px 70px rgba(0, 0, 0, 0.46),
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-    0 10px 26px rgba(5, 126, 255, 0.18);
-  color: #f7f9ff;
-  backdrop-filter: blur(22px) saturate(1.25);
-  -webkit-backdrop-filter: blur(22px) saturate(1.25);
+    0 24px 54px rgba(42, 72, 112, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.52) inset,
+    0 10px 28px color-mix(in srgb, var(--accent) 15%, transparent);
+  color: var(--text);
+  backdrop-filter: blur(24px) saturate(1.35);
+  -webkit-backdrop-filter: blur(24px) saturate(1.35);
 }
 
 #onboarding .onboarding-panel::before {
@@ -3441,9 +3444,9 @@ body.sheet-open .tab-bar [data-view="food"] {
   left: var(--tour-arrow-left, 50%);
   width: 24px;
   height: 24px;
-  border-top: 1.5px solid rgba(5, 126, 255, 0.64);
-  border-left: 1.5px solid rgba(5, 126, 255, 0.64);
-  background: rgba(16, 24, 42, 0.94);
+  border-top: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-left: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  background: color-mix(in srgb, var(--surface-solid) 94%, transparent);
   content: "";
 }
 
@@ -3476,7 +3479,7 @@ body.sheet-open .tab-bar [data-view="food"] {
   padding: 0;
   background: transparent;
   box-shadow: none;
-  color: rgba(171, 183, 207, 0.78);
+  color: var(--muted);
   font-size: 15px;
   font-weight: 650;
 }
@@ -3484,9 +3487,10 @@ body.sheet-open .tab-bar [data-view="food"] {
 #onboarding .onboarding-head button:last-child {
   width: 36px;
   height: 36px;
-  border: 1.5px solid rgba(255, 255, 255, 0.82);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.56);
+  color: var(--text);
   font-size: 0;
 }
 
@@ -3508,12 +3512,12 @@ body.sheet-open .tab-bar [data-view="food"] {
   height: 6px;
   min-height: 6px;
   border-radius: 999px;
-  background: rgba(115, 132, 160, 0.45);
+  background: color-mix(in srgb, var(--muted) 22%, transparent);
 }
 
 #onboarding .onboarding-menu button.active {
   width: 42px;
-  background: #1478ff;
+  background: linear-gradient(90deg, var(--accent), var(--activity));
 }
 
 #onboarding .onboarding-copy {
@@ -3522,16 +3526,16 @@ body.sheet-open .tab-bar [data-view="food"] {
 }
 
 #onboarding .onboarding-copy h2 {
-  color: #ffffff;
-  font-size: 27px;
+  color: var(--text);
+  font-size: 25px;
   letter-spacing: 0;
 }
 
 #onboarding .onboarding-copy p {
-  color: rgba(197, 207, 227, 0.82);
-  font-size: 17px;
-  font-weight: 560;
-  line-height: 1.5;
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 620;
+  line-height: 1.44;
 }
 
 #onboarding .onboarding-actions {
@@ -3544,12 +3548,12 @@ body.sheet-open .tab-bar [data-view="food"] {
 
 #onboarding .onboarding-actions .primary-button {
   min-width: 118px;
-  min-height: 50px;
-  padding-inline: 20px;
+  min-height: 46px;
+  padding-inline: 18px;
   border-radius: 16px;
-  background: #1478ff;
-  box-shadow: 0 14px 30px rgba(20, 120, 255, 0.3);
-  font-size: 17px;
+  background: linear-gradient(135deg, var(--accent), var(--activity));
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--accent) 22%, transparent);
+  font-size: 16px;
 }
 
 #onboarding .onboarding-actions .secondary-button {
@@ -5460,6 +5464,61 @@ textarea {
 .add-mode-actions b {
   color: color-mix(in srgb, var(--action-tint) 52%, var(--muted));
   font-size: 10px;
+  font-weight: 650;
+}
+
+.food-add-tour {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 48px;
+  margin: -4px 0 16px;
+  padding: 11px 13px 11px 15px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, transparent), color-mix(in srgb, var(--activity) 8%, transparent)),
+    color-mix(in srgb, var(--surface-solid) 82%, transparent);
+  color: var(--text);
+  text-align: left;
+  box-shadow:
+    0 12px 26px color-mix(in srgb, var(--accent) 8%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.food-add-tour::after {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(135deg, var(--accent), var(--activity));
+  color: #fff;
+  content: "?";
+  font-size: 16px;
+  font-weight: 850;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+.food-add-tour span,
+.food-add-tour b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.food-add-tour span {
+  grid-column: 1;
+  font-size: 14px;
+  font-weight: 820;
+}
+
+.food-add-tour b {
+  grid-column: 1;
+  color: var(--muted);
+  font-size: 11px;
   font-weight: 650;
 }
 
