@@ -47,6 +47,8 @@ from kcal_tracker.schemas import (
     WebAppSubscriptionPlans,
     WebAppToday,
     WebAppWaterCreate,
+    WebAppWeeklyMission,
+    WebAppWeeklyMissions,
     WebAppWeightCreate,
     WebAppWeightPoint,
     WeeklyAnalyticsRead,
@@ -62,6 +64,7 @@ from kcal_tracker.services.fatsecret import FatSecretService
 from kcal_tracker.services.food_catalog import FoodCatalogService, mark_ai_suggestions
 from kcal_tracker.services.food_insights import enrich_food_payload
 from kcal_tracker.services.food_search import estimate_common_food
+from kcal_tracker.services.growth import GrowthService
 from kcal_tracker.services.open_food_facts import OpenFoodFactsService, ProductNotFoundError
 from kcal_tracker.services.profile import (
     apply_default_macro_targets,
@@ -278,6 +281,7 @@ async def webapp_today(
     wellness = WellnessService(session)
     latest_weight = await wellness.latest_weight(user)
     usage_service = AIUsageService(session)
+    weekly_missions = await GrowthService(session).weekly_missions(user)
     return WebAppToday(
         user=user,
         diary=diary,
@@ -290,6 +294,22 @@ async def webapp_today(
         subscription_expires_at=user.subscription_expires_at,
         subscription_days_left=_subscription_days_left(user),
         weight_goal=weight_goal_summary(user),
+        weekly_missions=WebAppWeeklyMissions(
+            week_start=weekly_missions.week_start,
+            missions=[
+                WebAppWeeklyMission(
+                    key=mission.key,
+                    title=mission.title,
+                    current=mission.current,
+                    target=mission.target,
+                    completed=mission.completed,
+                )
+                for mission in weekly_missions.missions
+            ],
+            completed_count=weekly_missions.completed_count,
+            eligible_for_bonus=weekly_missions.eligible_for_bonus,
+            bonus_claimed=weekly_missions.bonus_claimed,
+        ),
     )
 
 

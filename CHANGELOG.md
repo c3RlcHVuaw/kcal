@@ -13,6 +13,8 @@
   food, water, progress, or Premium based on the current day state.
 - Made the Mini App AI limit paywall contextual for text parsing, photo
   recognition, AI food search, and food refinement, with a manual-entry fallback.
+- Added weekly mission progress to the Mini App Today view so users can see
+  retention goals and the +1 day AI bonus without leaving the app.
 
 ## 2026-06-04
 

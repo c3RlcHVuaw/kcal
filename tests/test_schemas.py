@@ -51,7 +51,12 @@ from kcal_tracker.bot.text_parsing import (
     parse_activity_kcal,
     parse_int_from_text,
 )
-from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate
+from kcal_tracker.schemas import (
+    FoodEntryCreate,
+    FoodEstimate,
+    WebAppWeeklyMission,
+    WebAppWeeklyMissions,
+)
 from kcal_tracker.services.ai_food import food_refinement_user_text, photo_recognition_user_text
 from kcal_tracker.services.diary import (
     NutritionPatterns,
@@ -1052,3 +1057,33 @@ def test_apple_health_normalization_keeps_valid_fields_when_one_is_invalid() -> 
     assert payload.weight_kg == 74.5
     assert payload.steps is None
     assert errors == {"steps": "Could not extract numeric value"}
+
+
+def test_webapp_weekly_missions_schema_exposes_bonus_state() -> None:
+    missions = WebAppWeeklyMissions(
+        week_start=date(2026, 6, 15),
+        missions=[
+            WebAppWeeklyMission(
+                key="food",
+                title="Еда 5 дней",
+                current=5,
+                target=5,
+                completed=True,
+            ),
+            WebAppWeeklyMission(
+                key="water",
+                title="Вода 5 дней",
+                current=3,
+                target=5,
+                completed=False,
+            ),
+        ],
+        completed_count=1,
+        eligible_for_bonus=False,
+        bonus_claimed=False,
+    )
+
+    assert missions.week_start == date(2026, 6, 15)
+    assert missions.missions[0].completed is True
+    assert missions.completed_count == 1
+    assert missions.eligible_for_bonus is False

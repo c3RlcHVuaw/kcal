@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -232,6 +232,22 @@ class WebAppUser(BaseModel):
     first_name: str | None = None
 
 
+class WebAppWeeklyMission(BaseModel):
+    key: str
+    title: str
+    current: int
+    target: int
+    completed: bool
+
+
+class WebAppWeeklyMissions(BaseModel):
+    week_start: date
+    missions: list[WebAppWeeklyMission]
+    completed_count: int
+    eligible_for_bonus: bool = False
+    bonus_claimed: bool = False
+
+
 class WebAppToday(BaseModel):
     user: UserRead
     diary: DiarySummary
@@ -244,6 +260,7 @@ class WebAppToday(BaseModel):
     subscription_expires_at: datetime | None = None
     subscription_days_left: int | None = None
     weight_goal: WeightGoalRead
+    weekly_missions: WebAppWeeklyMissions | None = None
 
 
 class WebAppWaterCreate(BaseModel):

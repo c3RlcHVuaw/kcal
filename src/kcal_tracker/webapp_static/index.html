@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/styles.css?v=contextual-paywall-20260615" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=weekly-missions-20260615" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -119,6 +119,18 @@
             <button id="first-day-action" class="primary-button" type="button" data-nudge-action="add-food">
               Добавить еду
             </button>
+          </section>
+
+          <section id="weekly-missions" class="weekly-missions component-card hidden" aria-live="polite">
+            <div class="weekly-missions-head">
+              <div>
+                <span id="weekly-missions-caption" class="caption">Неделя</span>
+                <strong id="weekly-missions-title">Миссии недели</strong>
+                <p id="weekly-missions-text">Выполни 2 миссии и забери +1 день AI.</p>
+              </div>
+              <button class="secondary-button" type="button" data-view-shortcut="progress">Прогресс</button>
+            </div>
+            <div id="weekly-missions-list" class="weekly-missions-list"></div>
           </section>
 
           <section class="nutrition-overview" aria-label="Сводка питания">
@@ -940,6 +952,6 @@
     </section>
 
     <div id="toast" class="toast hidden"></div>
-    <script src="/app/static/app.js?v=contextual-paywall-20260615" type="module"></script>
+    <script src="/app/static/app.js?v=weekly-missions-20260615" type="module"></script>
   </body>
 </html>

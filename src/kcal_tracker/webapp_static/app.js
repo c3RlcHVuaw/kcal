@@ -130,6 +130,11 @@ const nodes = {
   firstDayTitle: document.querySelector("#first-day-title"),
   firstDayText: document.querySelector("#first-day-text"),
   firstDayAction: document.querySelector("#first-day-action"),
+  weeklyMissions: document.querySelector("#weekly-missions"),
+  weeklyMissionsCaption: document.querySelector("#weekly-missions-caption"),
+  weeklyMissionsTitle: document.querySelector("#weekly-missions-title"),
+  weeklyMissionsText: document.querySelector("#weekly-missions-text"),
+  weeklyMissionsList: document.querySelector("#weekly-missions-list"),
   nutritionScore: document.querySelector("#nutrition-score"),
   nutritionStatus: document.querySelector("#nutrition-status"),
   macroTotal: document.querySelector("#macro-total"),
@@ -1161,6 +1166,7 @@ function renderToday(data) {
   nodes.goalPace.value = data.weight_goal.weekly_weight_change_kg ? formatNumber(data.weight_goal.weekly_weight_change_kg) : "";
 
   nodes.entries.innerHTML = renderMealDiary(diary.entries);
+  renderWeeklyMissions(data.weekly_missions);
   renderSmartNudge(data);
 }
 
@@ -1174,9 +1180,18 @@ function renderSmartNudge(data) {
   const progress = target > 0 ? kcal / target : 0;
   const aiRemaining = Number(data?.ai_usage?.trial_remaining ?? data?.ai_usage?.remaining_today ?? 0);
   const freeUser = !Boolean(data?.has_active_subscription);
+  const missions = data?.weekly_missions;
   let nudge = null;
 
-  if (!entriesCount) {
+  if (missions?.eligible_for_bonus) {
+    nudge = {
+      caption: "Бонус недели",
+      title: "+1 день AI уже доступен",
+      text: "Ты выполнил 2 недельные миссии. Открой прогресс, чтобы увидеть статус и не потерять бонус.",
+      action: "progress",
+      button: "Прогресс",
+    };
+  } else if (!entriesCount) {
     nudge = {
       caption: "Первый шаг",
       title: "Добавь первую еду",
@@ -1251,6 +1266,46 @@ function handleSmartNudgeAction() {
     return;
   }
   openFoodAddSheet();
+}
+
+function renderWeeklyMissions(missions) {
+  if (!nodes.weeklyMissions || !nodes.weeklyMissionsList) return;
+  const items = missions?.missions || [];
+  nodes.weeklyMissions.classList.toggle("hidden", !items.length);
+  if (!items.length) return;
+
+  const completedCount = Number(missions.completed_count || 0);
+  nodes.weeklyMissions.classList.toggle("is-eligible", Boolean(missions.eligible_for_bonus));
+  nodes.weeklyMissions.classList.toggle("is-claimed", Boolean(missions.bonus_claimed));
+  nodes.weeklyMissionsCaption.textContent = missions.bonus_claimed
+    ? "Бонус забран"
+    : missions.eligible_for_bonus ? "Бонус доступен" : `Готово ${completedCount}/2`;
+  nodes.weeklyMissionsTitle.textContent = missions.bonus_claimed
+    ? "Недельный бонус уже у тебя"
+    : missions.eligible_for_bonus ? "+1 день AI за неделю" : "Миссии недели";
+  nodes.weeklyMissionsText.textContent = missions.bonus_claimed
+    ? "Продолжай серию: новые миссии уже засчитываются до конца недели."
+    : missions.eligible_for_bonus
+      ? "Выполнено 2 миссии. Бонус AI доступен в недельном прогрессе бота."
+      : "Выполни 2 миссии, чтобы открыть +1 день AI и закрепить привычку.";
+
+  const active = [...items]
+    .sort((left, right) => Number(left.completed) - Number(right.completed))
+    .slice(0, 3);
+  nodes.weeklyMissionsList.innerHTML = active.map((mission) => {
+    const current = Math.max(Number(mission.current || 0), 0);
+    const target = Math.max(Number(mission.target || 0), 1);
+    const progress = Math.min(Math.round((current / target) * 100), 100);
+    return `
+      <article class="weekly-mission ${mission.completed ? "completed" : ""}">
+        <div>
+          <strong>${escapeHtml(mission.title)}</strong>
+          <span>${Math.min(current, target)}/${target}</span>
+        </div>
+        <i aria-hidden="true"><b style="width:${progress}%"></b></i>
+      </article>
+    `;
+  }).join("");
 }
 
 function renderFoodAddSummary(diary) {
