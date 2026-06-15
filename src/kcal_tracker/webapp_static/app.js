@@ -1,6 +1,7 @@
 const tg = window.Telegram?.WebApp;
 const initData = tg?.initData || "";
-const ONBOARDING_KEY = "kcal:onboarding:v1";
+const ONBOARDING_KEY = "kcal:onboarding:v2";
+const TOUR_SAFE_GAP = 18;
 const FALLBACK_SUBSCRIPTION_PLANS = [
   {
     code: "basic",
@@ -255,6 +256,7 @@ const nodes = {
   openBot: document.querySelector("#open-bot"),
   exportFood: document.querySelector("#export-food"),
   onboarding: document.querySelector("#onboarding"),
+  onboardingSpotlight: document.querySelector("#onboarding-spotlight"),
   onboardingClose: document.querySelector("#onboarding-close"),
   onboardingSkip: document.querySelector("#onboarding-skip"),
   onboardingBack: document.querySelector("#onboarding-back"),
@@ -281,44 +283,30 @@ const nodes = {
 
 const onboardingSteps = [
   {
-    title: "Добро пожаловать в Kcal",
-    text: "Мини-апп держит день в одном месте: еда, вода, активность, вес и недельный прогресс.",
-    hint: "Начни с кнопки еды внизу: поиск, шаблоны, AI и ручной ввод живут в одном меню.",
-    items: [
-      ["Еда", "быстро добавить блюдо"],
-      ["День", "видеть остаток калорий"],
-      ["Прогресс", "понять ритм недели"],
-    ],
+    title: "Сегодня — главный экран",
+    text: "Здесь видно, сколько осталось калорий, что уже съедено и как идёт день. Начинай отсюда, когда хочешь быстро понять ситуацию.",
+    target: ".calorie-card",
   },
   {
-    title: "Добавляй еду как удобно",
-    text: "Для обычного дня хватит поиска и недавних блюд. Способы добавления подписаны прямо в меню еды.",
-    hint: "Шаблоны пригодятся для любимых завтраков, кофе, перекусов и повторяющихся порций.",
-    items: [
-      ["Поиск", "готовые продукты"],
-      ["AI/Фото", "быстрый разбор"],
-      ["Точно", "ккал и БЖУ"],
-    ],
+    title: "Еда добавляется отсюда",
+    text: "Кнопка открывает фото, текст, штрихкод, поиск и ручной ввод. Если не хочется считать руками — начинай с фото.",
+    target: ".tab-bar [data-view='food']",
   },
   {
-    title: "Следи за балансом",
-    text: "Главная показывает, сколько уже съедено, сколько осталось, и где сейчас белки, жиры и углеводы.",
-    hint: "Если день получился плотнее обычного, добавь активность или просто смотри итог недели.",
-    items: [
-      ["Калории", "цель на день"],
-      ["БЖУ", "баланс макро"],
-      ["Вода", "короткая привычка"],
-    ],
+    title: "Миссии живут в шапке",
+    text: "Тут недельные задания и бонус AI. Нажми на значок, чтобы открыть прогресс и забрать награду, когда она доступна.",
+    target: "#weekly-missions-trigger",
+    fallbackTarget: ".today-actions",
   },
   {
-    title: "Пользуйся быстрым меню",
-    text: "В разделе «Ещё» лежат повтор вчерашнего дня, штрихкод, вес, активность, экспорт и повторный запуск обучения.",
-    hint: "Готово. Можно закрыть обучение и добавить первую запись.",
-    items: [
-      ["Как вчера", "повторить день"],
-      ["Штрихкод", "найти продукт"],
-      ["Вес", "видеть тренд"],
-    ],
+    title: "Прогресс показывает неделю",
+    text: "Смотри не только один день, а ритм недели: средние калории, попадание в цель и тренд веса.",
+    target: ".tab-bar [data-view='progress']",
+  },
+  {
+    title: "Всё остальное — в «Ещё»",
+    text: "Там подписка, лимиты AI, экспорт, поддержка, напоминания и повтор этого обучения.",
+    target: ".tab-bar [data-view='more']",
   },
 ];
 
@@ -464,7 +452,6 @@ nodes.onboardingBack?.addEventListener("click", () => setOnboardingStep(state.on
 nodes.onboardingNext?.addEventListener("click", () => setOnboardingStep(state.onboardingStep + 1));
 nodes.onboardingStart?.addEventListener("click", () => {
   closeOnboarding({ remember: true });
-  openFoodAddSheet();
 });
 nodes.onboardingMenu?.addEventListener("click", (event) => {
   const item = event.target.closest("[data-onboarding-step]");
@@ -2787,7 +2774,7 @@ function maybeOpenOnboarding(today = state.today) {
   if (state.onboardingAutoChecked) return;
   state.onboardingAutoChecked = true;
   if (today?.onboarding_completed) {
-    markOnboardingSeen();
+    window.setTimeout(() => openOnboarding(), 520);
     return;
   }
   window.setTimeout(() => openProfileOnboarding(), 420);
@@ -2836,9 +2823,9 @@ async function completeProfileOnboarding(event) {
     state.today = today;
     renderToday(today);
     closeProfileOnboarding();
-    markOnboardingSeen();
     await Promise.allSettled([loadWeek(), loadBody()]);
     toast("Профиль настроен");
+    window.setTimeout(() => openOnboarding({ force: true }), 320);
   } catch {
     toast("Не получилось настроить профиль");
   } finally {
@@ -2849,10 +2836,14 @@ async function completeProfileOnboarding(event) {
 function openOnboarding({ force = false } = {}) {
   if (!nodes.onboarding) return;
   if (!force && hasSeenOnboarding()) return;
+  if (document.body.dataset.view !== "today") switchView("today");
   state.onboardingStep = 0;
   renderOnboardingStep();
   lockPageScroll("onboarding");
   nodes.onboarding.classList.remove("hidden");
+  window.addEventListener("resize", updateOnboardingTarget, { passive: true });
+  window.addEventListener("orientationchange", updateOnboardingTarget, { passive: true });
+  window.setTimeout(updateOnboardingTarget, 30);
   triggerHaptic("light");
 }
 
@@ -2860,6 +2851,8 @@ function closeOnboarding({ remember = false } = {}) {
   if (!nodes.onboarding) return;
   nodes.onboarding.classList.add("hidden");
   if (remember) markOnboardingSeen();
+  window.removeEventListener("resize", updateOnboardingTarget);
+  window.removeEventListener("orientationchange", updateOnboardingTarget);
   unlockPageScroll("onboarding");
 }
 
@@ -2890,14 +2883,55 @@ function renderOnboardingStep() {
       </button>
     `)
     .join("");
-  nodes.onboardingTips.innerHTML = step.items
-    .map((item) => `
-      <span>
-        <span>${escapeHtml(item[0])}</span>
-        <b>${escapeHtml(item[1])}</b>
-      </span>
-    `)
-    .join("");
+  nodes.onboardingTips.innerHTML = "";
+  window.requestAnimationFrame(updateOnboardingTarget);
+}
+
+function updateOnboardingTarget() {
+  if (!nodes.onboarding || nodes.onboarding.classList.contains("hidden")) return;
+  const step = onboardingSteps[state.onboardingStep] || onboardingSteps[0];
+  const panel = nodes.onboarding.querySelector(".onboarding-panel");
+  let target = document.querySelector(step.target);
+  if (!panel || !target) return;
+
+  target.scrollIntoView?.({ block: "center", inline: "center", behavior: "auto" });
+  const rect = target.getBoundingClientRect();
+  if ((rect.width < 2 || rect.height < 2) && step.fallbackTarget) {
+    target = document.querySelector(step.fallbackTarget) || target;
+  }
+  const targetRect = target.getBoundingClientRect();
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 390;
+  const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+  const inset = 10;
+  const spotlightLeft = Math.max(inset, targetRect.left - inset);
+  const spotlightTop = Math.max(inset, targetRect.top - inset);
+  const spotlightWidth = Math.min(viewportWidth - spotlightLeft - inset, targetRect.width + inset * 2);
+  const spotlightHeight = Math.min(viewportHeight - spotlightTop - inset, targetRect.height + inset * 2);
+
+  nodes.onboardingSpotlight?.style.setProperty("--spotlight-left", `${spotlightLeft}px`);
+  nodes.onboardingSpotlight?.style.setProperty("--spotlight-top", `${spotlightTop}px`);
+  nodes.onboardingSpotlight?.style.setProperty("--spotlight-width", `${spotlightWidth}px`);
+  nodes.onboardingSpotlight?.style.setProperty("--spotlight-height", `${spotlightHeight}px`);
+
+  const panelWidth = Math.min(390, viewportWidth - 32);
+  const measuredHeight = panel.offsetHeight || 238;
+  const targetCenterX = targetRect.left + targetRect.width / 2;
+  let panelLeft = targetCenterX - panelWidth / 2;
+  panelLeft = Math.max(16, Math.min(panelLeft, viewportWidth - panelWidth - 16));
+
+  const canPlaceBelow = targetRect.bottom + TOUR_SAFE_GAP + measuredHeight < viewportHeight - 16;
+  const placeBelow = canPlaceBelow || targetRect.top < measuredHeight + TOUR_SAFE_GAP + 16;
+  const panelTop = placeBelow
+    ? Math.min(targetRect.bottom + TOUR_SAFE_GAP, viewportHeight - measuredHeight - 16)
+    : Math.max(16, targetRect.top - measuredHeight - TOUR_SAFE_GAP);
+  const arrowLeft = Math.max(28, Math.min(targetCenterX - panelLeft, panelWidth - 28));
+
+  nodes.onboarding.classList.toggle("arrow-top", placeBelow);
+  nodes.onboarding.classList.toggle("arrow-bottom", !placeBelow);
+  panel.style.setProperty("--tour-panel-left", `${panelLeft}px`);
+  panel.style.setProperty("--tour-panel-top", `${panelTop}px`);
+  panel.style.setProperty("--tour-panel-width", `${panelWidth}px`);
+  panel.style.setProperty("--tour-arrow-left", `${arrowLeft}px`);
 }
 
 function hasSeenOnboarding() {
