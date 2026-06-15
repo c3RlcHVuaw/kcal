@@ -263,33 +263,40 @@ async def _quality_alerts() -> list[AdminAlert]:
         )
     counts = {event_type: int(count or 0) for event_type, count in rows}
     alerts: list[AdminAlert] = []
-    if counts.get("food_not_it", 0) >= settings.admin_quality_not_it_hour_threshold:
+    not_it_count = counts.get("food_not_it", 0) + counts.get("webapp_ai_reject", 0)
+    ai_failed_count = counts.get("food_ai_failed", 0) + counts.get("webapp_ai_failed", 0)
+    no_match_count = (
+        counts.get("food_no_match", 0)
+        + counts.get("webapp_search_failed", 0)
+        + counts.get("webapp_barcode_failed", 0)
+    )
+    if not_it_count >= settings.admin_quality_not_it_hour_threshold:
         alerts.append(
             AdminAlert(
                 "quality_not_it_spike",
                 _alert_text(
                     "Всплеск «Не то»",
-                    f"За последний час: {counts.get('food_not_it', 0)}. Проверь /quality.",
+                    f"За последний час: {not_it_count}. Проверь /quality.",
                 ),
             )
         )
-    if counts.get("food_ai_failed", 0) >= settings.admin_quality_ai_failed_hour_threshold:
+    if ai_failed_count >= settings.admin_quality_ai_failed_hour_threshold:
         alerts.append(
             AdminAlert(
                 "quality_ai_failed_spike",
                 _alert_text(
                     "AI часто не разбирает еду",
-                    f"За последний час AI failures: {counts.get('food_ai_failed', 0)}.",
+                    f"За последний час AI failures: {ai_failed_count}.",
                 ),
             )
         )
-    if counts.get("food_no_match", 0) >= settings.admin_quality_no_match_hour_threshold:
+    if no_match_count >= settings.admin_quality_no_match_hour_threshold:
         alerts.append(
             AdminAlert(
                 "quality_no_match_spike",
                 _alert_text(
                     "Поиск часто ничего не находит",
-                    f"За последний час no_match: {counts.get('food_no_match', 0)}.",
+                    f"За последний час no_match/search/barcode failures: {no_match_count}.",
                 ),
             )
         )

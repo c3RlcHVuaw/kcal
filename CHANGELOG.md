@@ -7,6 +7,8 @@
 - Added Mini App AI review feedback buttons and a webapp quality-events endpoint
   to capture AI accept/adjust/reject signals, search failures, barcode failures,
   first-food saves, and paywall opens.
+- Expanded admin quality, funnel, and alert views to include the new Mini App
+  feedback, first-food, paywall, search, barcode, and AI failure signals.
 
 ## 2026-06-04
 

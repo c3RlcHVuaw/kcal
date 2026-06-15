@@ -53,6 +53,16 @@ from kcal_tracker.services.users import UserService
 logger = logging.getLogger(__name__)
 router = Router()
 
+QUALITY_NOT_IT_EVENTS = ("food_not_it", "webapp_ai_reject")
+QUALITY_AI_FAILED_EVENTS = ("food_ai_failed", "webapp_ai_failed")
+QUALITY_SEARCH_EVENTS = (
+    "food_no_match",
+    "food_search_cancelled",
+    "webapp_search_failed",
+    "webapp_barcode_failed",
+)
+WEBAPP_REVIEW_EVENTS = ("webapp_ai_accept", "webapp_ai_adjust", "webapp_ai_reject")
+
 
 class AdminFlow(StatesGroup):
     waiting_user_lookup = State()
@@ -1117,7 +1127,7 @@ async def _quality_text(mode: str = "overview") -> str:
         )
         recent = await session.execute(
             select(QualityEvent)
-            .where(*event_filter)
+            .where(QualityEvent.created_at >= start, QualityEvent.created_at <= end, *event_filter)
             .order_by(QualityEvent.created_at.desc())
             .limit(10)
         )
@@ -1129,6 +1139,33 @@ async def _quality_text(mode: str = "overview") -> str:
             lines.append(f"{event_type}: {count}")
     else:
         lines.append("событий нет")
+
+    counts = {event_type: int(count or 0) for event_type, count in total_rows}
+    review_total = sum(counts.get(event_type, 0) for event_type in WEBAPP_REVIEW_EVENTS)
+    if review_total:
+        accepted = counts.get("webapp_ai_accept", 0)
+        adjusted = counts.get("webapp_ai_adjust", 0)
+        rejected = counts.get("webapp_ai_reject", 0)
+        lines.extend(
+            [
+                "",
+                "Mini App AI review:",
+                f"ok: {accepted}, правка: {adjusted}, не то: {rejected}",
+                f"accept rate: {_percent(accepted, review_total)}",
+            ]
+        )
+
+    webapp_first_food = counts.get("webapp_first_food_saved", 0)
+    webapp_paywall = counts.get("webapp_paywall_open", 0)
+    if webapp_first_food or webapp_paywall:
+        lines.extend(
+            [
+                "",
+                "Mini App funnel signals:",
+                f"первая еда: {webapp_first_food}",
+                f"paywall: {webapp_paywall}",
+            ]
+        )
 
     lines.extend(["", "Топ запросов:"])
     query_rows = [(query, count) for query, count in top_queries if query]
@@ -1167,11 +1204,13 @@ async def _quality_text(mode: str = "overview") -> str:
 
 def _quality_event_filter(mode: str) -> list:
     if mode == "not-it":
-        return [QualityEvent.event_type == "food_not_it"]
+        return [QualityEvent.event_type.in_(QUALITY_NOT_IT_EVENTS)]
     if mode == "ai":
-        return [QualityEvent.event_type == "food_ai_failed"]
+        return [QualityEvent.event_type.in_(QUALITY_AI_FAILED_EVENTS)]
     if mode == "search":
-        return [QualityEvent.event_type.in_(["food_no_match", "food_search_cancelled"])]
+        return [QualityEvent.event_type.in_(QUALITY_SEARCH_EVENTS)]
+    if mode == "webapp":
+        return [QualityEvent.event_type.like("webapp_%")]
     return []
 
 
@@ -1180,6 +1219,7 @@ def _quality_mode_title(mode: str) -> str:
         "not-it": "Не то",
         "ai": "AI ошибки",
         "search": "Поиск",
+        "webapp": "Mini App",
     }.get(mode, "обзор")
 
 
@@ -1242,6 +1282,38 @@ async def _funnel_metrics(session, start: datetime, end: datetime) -> dict[str, 
         .join(User, User.id == Payment.user_id)
         .where(*cohort_filter, Payment.status == "succeeded"),
     )
+    webapp_first_food = await _scalar(
+        session,
+        select(func.count(func.distinct(QualityEvent.user_id))).where(
+            QualityEvent.created_at >= start,
+            QualityEvent.created_at <= end,
+            QualityEvent.event_type == "webapp_first_food_saved",
+        ),
+    )
+    webapp_paywall = await _scalar(
+        session,
+        select(func.count(func.distinct(QualityEvent.user_id))).where(
+            QualityEvent.created_at >= start,
+            QualityEvent.created_at <= end,
+            QualityEvent.event_type == "webapp_paywall_open",
+        ),
+    )
+    webapp_ai_review = await _scalar(
+        session,
+        select(func.count(QualityEvent.id)).where(
+            QualityEvent.created_at >= start,
+            QualityEvent.created_at <= end,
+            QualityEvent.event_type.in_(WEBAPP_REVIEW_EVENTS),
+        ),
+    )
+    webapp_ai_reject = await _scalar(
+        session,
+        select(func.count(QualityEvent.id)).where(
+            QualityEvent.created_at >= start,
+            QualityEvent.created_at <= end,
+            QualityEvent.event_type == "webapp_ai_reject",
+        ),
+    )
     return {
         "started": started,
         "onboarded": onboarded,
@@ -1249,6 +1321,10 @@ async def _funnel_metrics(session, start: datetime, end: datetime) -> dict[str, 
         "active_3_days": active_3_days,
         "ai_users": ai_users,
         "payers": payers,
+        "webapp_first_food": webapp_first_food,
+        "webapp_paywall": webapp_paywall,
+        "webapp_ai_review": webapp_ai_review,
+        "webapp_ai_reject": webapp_ai_reject,
     }
 
 
@@ -1263,6 +1339,13 @@ def _funnel_period_text(title: str, metrics: dict[str, int]) -> str:
             f"3 активных дня: {metrics['active_3_days']} ({_percent(metrics['active_3_days'], started)})",
             f"AI: {metrics['ai_users']} ({_percent(metrics['ai_users'], started)})",
             f"Оплата: {metrics['payers']} ({_percent(metrics['payers'], started)})",
+            f"Mini App первая еда: {metrics.get('webapp_first_food', 0)}",
+            f"Mini App paywall: {metrics.get('webapp_paywall', 0)}",
+            (
+                "Mini App AI review: "
+                f"{metrics.get('webapp_ai_review', 0)} / не то "
+                f"{metrics.get('webapp_ai_reject', 0)}"
+            ),
         ]
     )
 
@@ -1782,6 +1865,7 @@ def _quality_keyboard(mode: str = "overview") -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="🤖 AI", callback_data="admin:quality:ai"),
                 InlineKeyboardButton(text="🔎 Поиск", callback_data="admin:quality:search"),
             ],
+            [InlineKeyboardButton(text="📱 Mini App", callback_data="admin:quality:webapp")],
             [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
         ]
     )
