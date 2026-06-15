@@ -3745,6 +3745,14 @@ body.sheet-open .tab-bar [data-view="food"] {
     grid-template-columns: 1fr;
   }
 
+  .first-day-nudge {
+    grid-template-columns: 1fr;
+  }
+
+  .first-day-nudge .primary-button {
+    width: 100%;
+  }
+
   .calorie-side {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     text-align: left;

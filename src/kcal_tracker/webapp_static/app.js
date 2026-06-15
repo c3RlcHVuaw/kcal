@@ -68,6 +68,7 @@ const nodes = {
   kcalPercent: document.querySelector("#kcal-percent"),
   kcalProgress: document.querySelector("#kcal-progress"),
   firstDayNudge: document.querySelector("#first-day-nudge"),
+  firstDayCaption: document.querySelector("#first-day-caption"),
   firstDayTitle: document.querySelector("#first-day-title"),
   firstDayText: document.querySelector("#first-day-text"),
   firstDayAction: document.querySelector("#first-day-action"),
@@ -381,6 +382,7 @@ nodes.repeatYesterday.addEventListener("click", repeatYesterday);
 nodes.openBot.addEventListener("click", openBotFromWebApp);
 nodes.exportFood.addEventListener("click", exportFood);
 nodes.subscriptionConnect?.addEventListener("click", connectSubscription);
+nodes.firstDayAction?.addEventListener("click", handleSmartNudgeAction);
 nodes.onboardingClose?.addEventListener("click", () => closeOnboarding({ remember: true }));
 nodes.onboardingSkip?.addEventListener("click", () => closeOnboarding({ remember: true }));
 nodes.onboardingBack?.addEventListener("click", () => setOnboardingStep(state.onboardingStep - 1));
@@ -1101,31 +1103,96 @@ function renderToday(data) {
   nodes.goalPace.value = data.weight_goal.weekly_weight_change_kg ? formatNumber(data.weight_goal.weekly_weight_change_kg) : "";
 
   nodes.entries.innerHTML = renderMealDiary(diary.entries);
-  renderFirstDayNudge(data);
+  renderSmartNudge(data);
 }
 
-function renderFirstDayNudge(data) {
+function renderSmartNudge(data) {
   if (!nodes.firstDayNudge) return;
   const entriesCount = Number(data?.diary?.entries?.length || 0);
-  const trackedEnough = entriesCount >= 2;
-  nodes.firstDayNudge.classList.toggle("hidden", trackedEnough);
-  if (trackedEnough) return;
+  const waterMl = Number(data?.water_ml || 0);
+  const diary = data?.diary || {};
+  const target = Number(diary.target_kcal || 0);
+  const kcal = Number(diary.kcal || 0);
+  const progress = target > 0 ? kcal / target : 0;
+  const aiRemaining = Number(data?.ai_usage?.trial_remaining ?? data?.ai_usage?.remaining_today ?? 0);
+  const freeUser = !Boolean(data?.has_active_subscription);
+  let nudge = null;
 
   if (!entriesCount) {
-    nodes.firstDayTitle.textContent = "Добавь первую еду";
-    nodes.firstDayText.textContent = data?.onboarding_completed
-      ? "После первой записи дневник покажет остаток калорий, БЖУ и что можно съесть дальше."
-      : "Настрой профиль и добавь первый приём пищи. Так день сразу станет понятным.";
-    nodes.firstDayAction.textContent = "Добавить еду";
-    return;
+    nudge = {
+      caption: "Первый шаг",
+      title: "Добавь первую еду",
+      text: data?.onboarding_completed
+        ? "После первой записи дневник покажет остаток калорий, БЖУ и что можно съесть дальше."
+        : "Настрой профиль и добавь первый приём пищи. Так день сразу станет понятным.",
+      action: "add-food",
+      button: "Добавить еду",
+    };
+  } else if (entriesCount === 1) {
+    const left = Math.round(target - kcal);
+    nudge = {
+      caption: "Закрепить день",
+      title: "Первая запись уже есть",
+      text: left > 0
+        ? `Добавь следующий приём или воду: осталось примерно ${left} ккал.`
+        : "Проверь день и при необходимости добавь активность или уточни порции.",
+      action: "add-food",
+      button: "Добавить ещё",
+    };
+  } else if (waterMl < 500) {
+    nudge = {
+      caption: "Маленькая привычка",
+      title: "Добавь воду",
+      text: "Еда уже в дневнике. Отметь стакан воды, чтобы день выглядел полнее и серия привычки не терялась.",
+      action: "body",
+      button: "+ вода",
+    };
+  } else if (freeUser && aiRemaining <= 0) {
+    nudge = {
+      caption: "AI на сегодня",
+      title: "Продолжить без ручного поиска",
+      text: "Пробные AI-запросы закончились. Premium вернёт фото, текст и уточнения для сложной еды.",
+      action: "subscription",
+      button: "Открыть Premium",
+    };
+  } else if (progress >= 0.75 || entriesCount >= 3) {
+    nudge = {
+      caption: "Итог дня",
+      title: "Посмотри прогресс",
+      text: "День уже наполнен. Проверь неделю, чтобы понять, попадаешь ли в цель без лишней строгости.",
+      action: "progress",
+      button: "Прогресс",
+    };
   }
 
-  const left = Math.round(Number(data.diary.target_kcal || 0) - Number(data.diary.kcal || 0));
-  nodes.firstDayTitle.textContent = "Закрепи первый день";
-  nodes.firstDayText.textContent = left > 0
-    ? `Уже есть первая запись. Добавь следующий приём или воду: осталось примерно ${left} ккал.`
-    : "Первая запись есть. Проверь день и при необходимости добавь активность или уточни порции.";
-  nodes.firstDayAction.textContent = "Добавить ещё";
+  nodes.firstDayNudge.classList.toggle("hidden", !nudge);
+  if (!nudge) return;
+  nodes.firstDayCaption.textContent = nudge.caption;
+  nodes.firstDayTitle.textContent = nudge.title;
+  nodes.firstDayText.textContent = nudge.text;
+  nodes.firstDayAction.textContent = nudge.button;
+  nodes.firstDayAction.dataset.nudgeAction = nudge.action;
+}
+
+function handleSmartNudgeAction() {
+  const action = nodes.firstDayAction?.dataset.nudgeAction || "add-food";
+  if (action === "add-food") {
+    openFoodAddSheet();
+    return;
+  }
+  if (action === "body") {
+    switchView("body");
+    return;
+  }
+  if (action === "progress") {
+    switchView("progress");
+    return;
+  }
+  if (action === "subscription") {
+    openSubscriptionFlow();
+    return;
+  }
+  openFoodAddSheet();
 }
 
 function renderFoodAddSummary(diary) {

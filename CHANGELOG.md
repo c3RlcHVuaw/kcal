@@ -9,6 +9,8 @@
   first-food saves, and paywall opens.
 - Expanded admin quality, funnel, and alert views to include the new Mini App
   feedback, first-food, paywall, search, barcode, and AI failure signals.
+- Turned the Mini App first-day prompt into a smart daily nudge that points to
+  food, water, progress, or Premium based on the current day state.
 
 ## 2026-06-04
 
