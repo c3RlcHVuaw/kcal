@@ -62,6 +62,7 @@ def test_openapi_exposes_external_client_routes() -> None:
     assert "/webapp/me/body" in paths
     assert "/webapp/me/food/parse-text" in paths
     assert "/webapp/me/food/parse-photo" in paths
+    assert "/webapp/me/food/parse-photos" in paths
     assert "/webapp/me/food/scan-barcode" in paths
     assert "/webapp/me/food/barcode" in paths
     assert "/webapp/me/food/refine" in paths

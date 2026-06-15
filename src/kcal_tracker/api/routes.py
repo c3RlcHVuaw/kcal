@@ -58,6 +58,7 @@ from kcal_tracker.schemas import (
 from kcal_tracker.services.ai_food import AIFoodService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
+from kcal_tracker.services.brand_lookup import match_photo_estimates_to_brands
 from kcal_tracker.services.diary import DiaryService, estimate_from_entry
 from kcal_tracker.services.export import ExportService
 from kcal_tracker.services.fatsecret import FatSecretService
@@ -101,6 +102,7 @@ async def get_webapp_identity(request: Request) -> WebAppIdentity:
 
 WebAppIdentityDep = Annotated[WebAppIdentity, Depends(get_webapp_identity)]
 ImageUploadDep = Annotated[UploadFile, File()]
+ImageUploadsDep = Annotated[list[UploadFile], File()]
 OptionalTextHintDep = Annotated[str | None, Form()]
 
 
@@ -404,16 +406,32 @@ async def webapp_parse_food_photo(
     image: ImageUploadDep,
     text_hint: OptionalTextHintDep = None,
 ) -> WebAppFoodTextParseResult:
-    content_type = image.content_type or "image/jpeg"
-    if not content_type.startswith("image/"):
-        raise HTTPException(status_code=415, detail="Upload an image")
+    image_payloads = [await _read_webapp_image_upload(image)]
+    return await _webapp_parse_food_photos(identity, session, image_payloads, text_hint=text_hint)
 
-    image_bytes = await image.read()
-    if not image_bytes:
-        raise HTTPException(status_code=400, detail="Image is empty")
-    if len(image_bytes) > 8 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="Image is too large")
 
+@router.post("/webapp/me/food/parse-photos", response_model=WebAppFoodTextParseResult)
+async def webapp_parse_food_photos(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+    images: ImageUploadsDep,
+    text_hint: OptionalTextHintDep = None,
+) -> WebAppFoodTextParseResult:
+    if not images:
+        raise HTTPException(status_code=400, detail="Upload at least one image")
+    if len(images) > 6:
+        raise HTTPException(status_code=413, detail="Upload up to 6 images")
+    image_payloads = [await _read_webapp_image_upload(image) for image in images]
+    return await _webapp_parse_food_photos(identity, session, image_payloads, text_hint=text_hint)
+
+
+async def _webapp_parse_food_photos(
+    identity: WebAppIdentity,
+    session: AsyncSession,
+    image_payloads: list[tuple[bytes, str]],
+    *,
+    text_hint: str | None,
+) -> WebAppFoodTextParseResult:
     user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
     usage = AIUsageService(session)
     try:
@@ -422,9 +440,8 @@ async def webapp_parse_food_photo(
         raise HTTPException(status_code=402, detail="AI limit reached") from exc
 
     try:
-        estimates = await AIFoodService().recognize_photo(
-            image_bytes,
-            mime_type=content_type,
+        estimates = await AIFoodService().recognize_photos(
+            image_payloads,
             text_hint=text_hint,
         )
     except Exception as exc:
@@ -435,12 +452,13 @@ async def webapp_parse_food_photo(
     if not estimates.foods or (estimates.foods[0].confidence or 0) < 0.35:
         raise HTTPException(status_code=422, detail="Food was not recognized")
 
-    photo_thumb_data_url = _make_photo_thumb_data_url(image_bytes)
+    photo_thumb_data_url = _make_photo_thumb_data_url(image_payloads[0][0])
     photo_thumb_expires_at = datetime.now(UTC) + timedelta(days=1)
     if photo_thumb_data_url:
         for food in estimates.foods:
             food.photo_thumb_data_url = photo_thumb_data_url
             food.photo_thumb_expires_at = photo_thumb_expires_at
+    estimates = await match_photo_estimates_to_brands(session, estimates)
 
     return WebAppFoodTextParseResult(
         foods=estimates.foods,
@@ -1286,6 +1304,19 @@ def _number_from_string(value: str) -> float | None:
             return float(match.group())
         except ValueError:
             return None
+
+
+async def _read_webapp_image_upload(image: UploadFile) -> tuple[bytes, str]:
+    content_type = image.content_type or "image/jpeg"
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=415, detail="Upload an image")
+
+    image_bytes = await image.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Image is empty")
+    if len(image_bytes) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Image is too large")
+    return image_bytes, content_type
 
 
 def _make_photo_thumb_data_url(image_bytes: bytes) -> str | None:

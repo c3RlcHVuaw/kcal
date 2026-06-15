@@ -31,6 +31,7 @@ from kcal_tracker.services.ai_audio import AIAudioService
 from kcal_tracker.services.ai_food import AIFoodService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
+from kcal_tracker.services.brand_lookup import match_photo_estimates_to_brands
 from kcal_tracker.services.diary import DiaryService, estimate_from_entry
 from kcal_tracker.services.fatsecret import FatSecretService
 from kcal_tracker.services.food_catalog import FoodCatalogService
@@ -53,6 +54,9 @@ router = Router()
 logger = logging.getLogger(__name__)
 
 MIN_SEARCH_RELEVANCE = 0.34
+PHOTO_ALBUM_DELAY_SECONDS = 1.1
+_photo_album_messages: dict[str, list[Message]] = {}
+_photo_album_tasks: dict[str, asyncio.Task] = {}
 
 
 class FoodFlow(StatesGroup):
@@ -204,6 +208,10 @@ async def handle_voice(message: Message, state: FSMContext) -> None:
 
 @router.message(F.photo | F.video | F.video_note)
 async def handle_photo(message: Message, state: FSMContext) -> None:
+    if message.photo and message.media_group_id:
+        _queue_photo_album(message, state)
+        return
+
     current_state = await state.get_state()
     waiting_for_barcode = current_state == FoodFlow.waiting_barcode_photo.state
 
@@ -277,6 +285,45 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
         return
 
     await message.answer("Для AI-еды лучше прислать фото. Видео сейчас использую для штрихкодов.")
+
+
+def _queue_photo_album(message: Message, state: FSMContext) -> None:
+    album_id = f"{message.chat.id}:{message.media_group_id}"
+    _photo_album_messages.setdefault(album_id, []).append(message)
+    if album_id not in _photo_album_tasks:
+        _photo_album_tasks[album_id] = asyncio.create_task(_process_photo_album(album_id, state))
+
+
+async def _process_photo_album(album_id: str, state: FSMContext) -> None:
+    await asyncio.sleep(PHOTO_ALBUM_DELAY_SECONDS)
+    messages = _photo_album_messages.pop(album_id, [])
+    _photo_album_tasks.pop(album_id, None)
+    if not messages:
+        return
+
+    message = messages[0]
+    images = [image for image in await asyncio.gather(*[_download_photo_bytes(item) for item in messages]) if image]
+    if not images:
+        await message.answer("Не смог загрузить фото из альбома. Пришли их ещё раз.")
+        return
+
+    await message.answer(f"Получил {len(images)} фото, проверяю упаковки и штрихкоды.")
+    barcode_estimates = await _barcode_estimates_from_images(images, message)
+    if barcode_estimates:
+        estimates = FoodEstimateList(foods=barcode_estimates)
+        await _show_estimates_confirmation(message, state, estimates, "barcode")
+        return
+
+    current_state = await state.get_state()
+    waiting_for_barcode = current_state == FoodFlow.waiting_barcode_photo.state
+    if waiting_for_barcode and not await _can_use_ai(message):
+        await message.answer(
+            "Штрихкоды не считались. Premium может распознать продукты по фото упаковок.",
+            reply_markup=subscription_cta_keyboard(),
+        )
+        return
+
+    await _recognize_food_photos(message, state, images, text_hint=message.caption)
 
 
 async def _free_food_estimate(text: str) -> FoodEstimate | None:
@@ -1417,14 +1464,24 @@ async def _recognize_food_photo(
     image_bytes: bytes,
     text_hint: str | None = None,
 ) -> None:
+    await _recognize_food_photos(message, state, [image_bytes], text_hint=text_hint)
+
+
+async def _recognize_food_photos(
+    message: Message,
+    state: FSMContext,
+    image_bytes_list: list[bytes],
+    text_hint: str | None = None,
+) -> None:
     if not await _ensure_ai_available(message):
         return
 
     await message.answer(
-        "Фото получил, распознаю еду. Обычно это занимает несколько секунд."
+        "Фото получил, распознаю еду и сверяю упаковки с базами. Обычно это занимает несколько секунд."
     )
     try:
-        estimates = await AIFoodService().recognize_photo(image_bytes, text_hint=text_hint)
+        images = [(image_bytes, "image/jpeg") for image_bytes in image_bytes_list[:6]]
+        estimates = await AIFoodService().recognize_photos(images, text_hint=text_hint)
     except Exception:
         logger.exception("AI photo recognition failed")
         await _record_food_quality_event(
@@ -1456,6 +1513,8 @@ async def _recognize_food_photo(
             reply_markup=food_recovery_keyboard(),
         )
         return
+    async with SessionLocal() as session:
+        estimates = await match_photo_estimates_to_brands(session, estimates)
     await _show_estimates_confirmation(message, state, estimates, "ai_photo")
 
 
@@ -1649,11 +1708,18 @@ async def _download_image_or_video_frame(message: Message) -> bytes | None:
         return None
 
 
+async def _download_photo_bytes(message: Message) -> bytes | None:
+    if not message.photo:
+        return None
+    file = await message.bot.get_file(message.photo[-1].file_id)
+    image_io = await message.bot.download_file(file.file_path)
+    return image_io.read()
+
+
 async def _download_image_or_video_frames(message: Message) -> list[bytes]:
     if message.photo:
-        file = await message.bot.get_file(message.photo[-1].file_id)
-        image_io = await message.bot.download_file(file.file_path)
-        return [image_io.read()]
+        image_bytes = await _download_photo_bytes(message)
+        return [image_bytes] if image_bytes else []
 
     video = message.video or message.video_note
     if video is None:
@@ -1666,6 +1732,40 @@ async def _download_image_or_video_frames(message: Message) -> list[bytes]:
         return await asyncio.to_thread(extract_frames_from_video, video_io.read(), frame_limit)
     except MediaProcessingError:
         return []
+
+
+async def _barcode_estimates_from_images(images: list[bytes], message: Message) -> list[FoodEstimate]:
+    estimates: list[FoodEstimate] = []
+    seen_barcodes: set[str] = set()
+    async with SessionLocal() as session:
+        for image in images[:6]:
+            barcode = await _decode_barcode_from_frames([image], timeout=8)
+            if barcode is None or barcode in seen_barcodes:
+                continue
+            seen_barcodes.add(barcode)
+            try:
+                product = await OpenFoodFactsService(session).get_product(barcode)
+            except ProductNotFoundError:
+                await message.answer(
+                    f"Штрихкод {barcode} считался, но продукта пока нет в базе. "
+                    "Попробую распознать упаковку по фото."
+                )
+                continue
+            estimates.append(
+                enrich_food_payload(
+                    FoodEstimate(
+                        name=product.product_name,
+                        weight_g=100,
+                        kcal=product.kcal_100g or 0,
+                        protein=product.protein_100g or 0,
+                        fat=product.fat_100g or 0,
+                        carbs=product.carbs_100g or 0,
+                        confidence=0.92,
+                        source_label="Штрихкод",
+                    )
+                )
+            )
+    return estimates
 
 
 async def _decode_barcode_from_frames(frames: list[bytes], *, timeout: int = 25) -> str | None:

@@ -19,6 +19,7 @@ class FoodEstimate(BaseModel):
     catalog_id: int | None = None
     is_ai_suggestion: bool = False
     trust_score: float | None = Field(default=None, ge=0, le=1)
+    packaged: bool | None = None
     photo_thumb_data_url: str | None = Field(default=None, max_length=70000)
     photo_thumb_expires_at: datetime | None = None
 
@@ -89,7 +90,7 @@ class WebAppQualityEventCreate(BaseModel):
         pattern=(
             "^(webapp_ai_accept|webapp_ai_reject|webapp_ai_adjust|webapp_ai_failed|"
             "webapp_first_food_saved|webapp_paywall_open|webapp_search_failed|"
-            "webapp_barcode_failed)$"
+            "webapp_barcode_failed|webapp_weekly_bonus_claim|webapp_brand_lookup)$"
         )
     )
     source: str | None = Field(default=None, max_length=64)

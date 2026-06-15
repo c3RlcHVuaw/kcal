@@ -558,21 +558,30 @@ async function parseFoodText(event) {
 }
 
 async function parseFoodPhoto() {
-  const file = nodes.foodPhotoInput.files?.[0];
-  if (!file) return;
+  const files = Array.from(nodes.foodPhotoInput.files || []).slice(0, 6);
+  if (!files.length) return;
   const hint = nodes.foodPhotoHint.value.trim() || nodes.foodText.value.trim();
   const form = new FormData();
-  form.append("image", file);
+  const endpoint = files.length > 1 ? "/webapp/me/food/parse-photos" : "/webapp/me/food/parse-photo";
+  files.forEach((file) => form.append(files.length > 1 ? "images" : "image", file));
   if (hint) form.append("text_hint", hint);
 
   if (isBusy(nodes.foodPhotoButton)) return;
-  setButtonBusy(nodes.foodPhotoButton, "Распознаю...");
+  setButtonBusy(nodes.foodPhotoButton, files.length > 1 ? "Распознаю фото..." : "Распознаю...");
   const photoPanel = nodes.foodPhotoButton.closest("[data-add-panel]");
   setAiProcessing(photoPanel, true);
   try {
-    const result = await apiForm("/webapp/me/food/parse-photo", form);
+    const result = await apiForm(endpoint, form);
     setParsedFoods(result);
-    toast("Фото распознано");
+    const hasBrandMatch = result.foods?.some((food) => food.source_label === "База бренда");
+    if (hasBrandMatch) {
+      recordWebappEvent("webapp_brand_lookup", {
+        source: "photo",
+        query: hint,
+        details: { photos: files.length, matched: true },
+      });
+    }
+    toast(hasBrandMatch ? "Нашёл продукт в базе брендов" : files.length > 1 ? "Фото распознаны" : "Фото распознано");
   } catch (error) {
     const message = error.status === 402
       ? "Лимит AI на сегодня закончился"
@@ -581,7 +590,7 @@ async function parseFoodPhoto() {
     recordWebappEvent("webapp_ai_failed", {
       source: "photo",
       query: hint,
-      details: { status: error.status || 0, has_hint: Boolean(hint) },
+      details: { status: error.status || 0, has_hint: Boolean(hint), photos: files.length },
     });
     if (error.status === 402) showPremiumUpsell("Распознавание фото", "photo");
   } finally {

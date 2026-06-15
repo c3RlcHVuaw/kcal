@@ -5,6 +5,7 @@ from kcal_tracker.bot.handlers.food import (
     _is_confident_single_search_match,
 )
 from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate
+from kcal_tracker.services.brand_lookup import _best_brand_match
 from kcal_tracker.services.food_catalog import _can_learn, normalize_food_text, scale_estimate
 from kcal_tracker.services.food_search import estimate_common_food
 
@@ -41,6 +42,19 @@ def test_single_database_result_needs_confident_match() -> None:
 
     assert not _is_confident_single_search_match("латте 300 мл", estimate)
     assert _is_confident_single_search_match("латте", estimate)
+
+
+def test_brand_lookup_prefers_real_packaged_product_match() -> None:
+    ai_estimate = FoodEstimate(name="Bombbar протеиновый батончик фисташка", kcal=210)
+    candidates = [
+        FoodEstimate(name="обычный шоколадный батончик", kcal=520),
+        FoodEstimate(name="Bombbar протеиновый батончик фисташковая меренга", kcal=300),
+    ]
+
+    matched = _best_brand_match(ai_estimate, candidates)
+
+    assert matched is not None
+    assert matched.name == "Bombbar протеиновый батончик фисташковая меренга"
 
 
 def test_catalog_normalize_handles_case_and_yo() -> None:
