@@ -103,6 +103,7 @@ const state = {
   selectedSubscriptionPlan: "basic",
   selectedSubscriptionMethod: "sbp",
   subscriptionExpiresAt: null,
+  onboardingOpenedFoodSheet: false,
   subscriptionDaysLeft: null,
   entryHighlightKeys: new Set(),
   entryHighlightTimer: null,
@@ -291,6 +292,34 @@ const onboardingSteps = [
     title: "Еда добавляется отсюда",
     text: "Кнопка открывает фото, текст, штрихкод, поиск и ручной ввод. Если не хочется считать руками — начинай с фото.",
     target: ".tab-bar [data-view='food']",
+  },
+  {
+    title: "Поиск и штрихкод",
+    text: "Введи продукт, блюдо или бренд в поиск. Для упаковки можно нажать сканер справа и найти товар по штрихкоду.",
+    target: ".food-search-form",
+    fallbackTarget: ".add-mode-actions",
+    sheet: "food-add",
+  },
+  {
+    title: "AI — когда проще описать",
+    text: "Напиши обычной фразой, что съел: AI разберёт блюдо, порцию и КБЖУ. Хорошо подходит для домашней еды и кафе.",
+    target: "[data-add-mode='ai']",
+    fallbackTarget: ".add-mode-actions",
+    sheet: "food-add",
+  },
+  {
+    title: "Фото — самый быстрый путь",
+    text: "Сфотографируй блюдо или упаковку. Если на фото бренд, этикетка или состав — лучше держать их в кадре.",
+    target: "[data-add-mode='photo']",
+    fallbackTarget: ".add-mode-actions",
+    sheet: "food-add",
+  },
+  {
+    title: "Точно — для своих цифр",
+    text: "Если калории и БЖУ уже известны, введи их вручную. Это самый предсказуемый способ для готовых продуктов.",
+    target: "[data-add-mode='manual']",
+    fallbackTarget: ".add-mode-actions",
+    sheet: "food-add",
   },
   {
     title: "Миссии живут в шапке",
@@ -2838,18 +2867,20 @@ function openOnboarding({ force = false, startStep = 0 } = {}) {
   if (!force && hasSeenOnboarding()) return;
   if (document.body.dataset.view !== "today") switchView("today");
   state.onboardingStep = Math.max(0, Math.min(onboardingSteps.length - 1, startStep));
-  renderOnboardingStep();
+  window.scrollTo({ top: 0, behavior: "auto" });
   lockPageScroll("onboarding");
   nodes.onboarding.classList.remove("hidden");
+  renderOnboardingStep();
   window.addEventListener("resize", updateOnboardingTarget, { passive: true });
   window.addEventListener("orientationchange", updateOnboardingTarget, { passive: true });
-  window.setTimeout(updateOnboardingTarget, 30);
+  window.setTimeout(updateOnboardingTarget, 60);
   triggerHaptic("light");
 }
 
 function closeOnboarding({ remember = false } = {}) {
   if (!nodes.onboarding) return;
   nodes.onboarding.classList.add("hidden");
+  hideOnboardingFoodSheet();
   if (remember) markOnboardingSeen();
   window.removeEventListener("resize", updateOnboardingTarget);
   window.removeEventListener("orientationchange", updateOnboardingTarget);
@@ -2866,6 +2897,7 @@ function setOnboardingStep(step) {
 function renderOnboardingStep() {
   const total = onboardingSteps.length;
   const step = onboardingSteps[state.onboardingStep] || onboardingSteps[0];
+  prepareOnboardingStep(step);
   const current = state.onboardingStep + 1;
   nodes.onboardingStep.textContent = current;
   nodes.onboardingTotal.textContent = total;
@@ -2884,29 +2916,65 @@ function renderOnboardingStep() {
     `)
     .join("");
   nodes.onboardingTips.innerHTML = "";
-  window.requestAnimationFrame(updateOnboardingTarget);
+  window.requestAnimationFrame(() => window.requestAnimationFrame(updateOnboardingTarget));
+}
+
+function prepareOnboardingStep(step) {
+  if (step.sheet === "food-add") {
+    if (nodes.foodAddSheet?.classList.contains("hidden")) {
+      state.onboardingOpenedFoodSheet = true;
+      switchAddMode("browse");
+      nodes.foodAddSheet.classList.remove("hidden");
+    }
+    nodes.foodAddSheet?.querySelector(".food-add-scroll")?.scrollTo({ top: 0, behavior: "auto" });
+    return;
+  }
+  hideOnboardingFoodSheet();
+}
+
+function hideOnboardingFoodSheet() {
+  if (!state.onboardingOpenedFoodSheet || !nodes.foodAddSheet) return;
+  switchAddMode("browse");
+  nodes.foodAddSheet.classList.add("hidden");
+  state.onboardingOpenedFoodSheet = false;
+}
+
+function getOnboardingTarget(step, viewportWidth, viewportHeight) {
+  const candidates = [step.target, step.fallbackTarget, ".calorie-card"].filter(Boolean);
+  for (const selector of candidates) {
+    const element = document.querySelector(selector);
+    if (!element) continue;
+    const rect = element.getBoundingClientRect();
+    const isVisible =
+      rect.width >= 2 &&
+      rect.height >= 2 &&
+      rect.right > 0 &&
+      rect.bottom > 0 &&
+      rect.left < viewportWidth &&
+      rect.top < viewportHeight;
+    if (isVisible) return { element, rect };
+  }
+  return null;
 }
 
 function updateOnboardingTarget() {
   if (!nodes.onboarding || nodes.onboarding.classList.contains("hidden")) return;
   const step = onboardingSteps[state.onboardingStep] || onboardingSteps[0];
   const panel = nodes.onboarding.querySelector(".onboarding-panel");
-  let target = document.querySelector(step.target);
-  if (!panel || !target) return;
+  if (!panel) return;
 
-  target.scrollIntoView?.({ block: "center", inline: "center", behavior: "auto" });
-  const rect = target.getBoundingClientRect();
-  if ((rect.width < 2 || rect.height < 2) && step.fallbackTarget) {
-    target = document.querySelector(step.fallbackTarget) || target;
-  }
-  const targetRect = target.getBoundingClientRect();
   const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 390;
   const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 720;
+  const target = getOnboardingTarget(step, viewportWidth, viewportHeight);
+  if (!target) return;
+  const targetRect = target.rect;
   const inset = 10;
   const spotlightLeft = Math.max(inset, targetRect.left - inset);
   const spotlightTop = Math.max(inset, targetRect.top - inset);
-  const spotlightWidth = Math.min(viewportWidth - spotlightLeft - inset, targetRect.width + inset * 2);
-  const spotlightHeight = Math.min(viewportHeight - spotlightTop - inset, targetRect.height + inset * 2);
+  const spotlightRight = Math.min(viewportWidth - inset, targetRect.right + inset);
+  const spotlightBottom = Math.min(viewportHeight - inset, targetRect.bottom + inset);
+  const spotlightWidth = Math.max(44, spotlightRight - spotlightLeft);
+  const spotlightHeight = Math.max(44, spotlightBottom - spotlightTop);
 
   nodes.onboardingSpotlight?.style.setProperty("--spotlight-left", `${spotlightLeft}px`);
   nodes.onboardingSpotlight?.style.setProperty("--spotlight-top", `${spotlightTop}px`);

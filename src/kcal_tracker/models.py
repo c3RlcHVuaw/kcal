@@ -372,6 +372,35 @@ class AdminSetting(Base):
     )
 
 
+class LandingEvent(Base):
+    __tablename__ = "landing_events"
+    __table_args__ = (
+        Index("ix_landing_events_created", "created_at"),
+        Index("ix_landing_events_type_created", "event_type", "created_at"),
+        Index("ix_landing_events_visitor_created", "visitor_id", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    event_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    path: Mapped[str] = mapped_column(String(255), nullable=False, default="/")
+    hostname: Mapped[str | None] = mapped_column(String(255))
+    referrer: Mapped[str | None] = mapped_column(String(512))
+    utm_source: Mapped[str | None] = mapped_column(String(128))
+    utm_medium: Mapped[str | None] = mapped_column(String(128))
+    utm_campaign: Mapped[str | None] = mapped_column(String(128))
+    utm_content: Mapped[str | None] = mapped_column(String(128))
+    utm_term: Mapped[str | None] = mapped_column(String(128))
+    visitor_id: Mapped[str | None] = mapped_column(String(64))
+    session_id: Mapped[str | None] = mapped_column(String(64))
+    user_agent: Mapped[str | None] = mapped_column(String(512))
+    ip_hash: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+
 class Payment(Base):
     __tablename__ = "payments"
     __table_args__ = (

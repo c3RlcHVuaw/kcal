@@ -98,6 +98,20 @@ class WebAppQualityEventCreate(BaseModel):
     details: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
 
 
+class LandingEventCreate(BaseModel):
+    event_type: str = Field(pattern="^(view|bot_click)$")
+    path: str = Field(default="/", max_length=255)
+    hostname: str | None = Field(default=None, max_length=255)
+    referrer: str | None = Field(default=None, max_length=512)
+    utm_source: str | None = Field(default=None, max_length=128)
+    utm_medium: str | None = Field(default=None, max_length=128)
+    utm_campaign: str | None = Field(default=None, max_length=128)
+    utm_content: str | None = Field(default=None, max_length=128)
+    utm_term: str | None = Field(default=None, max_length=128)
+    visitor_id: str | None = Field(default=None, max_length=64)
+    session_id: str | None = Field(default=None, max_length=64)
+
+
 class WebAppPromoValidate(BaseModel):
     code: str = Field(min_length=1, max_length=64)
 

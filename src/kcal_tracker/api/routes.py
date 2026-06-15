@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
 import io
 import json
 import logging
@@ -19,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from kcal_tracker.config import settings
 from kcal_tracker.database import engine, get_session
+from kcal_tracker.models import LandingEvent
 from kcal_tracker.schemas import (
     ActivityEstimate,
     ActivityLogRead,
@@ -30,6 +32,7 @@ from kcal_tracker.schemas import (
     FoodEntryRead,
     FoodEntryUpdate,
     FoodEstimate,
+    LandingEventCreate,
     UserRead,
     WebAppBarcodeLookup,
     WebAppBodySummary,
@@ -122,6 +125,33 @@ async def readiness() -> JSONResponse:
         status_code=200 if ok else 503,
         content={"ok": ok, "checks": checks},
     )
+
+
+@router.post("/landing/events", status_code=204)
+async def record_landing_event(
+    payload: LandingEventCreate,
+    request: Request,
+    session: SessionDep,
+) -> None:
+    client_host = request.client.host if request.client else ""
+    session.add(
+        LandingEvent(
+            event_type=payload.event_type,
+            path=payload.path or "/",
+            hostname=payload.hostname,
+            referrer=payload.referrer,
+            utm_source=payload.utm_source,
+            utm_medium=payload.utm_medium,
+            utm_campaign=payload.utm_campaign,
+            utm_content=payload.utm_content,
+            utm_term=payload.utm_term,
+            visitor_id=payload.visitor_id,
+            session_id=payload.session_id,
+            user_agent=_limit_text(request.headers.get("user-agent"), 512),
+            ip_hash=_hash_landing_ip(client_host) if client_host else None,
+        )
+    )
+    await session.commit()
 
 
 @router.get("/payments/yookassa/return")
@@ -1381,6 +1411,17 @@ async def _ensure_webapp_ai_allowed(user, usage_service: AIUsageService, request
         await usage_service.ensure_allowed(user, request_count=request_count)
         return
     await usage_service.ensure_trial_allowed(user, request_count=request_count)
+
+
+def _hash_landing_ip(value: str) -> str:
+    salt = settings.telegram_bot_token or settings.admin_bot_token or settings.app_env
+    return hashlib.sha256(f"{salt}:{value}".encode()).hexdigest()
+
+
+def _limit_text(value: str | None, max_length: int) -> str | None:
+    if not value:
+        return None
+    return value[:max_length]
 
 
 @dataclass(frozen=True)

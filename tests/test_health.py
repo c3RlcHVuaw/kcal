@@ -31,6 +31,7 @@ def test_landing_page_is_served_with_seo_metadata() -> None:
     assert "Kcal Bot - бот для подсчета калорий в Telegram" in response.text
     assert '<link rel="canonical" href="https://kcal-bot.ru/" />' in response.text
     assert "https://t.me/trackerkcal_bot" in response.text
+    assert "/landing/static/tracker.js?v=20260615-landing-stats" in response.text
 
 
 def test_seo_discovery_files_are_served() -> None:
@@ -66,6 +67,7 @@ def test_openapi_exposes_external_client_routes() -> None:
     assert "/webapp/me/food/scan-barcode" in paths
     assert "/webapp/me/food/barcode" in paths
     assert "/webapp/me/food/refine" in paths
+    assert "/landing/events" in paths
     assert "/webapp/me/frequent" in paths
     assert "/webapp/me/weekly-missions/claim" in paths
     assert "/webapp/me/activity" in paths

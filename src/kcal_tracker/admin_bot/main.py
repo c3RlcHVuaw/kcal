@@ -32,6 +32,7 @@ from kcal_tracker.logging import configure_logging
 from kcal_tracker.models import (
     AIUsage,
     FoodEntry,
+    LandingEvent,
     Payment,
     PromoCode,
     QualityEvent,
@@ -515,6 +516,19 @@ async def growth_command(message: Message) -> None:
 async def growth_callback(callback: CallbackQuery) -> None:
     text = await _growth_text()
     await callback.message.edit_text(text, reply_markup=_growth_keyboard())
+    await callback.answer("Обновлено")
+
+
+@router.message(Command("landing"))
+async def landing_command(message: Message) -> None:
+    text = await _landing_text()
+    await message.answer(text, reply_markup=_landing_keyboard())
+
+
+@router.callback_query(F.data == "admin:landing")
+async def landing_callback(callback: CallbackQuery) -> None:
+    text = await _landing_text()
+    await callback.message.edit_text(text, reply_markup=_landing_keyboard())
     await callback.answer("Обновлено")
 
 
@@ -1510,6 +1524,115 @@ async def _growth_text() -> str:
     )
 
 
+async def _landing_text() -> str:
+    now = datetime.now(UTC)
+    day_start = now - timedelta(days=1)
+    week_start = now - timedelta(days=7)
+    month_start = now - timedelta(days=30)
+    async with SessionLocal() as session:
+        day = await _landing_metrics(session, day_start)
+        week = await _landing_metrics(session, week_start)
+        month = await _landing_metrics(session, month_start)
+        page_rows = await session.execute(
+            select(LandingEvent.path, func.count(LandingEvent.id))
+            .where(
+                LandingEvent.created_at >= week_start,
+                LandingEvent.event_type == "view",
+            )
+            .group_by(LandingEvent.path)
+            .order_by(func.count(LandingEvent.id).desc())
+            .limit(6)
+        )
+        source_expr = func.coalesce(LandingEvent.utm_source, "direct")
+        source_rows = await session.execute(
+            select(source_expr, func.count(LandingEvent.id))
+            .where(
+                LandingEvent.created_at >= week_start,
+                LandingEvent.event_type == "view",
+            )
+            .group_by(source_expr)
+            .order_by(func.count(LandingEvent.id).desc())
+            .limit(6)
+        )
+
+    lines = [
+        "🌐 Landing app.kcal-bot.ru",
+        "",
+        _landing_period_text("24 часа", day),
+        "",
+        _landing_period_text("7 дней", week),
+        "",
+        _landing_period_text("30 дней", month),
+        "",
+        "Страницы за 7 дней:",
+    ]
+    pages = list(page_rows)
+    if pages:
+        for path, count in pages:
+            lines.append(f"· {path or '/'}: {count}")
+    else:
+        lines.append("нет данных")
+
+    lines.extend(["", "Источники за 7 дней:"])
+    sources = list(source_rows)
+    if sources:
+        for source, count in sources:
+            lines.append(f"· {source or 'direct'}: {count}")
+    else:
+        lines.append("нет данных")
+    return "\n".join(lines)
+
+
+async def _landing_metrics(session, start: datetime) -> dict[str, int]:
+    views = await _scalar(
+        session,
+        select(func.count(LandingEvent.id)).where(
+            LandingEvent.created_at >= start,
+            LandingEvent.event_type == "view",
+        ),
+    )
+    clicks = await _scalar(
+        session,
+        select(func.count(LandingEvent.id)).where(
+            LandingEvent.created_at >= start,
+            LandingEvent.event_type == "bot_click",
+        ),
+    )
+    visitors = await _scalar(
+        session,
+        select(func.count(func.distinct(LandingEvent.visitor_id))).where(
+            LandingEvent.created_at >= start,
+            LandingEvent.visitor_id.is_not(None),
+        ),
+    )
+    sessions = await _scalar(
+        session,
+        select(func.count(func.distinct(LandingEvent.session_id))).where(
+            LandingEvent.created_at >= start,
+            LandingEvent.session_id.is_not(None),
+        ),
+    )
+    return {
+        "views": views,
+        "visitors": visitors,
+        "sessions": sessions,
+        "clicks": clicks,
+    }
+
+
+def _landing_period_text(title: str, metrics: dict[str, int]) -> str:
+    views = metrics["views"]
+    return "\n".join(
+        [
+            title,
+            f"Визиты: {views}",
+            f"Уникальные: {metrics['visitors']}",
+            f"Сессии: {metrics['sessions']}",
+            f"Клики в Telegram: {metrics['clicks']} ({_percent(metrics['clicks'], views)})",
+        ]
+    )
+
+
 def _config_text() -> str:
     return "\n".join(
         [
@@ -1711,7 +1834,7 @@ def _main_menu_text() -> str:
             "Выбери раздел кнопками ниже.",
             "",
             "Команды тоже работают:",
-            "/today, /digest, /server, /openai, /alerts, /quality, /funnel, /promos, /user, /grant",
+            "/today, /digest, /server, /openai, /alerts, /quality, /funnel, /landing, /promos, /user, /grant",
         ]
     )
 
@@ -1734,6 +1857,7 @@ def _main_menu_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="👥 CRM", callback_data="admin:crm"),
                 InlineKeyboardButton(text="⚙️ Ops", callback_data="admin:ops"),
             ],
+            [InlineKeyboardButton(text="🌐 Landing", callback_data="admin:landing")],
         ]
     )
 
@@ -1800,6 +1924,7 @@ def _crm_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="🧭 Funnel", callback_data="admin:funnel"),
                 InlineKeyboardButton(text="📈 Growth", callback_data="admin:growth"),
             ],
+            [InlineKeyboardButton(text="🌐 Landing", callback_data="admin:landing")],
             [
                 InlineKeyboardButton(text="📣 Broadcast", callback_data="admin:broadcast"),
                 InlineKeyboardButton(text="💰 Payments", callback_data="admin:payments"),
@@ -1915,6 +2040,20 @@ def _growth_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:growth"),
                 InlineKeyboardButton(text="🧭 Funnel", callback_data="admin:funnel"),
             ],
+            [InlineKeyboardButton(text="🌐 Landing", callback_data="admin:landing")],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _landing_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:landing"),
+                InlineKeyboardButton(text="📈 Growth", callback_data="admin:growth"),
+            ],
+            [InlineKeyboardButton(text="🧭 Funnel", callback_data="admin:funnel")],
             [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
         ]
     )

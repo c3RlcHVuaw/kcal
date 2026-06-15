@@ -1,7 +1,7 @@
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
-from kcal_tracker.admin_bot.main import _funnel_period_text, _percent
+from kcal_tracker.admin_bot.main import _funnel_period_text, _landing_period_text, _percent
 from kcal_tracker.api.routes import (
     _apple_health_payload_summary,
     _extract_numeric_total,
@@ -160,6 +160,17 @@ def test_admin_funnel_formats_conversion_rates() -> None:
     assert _percent(3, 10) == "30%"
     assert "3 активных дня: 3 (30%)" in text
     assert "Оплата: 1 (10%)" in text
+
+
+def test_admin_landing_formats_click_rate() -> None:
+    text = _landing_period_text(
+        "7 дней",
+        {"views": 100, "visitors": 72, "sessions": 81, "clicks": 12},
+    )
+
+    assert "Визиты: 100" in text
+    assert "Уникальные: 72" in text
+    assert "Клики в Telegram: 12 (12%)" in text
 
 
 def test_food_insights_add_emoji_and_advice() -> None:
