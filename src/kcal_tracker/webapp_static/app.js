@@ -52,6 +52,7 @@ const state = {
   aiUsage: null,
   onboardingAutoChecked: false,
   onboardingStep: 0,
+  reviewFeedbackSent: null,
 };
 
 const nodes = {
@@ -66,6 +67,10 @@ const nodes = {
   kcalTarget: document.querySelector("#kcal-target"),
   kcalPercent: document.querySelector("#kcal-percent"),
   kcalProgress: document.querySelector("#kcal-progress"),
+  firstDayNudge: document.querySelector("#first-day-nudge"),
+  firstDayTitle: document.querySelector("#first-day-title"),
+  firstDayText: document.querySelector("#first-day-text"),
+  firstDayAction: document.querySelector("#first-day-action"),
   nutritionScore: document.querySelector("#nutrition-score"),
   nutritionStatus: document.querySelector("#nutrition-status"),
   macroTotal: document.querySelector("#macro-total"),
@@ -352,6 +357,11 @@ document.addEventListener("click", (event) => {
     scaleParsedFood(Number(scaleButton.dataset.index), Number(scaleButton.dataset.scaleParsed));
     return;
   }
+  const reviewFeedback = event.target.closest("[data-review-feedback]");
+  if (reviewFeedback) {
+    handleReviewFeedback(reviewFeedback.dataset.reviewFeedback, reviewFeedback);
+    return;
+  }
   const moreAction = event.target.closest("[data-more-action]");
   if (moreAction) {
     handleMoreAction(moreAction.dataset.moreAction);
@@ -468,6 +478,11 @@ async function parseFoodText(event) {
       ? "Лимит AI на сегодня закончился"
       : "Не получилось разобрать еду";
     toast(message);
+    recordWebappEvent("webapp_ai_failed", {
+      source: "text",
+      query: text,
+      details: { status: error.status || 0 },
+    });
     if (error.status === 402) showPremiumUpsell("AI разбор еды");
   } finally {
     setAiProcessing(nodes.foodTextForm, false);
@@ -496,6 +511,11 @@ async function parseFoodPhoto() {
       ? "Лимит AI на сегодня закончился"
       : "Не получилось распознать фото";
     toast(message);
+    recordWebappEvent("webapp_ai_failed", {
+      source: "photo",
+      query: hint,
+      details: { status: error.status || 0, has_hint: Boolean(hint) },
+    });
     if (error.status === 402) showPremiumUpsell("Распознавание фото");
   } finally {
     nodes.foodPhotoInput.value = "";
@@ -522,6 +542,10 @@ async function scanBarcodePhoto() {
       ? "Продукта нет в базе"
       : "Штрихкод не считался";
     toast(message);
+    recordWebappEvent("webapp_barcode_failed", {
+      source: "barcode_photo",
+      details: { status: error.status || 0 },
+    });
   } finally {
     nodes.barcodePhotoInput.value = "";
     restoreButton(nodes.barcodePhotoButton);
@@ -549,6 +573,11 @@ async function lookupBarcodeCode() {
       ? "Продукта нет в базе"
       : "Штрихкод не подходит";
     toast(message);
+    recordWebappEvent("webapp_barcode_failed", {
+      source: "barcode_code",
+      query: code,
+      details: { status: error.status || 0 },
+    });
   } finally {
     restoreButton(nodes.barcodeCodeButton);
   }
@@ -603,6 +632,11 @@ async function searchFood(event) {
       query,
       showAiSearch: error.status !== 401,
     });
+    recordWebappEvent("webapp_search_failed", {
+      source: "food_search",
+      query,
+      details: { status: error.status || 0 },
+    });
   } finally {
     if (requestId === state.searchRequestId) {
       nodes.foodSearchResults.removeAttribute("aria-busy");
@@ -644,6 +678,7 @@ async function addFoodEstimateToDiary(food, source, button) {
   if (button && isBusy(button)) return;
   if (button) setButtonBusy(button, "...");
   let added = false;
+  const wasFirstFood = !state.today?.diary?.entries?.length;
   try {
     await api("/webapp/me/entries", {
       method: "POST",
@@ -657,6 +692,12 @@ async function addFoodEstimateToDiary(food, source, button) {
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     added = true;
     toast(`${food.name} добавлено`);
+    if (wasFirstFood) {
+      recordWebappEvent("webapp_first_food_saved", {
+        source,
+        details: { foods_count: 1 },
+      });
+    }
   } catch {
     toast("Не получилось добавить");
   } finally {
@@ -669,6 +710,8 @@ function setParsedFoods(result) {
   state.parsedFoods = result.foods.map(normalizeParsedFood);
   state.parsedFoodSource = result.source;
   state.expandedParsedFood = null;
+  state.reviewFeedbackSent = null;
+  document.querySelectorAll("[data-review-feedback]").forEach((button) => button.classList.remove("active"));
   renderParsedFoods(result);
   openFoodReviewScreen();
 }
@@ -682,6 +725,7 @@ async function saveParsedFoods() {
 
   if (isBusy(nodes.saveParsedFood)) return;
   setButtonBusy(nodes.saveParsedFood, "Сохраняю...");
+  const wasFirstFood = !state.today?.diary?.entries?.length;
   try {
     for (const food of foods) {
       await api("/webapp/me/entries", {
@@ -705,6 +749,12 @@ async function saveParsedFoods() {
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     switchView("today");
     toast(foods.length === 1 ? "Еда добавлена" : `Добавлено позиций: ${foods.length}`);
+    if (wasFirstFood) {
+      recordWebappEvent("webapp_first_food_saved", {
+        source: state.parsedFoodSource,
+        details: { foods_count: foods.length },
+      });
+    }
   } catch {
     toast("Не получилось сохранить еду");
   } finally {
@@ -1051,6 +1101,31 @@ function renderToday(data) {
   nodes.goalPace.value = data.weight_goal.weekly_weight_change_kg ? formatNumber(data.weight_goal.weekly_weight_change_kg) : "";
 
   nodes.entries.innerHTML = renderMealDiary(diary.entries);
+  renderFirstDayNudge(data);
+}
+
+function renderFirstDayNudge(data) {
+  if (!nodes.firstDayNudge) return;
+  const entriesCount = Number(data?.diary?.entries?.length || 0);
+  const trackedEnough = entriesCount >= 2;
+  nodes.firstDayNudge.classList.toggle("hidden", trackedEnough);
+  if (trackedEnough) return;
+
+  if (!entriesCount) {
+    nodes.firstDayTitle.textContent = "Добавь первую еду";
+    nodes.firstDayText.textContent = data?.onboarding_completed
+      ? "После первой записи дневник покажет остаток калорий, БЖУ и что можно съесть дальше."
+      : "Настрой профиль и добавь первый приём пищи. Так день сразу станет понятным.";
+    nodes.firstDayAction.textContent = "Добавить еду";
+    return;
+  }
+
+  const left = Math.round(Number(data.diary.target_kcal || 0) - Number(data.diary.kcal || 0));
+  nodes.firstDayTitle.textContent = "Закрепи первый день";
+  nodes.firstDayText.textContent = left > 0
+    ? `Уже есть первая запись. Добавь следующий приём или воду: осталось примерно ${left} ккал.`
+    : "Первая запись есть. Проверь день и при необходимости добавь активность или уточни порции.";
+  nodes.firstDayAction.textContent = "Добавить ещё";
 }
 
 function renderFoodAddSummary(diary) {
@@ -1749,6 +1824,11 @@ async function searchFoodWithAi(trigger = null) {
       emptyText: "AI-поиск не сработал. Попробуй позже.",
     });
     toast(error.status === 402 ? "Лимит AI на сегодня закончился" : "AI-поиск не сработал");
+    recordWebappEvent(error.status === 402 ? "webapp_paywall_open" : "webapp_ai_failed", {
+      source: "food_search_ai",
+      query,
+      details: { status: error.status || 0 },
+    });
     if (error.status === 402) showPremiumUpsell("AI-поиск по еде");
   } finally {
     trigger?.classList.remove("is-pressed");
@@ -1871,6 +1951,56 @@ function renderParsedFoods(result) {
       </div>
     </article>
   `).join("");
+}
+
+function handleReviewFeedback(kind, button) {
+  const eventType = {
+    accept: "webapp_ai_accept",
+    adjust: "webapp_ai_adjust",
+    reject: "webapp_ai_reject",
+  }[kind];
+  if (!eventType || state.reviewFeedbackSent === kind) return;
+  state.reviewFeedbackSent = kind;
+  document.querySelectorAll("[data-review-feedback]").forEach((item) => {
+    item.classList.toggle("active", item === button);
+  });
+
+  recordWebappEvent(eventType, {
+    source: state.parsedFoodSource,
+    query: state.parsedFoods.map((food) => food.name).filter(Boolean).join(", ").slice(0, 240),
+    details: {
+      foods_count: state.parsedFoods.length,
+      min_confidence: minConfidence(state.parsedFoods),
+    },
+  });
+
+  if (kind === "accept") {
+    toast("Отлично, сохраним это для качества AI");
+    return;
+  }
+  if (kind === "adjust") {
+    state.expandedParsedFood = state.parsedFoods.length === 1 ? 0 : state.expandedParsedFood;
+    renderParsedFoods({ source: state.parsedFoodSource });
+    toast("Поправь граммы или уточни через AI");
+    return;
+  }
+  toast("Спасибо, учту как ошибку распознавания", {
+    kind: "warning",
+    actionLabel: "Заново",
+    duration: 5200,
+    onAction: () => {
+      switchView(state.foodReviewReturnView || "today");
+      openFoodAddSheet();
+    },
+  });
+}
+
+function minConfidence(foods) {
+  const values = foods
+    .map((food) => Number(food.confidence))
+    .filter((value) => Number.isFinite(value));
+  if (!values.length) return null;
+  return Math.round(Math.min(...values) * 100) / 100;
 }
 
 function setSelectedMeal(meal) {
@@ -2306,6 +2436,14 @@ function openAiLimitScreen(feature = "AI") {
   screen.classList.remove("hidden");
   document.body.classList.add("paywall-open");
   screen.querySelector("[data-ai-limit-subscribe]")?.focus({ preventScroll: true });
+  recordWebappEvent("webapp_paywall_open", {
+    source: "ai_limit",
+    details: {
+      feature,
+      remaining_ai: remaining,
+      has_subscription: state.hasActiveSubscription,
+    },
+  });
   toast("Открой подписку, чтобы продолжить с AI");
 }
 
@@ -2600,6 +2738,23 @@ async function apiForm(path, form) {
     throw error;
   }
   return response.json();
+}
+
+async function recordWebappEvent(eventType, payload = {}) {
+  if (!initData || !eventType) return;
+  try {
+    await api("/webapp/me/quality-events", {
+      method: "POST",
+      body: JSON.stringify({
+        event_type: eventType,
+        source: payload.source || null,
+        query: payload.query || null,
+        details: payload.details || {},
+      }),
+    });
+  } catch {
+    // Quality events should never block food logging.
+  }
 }
 
 function renderEmptyApp() {

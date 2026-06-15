@@ -43,6 +43,7 @@ from kcal_tracker.schemas import (
     WebAppPromoPlan,
     WebAppPromoValidate,
     WebAppPromoValidateResult,
+    WebAppQualityEventCreate,
     WebAppSubscriptionPlans,
     WebAppToday,
     WebAppWaterCreate,
@@ -67,6 +68,7 @@ from kcal_tracker.services.profile import (
     calculate_daily_kcal_target,
     weight_goal_summary,
 )
+from kcal_tracker.services.quality import record_quality_event
 from kcal_tracker.services.subscriptions import (
     SubscriptionService,
     has_active_subscription,
@@ -555,6 +557,24 @@ async def webapp_refine_food(
         ai_used=True,
         remaining_ai_today=await _remaining_ai_for_webapp(user, usage),
     )
+
+
+@router.post("/webapp/me/quality-events")
+async def webapp_record_quality_event(
+    payload: WebAppQualityEventCreate,
+    identity: WebAppIdentityDep,
+) -> dict[str, bool]:
+    await record_quality_event(
+        payload.event_type,
+        telegram_id=identity.telegram_id,
+        username=identity.username,
+        source=payload.source,
+        query=payload.query,
+        details=payload.details,
+        notify_admin=payload.event_type
+        in {"webapp_ai_reject", "webapp_ai_failed", "webapp_search_failed", "webapp_barcode_failed"},
+    )
+    return {"ok": True}
 
 
 @router.post("/webapp/me/promos/validate", response_model=WebAppPromoValidateResult)

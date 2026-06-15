@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-15
+
+- Added Mini App first-day guidance for empty and nearly empty diaries so new
+  users have a clear next food-logging action.
+- Added Mini App AI review feedback buttons and a webapp quality-events endpoint
+  to capture AI accept/adjust/reject signals, search failures, barcode failures,
+  first-food saves, and paywall opens.
+
 ## 2026-06-04
 
 - Added iOS-style swipe actions to Mini App diary food cards: swipe right to

@@ -84,6 +84,19 @@ class WebAppFoodTextParseResult(BaseModel):
     barcode: str | None = None
 
 
+class WebAppQualityEventCreate(BaseModel):
+    event_type: str = Field(
+        pattern=(
+            "^(webapp_ai_accept|webapp_ai_reject|webapp_ai_adjust|webapp_ai_failed|"
+            "webapp_first_food_saved|webapp_paywall_open|webapp_search_failed|"
+            "webapp_barcode_failed)$"
+        )
+    )
+    source: str | None = Field(default=None, max_length=64)
+    query: str | None = Field(default=None, max_length=512)
+    details: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+
+
 class WebAppPromoValidate(BaseModel):
     code: str = Field(min_length=1, max_length=64)
 

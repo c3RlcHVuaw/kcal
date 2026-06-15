@@ -110,6 +110,17 @@
             </button>
           </div>
 
+          <section id="first-day-nudge" class="first-day-nudge component-card hidden" aria-live="polite">
+            <div>
+              <span class="caption">Следующий шаг</span>
+              <strong id="first-day-title">Добавь первую еду</strong>
+              <p id="first-day-text">Так дневник сразу покажет остаток калорий и баланс БЖУ.</p>
+            </div>
+            <button id="first-day-action" class="primary-button" type="button" data-open-food-sheet>
+              Добавить еду
+            </button>
+          </section>
+
           <section class="nutrition-overview" aria-label="Сводка питания">
             <article class="nutrition-score-card component-card">
               <div>
@@ -559,6 +570,11 @@
 
         <section id="food-preview" class="food-preview food-review-page" aria-live="polite">
           <p id="food-preview-source" class="review-source-note">Можно поправить значения перед сохранением</p>
+          <div class="review-feedback" aria-label="Оценка распознавания">
+            <button type="button" data-review-feedback="accept">Всё похоже</button>
+            <button type="button" data-review-feedback="adjust">Нужна правка</button>
+            <button type="button" data-review-feedback="reject">Не то</button>
+          </div>
           <div id="food-preview-list" class="parsed-food-list"></div>
           <div class="food-save-bar">
             <button id="save-parsed-food" class="primary-button" type="button">Добавить в дневник</button>

@@ -646,6 +646,38 @@ h2 {
   color: var(--accent-strong);
 }
 
+.first-day-nudge {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: 14px;
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(135deg, rgba(71, 192, 139, 0.14), rgba(99, 128, 214, 0.12)),
+    var(--surface);
+}
+
+.first-day-nudge strong {
+  display: block;
+  margin-top: 3px;
+  font-size: 18px;
+  line-height: 1.16;
+}
+
+.first-day-nudge p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.first-day-nudge .primary-button {
+  min-height: 42px;
+  padding-inline: 16px;
+  white-space: nowrap;
+}
+
 .stats-link {
   font-size: 10px;
   font-weight: 650;
@@ -1583,6 +1615,31 @@ textarea:focus {
 
 .review-source-note {
   display: none;
+}
+
+.review-feedback {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.review-feedback button {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-solid);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  box-shadow: var(--shadow-tight);
+}
+
+.review-feedback button.active,
+.review-feedback button:active {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--line));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-solid));
+  color: var(--accent-strong);
 }
 
 .food-review-page .parsed-food-list {
