@@ -360,11 +360,6 @@ document.querySelectorAll("[data-add-mode-back]").forEach((button) => {
   button.addEventListener("click", () => switchAddMode("browse"));
 });
 
-document.querySelector("[data-open-food-tour]")?.addEventListener("click", () => {
-  closeFoodAddSheet();
-  window.setTimeout(() => openOnboarding({ force: true, startStep: 1 }), 180);
-});
-
 document.querySelectorAll("[data-food-example]").forEach((button) => {
   button.addEventListener("click", () => {
     switchAddMode("ai");

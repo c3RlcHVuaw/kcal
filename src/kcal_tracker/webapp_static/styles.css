@@ -5467,61 +5467,6 @@ textarea {
   font-weight: 650;
 }
 
-.food-add-tour {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  min-height: 48px;
-  margin: -4px 0 16px;
-  padding: 11px 13px 11px 15px;
-  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--line));
-  border-radius: 18px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent) 9%, transparent), color-mix(in srgb, var(--activity) 8%, transparent)),
-    color-mix(in srgb, var(--surface-solid) 82%, transparent);
-  color: var(--text);
-  text-align: left;
-  box-shadow:
-    0 12px 26px color-mix(in srgb, var(--accent) 8%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
-}
-
-.food-add-tour::after {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border-radius: 999px;
-  background: linear-gradient(135deg, var(--accent), var(--activity));
-  color: #fff;
-  content: "?";
-  font-size: 16px;
-  font-weight: 850;
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--accent) 24%, transparent);
-}
-
-.food-add-tour span,
-.food-add-tour b {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.food-add-tour span {
-  grid-column: 1;
-  font-size: 14px;
-  font-weight: 820;
-}
-
-.food-add-tour b {
-  grid-column: 1;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 650;
-}
-
 .food-add-section-head {
   display: flex;
   align-items: baseline;
