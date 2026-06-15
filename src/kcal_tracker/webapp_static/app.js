@@ -135,6 +135,7 @@ const nodes = {
   weeklyMissionsTitle: document.querySelector("#weekly-missions-title"),
   weeklyMissionsText: document.querySelector("#weekly-missions-text"),
   weeklyMissionsList: document.querySelector("#weekly-missions-list"),
+  weeklyMissionsClaim: document.querySelector("#weekly-missions-claim"),
   nutritionScore: document.querySelector("#nutrition-score"),
   nutritionStatus: document.querySelector("#nutrition-status"),
   macroTotal: document.querySelector("#macro-total"),
@@ -384,6 +385,7 @@ document.querySelectorAll("[data-meal]").forEach((button) => {
 
 nodes.refresh.addEventListener("click", loadAll);
 document.querySelector("#refresh-hero")?.addEventListener("click", loadAll);
+nodes.weeklyMissionsClaim?.addEventListener("click", claimWeeklyMissionBonus);
 document.addEventListener("click", (event) => {
   const shortcut = event.target.closest("[data-view-shortcut]");
   if (shortcut) {
@@ -1187,9 +1189,9 @@ function renderSmartNudge(data) {
     nudge = {
       caption: "Бонус недели",
       title: "+1 день AI уже доступен",
-      text: "Ты выполнил 2 недельные миссии. Открой прогресс, чтобы увидеть статус и не потерять бонус.",
-      action: "progress",
-      button: "Прогресс",
+      text: "Ты выполнил 2 недельные миссии. Забери бонус прямо в Mini App и продолжай с AI.",
+      action: "claim-weekly-bonus",
+      button: "Забрать",
     };
   } else if (!entriesCount) {
     nudge = {
@@ -1261,6 +1263,10 @@ function handleSmartNudgeAction() {
     switchView("progress");
     return;
   }
+  if (action === "claim-weekly-bonus") {
+    claimWeeklyMissionBonus();
+    return;
+  }
   if (action === "subscription") {
     openSubscriptionFlow();
     return;
@@ -1286,8 +1292,12 @@ function renderWeeklyMissions(missions) {
   nodes.weeklyMissionsText.textContent = missions.bonus_claimed
     ? "Продолжай серию: новые миссии уже засчитываются до конца недели."
     : missions.eligible_for_bonus
-      ? "Выполнено 2 миссии. Бонус AI доступен в недельном прогрессе бота."
+      ? "Выполнено 2 миссии. Забери бонус AI прямо здесь."
       : "Выполни 2 миссии, чтобы открыть +1 день AI и закрепить привычку.";
+  if (nodes.weeklyMissionsClaim) {
+    nodes.weeklyMissionsClaim.classList.toggle("hidden", !missions.eligible_for_bonus || missions.bonus_claimed);
+    nodes.weeklyMissionsClaim.disabled = !missions.eligible_for_bonus || missions.bonus_claimed;
+  }
 
   const active = [...items]
     .sort((left, right) => Number(left.completed) - Number(right.completed))
@@ -1306,6 +1316,34 @@ function renderWeeklyMissions(missions) {
       </article>
     `;
   }).join("");
+}
+
+async function claimWeeklyMissionBonus() {
+  const button = nodes.weeklyMissionsClaim;
+  if (!button || isBusy(button)) return;
+  if (!initData) {
+    toast("Бонус можно забрать внутри Telegram mini-app");
+    return;
+  }
+  setButtonBusy(button, "Добавляю...");
+  try {
+    const today = await api("/webapp/me/weekly-missions/claim", { method: "POST" });
+    state.today = today;
+    renderToday(today);
+    recordWebappEvent("webapp_weekly_bonus_claim", {
+      source: "weekly_missions",
+      details: {
+        completed_count: today.weekly_missions?.completed_count || 0,
+        subscription_days_left: today.subscription_days_left,
+      },
+    });
+    toast("+1 день AI добавлен");
+  } catch (error) {
+    toast(error.status === 409 ? "Бонус пока недоступен" : "Не получилось забрать бонус");
+    await loadToday().catch(() => {});
+  } finally {
+    restoreButton(button);
+  }
 }
 
 function renderFoodAddSummary(diary) {

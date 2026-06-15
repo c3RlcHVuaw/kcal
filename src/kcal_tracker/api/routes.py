@@ -277,6 +277,10 @@ async def webapp_today(
     session: SessionDep,
 ) -> WebAppToday:
     user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    return await _webapp_today_payload(user, session)
+
+
+async def _webapp_today_payload(user, session: AsyncSession) -> WebAppToday:
     diary = await DiaryService(session).today_summary(user)
     wellness = WellnessService(session)
     latest_weight = await wellness.latest_weight(user)
@@ -311,6 +315,21 @@ async def webapp_today(
             bonus_claimed=weekly_missions.bonus_claimed,
         ),
     )
+
+
+@router.post("/webapp/me/weekly-missions/claim", response_model=WebAppToday)
+async def webapp_claim_weekly_mission_bonus(
+    identity: WebAppIdentityDep,
+    session: SessionDep,
+) -> WebAppToday:
+    user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
+    until = await GrowthService(session).claim_weekly_mission_bonus(user)
+    if until is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Weekly mission bonus is not available",
+        )
+    return await _webapp_today_payload(user, session)
 
 
 @router.post("/webapp/me/entries", response_model=FoodEntryRead)

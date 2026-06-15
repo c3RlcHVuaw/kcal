@@ -720,7 +720,14 @@ h2 {
   line-height: 1.35;
 }
 
-.weekly-missions-head .secondary-button {
+.weekly-missions-actions {
+  display: grid;
+  gap: 8px;
+  min-width: 148px;
+}
+
+.weekly-missions-actions .primary-button,
+.weekly-missions-actions .secondary-button {
   min-height: 40px;
   padding-inline: 14px;
   white-space: nowrap;
@@ -3864,7 +3871,12 @@ body.sheet-open .tab-bar [data-view="food"] {
     grid-template-columns: 1fr;
   }
 
-  .weekly-missions-head .secondary-button {
+  .weekly-missions-actions {
+    min-width: 0;
+  }
+
+  .weekly-missions-actions .primary-button,
+  .weekly-missions-actions .secondary-button {
     width: 100%;
   }
 

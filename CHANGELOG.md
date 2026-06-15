@@ -15,6 +15,8 @@
   recognition, AI food search, and food refinement, with a manual-entry fallback.
 - Added weekly mission progress to the Mini App Today view so users can see
   retention goals and the +1 day AI bonus without leaving the app.
+- Added Mini App claiming for the weekly +1 day AI bonus once enough missions
+  are completed.
 
 ## 2026-06-04
 
