@@ -3753,6 +3753,29 @@ body.sheet-open .tab-bar [data-view="food"] {
     width: 100%;
   }
 
+  .ai-limit-screen {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .ai-limit-panel {
+    gap: 12px;
+    border-radius: 28px;
+    padding: 20px;
+  }
+
+  .ai-limit-panel h2 {
+    font-size: 28px;
+  }
+
+  .ai-limit-promo {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-limit-promo .secondary-button {
+    width: 100%;
+  }
+
   .calorie-side {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     text-align: left;

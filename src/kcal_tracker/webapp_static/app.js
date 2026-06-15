@@ -18,6 +18,64 @@ const FALLBACK_SUBSCRIPTION_PLANS = [
   },
 ];
 
+const AI_LIMIT_CONTEXTS = {
+  text: {
+    badge: "Текстовый AI",
+    title: "Продолжить разбор еды текстом",
+    subtitle: "Premium вернёт разбор обычным языком: блюда, порции, соусы и примерное КБЖУ без ручного поиска.",
+    benefits: [
+      ["Фразы как в чате", "«омлет с сыром и кофе» сразу превращается в запись"],
+      ["Порции и БЖУ", "AI подсказывает граммы, калории, белки, жиры и углеводы"],
+      ["Уточнения после разбора", "можно поправить соус, вес или состав блюда"],
+    ],
+    manualLabel: "Добавить вручную",
+  },
+  photo: {
+    badge: "Фото еды",
+    title: "Распознавать блюда по фото",
+    subtitle: "Premium помогает быстро заносить кафе, доставку и домашние блюда, когда искать продукт вручную неудобно.",
+    benefits: [
+      ["Фото блюда", "кафе, доставка и тарелки с несколькими продуктами"],
+      ["Подсказка к фото", "можно добавить текст, если на снимке есть нюансы"],
+      ["Проверка перед записью", "результат остаётся редактируемым перед сохранением"],
+    ],
+    manualLabel: "Ввести значения",
+  },
+  search: {
+    badge: "AI-поиск",
+    title: "Найти продукт через AI",
+    subtitle: "Если базы не хватает, Premium предложит продукт и порцию для проверки вместо пустого результата.",
+    benefits: [
+      ["Редкие продукты", "бренды, готовые блюда и формулировки из меню"],
+      ["Порция из запроса", "«латте 300 мл» или «сырники 2 шт» учитываются сразу"],
+      ["Быстрая запись", "найденный вариант можно сохранить одним нажатием"],
+    ],
+    manualLabel: "Заполнить вручную",
+  },
+  refine: {
+    badge: "AI-уточнение",
+    title: "Уточнять порции и состав",
+    subtitle: "Premium позволяет поправлять AI-оценку диалогом, не пересобирая блюдо заново.",
+    benefits: [
+      ["Поправка порции", "например: «было 250 г, без масла»"],
+      ["Сложные блюда", "соусы, гарниры и состав можно уточнить после первого результата"],
+      ["Меньше пересчётов", "AI обновляет КБЖУ в уже найденной записи"],
+    ],
+    manualLabel: "Исправить вручную",
+  },
+  default: {
+    badge: "AI-доступ",
+    title: "Пробные AI-запросы закончились",
+    subtitle: "Premium вернёт фото, текст, поиск и уточнения для сложной еды. Ручной ввод остаётся бесплатным.",
+    benefits: [
+      ["Фото еды", "кафе, доставка, сложные блюда"],
+      ["Текст и голос", "обычным языком без таблиц"],
+      ["Уточнения", "порции, соусы, граммы и БЖУ"],
+    ],
+    manualLabel: "Пока вручную",
+  },
+};
+
 const state = {
   today: null,
   week: null,
@@ -485,7 +543,7 @@ async function parseFoodText(event) {
       query: text,
       details: { status: error.status || 0 },
     });
-    if (error.status === 402) showPremiumUpsell("AI разбор еды");
+    if (error.status === 402) showPremiumUpsell("AI разбор еды", "text");
   } finally {
     setAiProcessing(nodes.foodTextForm, false);
     restoreButton(submit);
@@ -518,7 +576,7 @@ async function parseFoodPhoto() {
       query: hint,
       details: { status: error.status || 0, has_hint: Boolean(hint) },
     });
-    if (error.status === 402) showPremiumUpsell("Распознавание фото");
+    if (error.status === 402) showPremiumUpsell("Распознавание фото", "photo");
   } finally {
     nodes.foodPhotoInput.value = "";
     setAiProcessing(photoPanel, false);
@@ -1896,7 +1954,7 @@ async function searchFoodWithAi(trigger = null) {
       query,
       details: { status: error.status || 0 },
     });
-    if (error.status === 402) showPremiumUpsell("AI-поиск по еде");
+    if (error.status === 402) showPremiumUpsell("AI-поиск по еде", "search");
   } finally {
     trigger?.classList.remove("is-pressed");
     if (requestId === state.searchRequestId) {
@@ -2357,7 +2415,7 @@ async function refineParsedFood(event) {
       ? "Лимит AI на сегодня закончился"
       : "Не получилось уточнить";
     toast(message);
-    if (error.status === 402) showPremiumUpsell("AI-уточнение еды");
+    if (error.status === 402) showPremiumUpsell("AI-уточнение еды", "refine");
   } finally {
     restoreButton(button);
   }
@@ -2476,29 +2534,40 @@ function openSubscriptionFlow(options = {}) {
   }
 }
 
-function showPremiumUpsell(feature = "Premium") {
+function showPremiumUpsell(feature = "Premium", context = "default") {
   closeFoodAddSheet();
   closeFoodReviewSheet();
-  openAiLimitScreen(feature);
+  openAiLimitScreen(feature, context);
 }
 
-function openAiLimitScreen(feature = "AI") {
+function openAiLimitScreen(feature = "AI", context = "default") {
   const screen = ensureAiLimitScreen();
   const title = screen.querySelector("[data-ai-limit-title]");
   const subtitle = screen.querySelector("[data-ai-limit-subtitle]");
   const counter = screen.querySelector("[data-ai-limit-counter]");
+  const benefits = screen.querySelector("[data-ai-limit-benefits]");
+  const manual = screen.querySelector("[data-ai-limit-manual]");
   const usage = state.aiUsage;
   const remaining = Number(usage?.trial_remaining ?? usage?.remaining_today ?? 0);
+  const copy = AI_LIMIT_CONTEXTS[context] || AI_LIMIT_CONTEXTS.default;
 
   title.textContent = remaining <= 0
-    ? "Пробные AI-запросы закончились"
+    ? copy.title
     : "Для этого действия нужна подписка";
   subtitle.textContent = remaining <= 0
-    ? `Сегодня AI уже помог ${Number(usage?.trial_limit || 3)} раза. Дальше можно добавить еду вручную или открыть Premium.`
+    ? copy.subtitle
     : `${feature} доступен в подписке: можно разбирать еду текстом, фото и уточнениями без ручного поиска.`;
   counter.textContent = usage?.is_trial
     ? `${formatAiUsageValue(usage)} пробных AI-запросов`
-    : "AI-доступ ограничен";
+    : copy.badge;
+  if (benefits) {
+    benefits.innerHTML = copy.benefits.map(([heading, text]) => `
+      <div><b>${escapeHtml(heading)}</b><span>${escapeHtml(text)}</span></div>
+    `).join("");
+  }
+  if (manual) {
+    manual.textContent = copy.manualLabel;
+  }
 
   screen.classList.remove("hidden");
   document.body.classList.add("paywall-open");
@@ -2507,6 +2576,7 @@ function openAiLimitScreen(feature = "AI") {
     source: "ai_limit",
     details: {
       feature,
+      context,
       remaining_ai: remaining,
       has_subscription: state.hasActiveSubscription,
     },
@@ -2535,7 +2605,7 @@ function ensureAiLimitScreen() {
       <span data-ai-limit-counter>Пробные запросы</span>
       <h2 data-ai-limit-title>Пробные AI-запросы закончились</h2>
       <p data-ai-limit-subtitle>Открой подписку, чтобы продолжить разбирать еду через AI.</p>
-      <div class="ai-limit-benefits">
+      <div class="ai-limit-benefits" data-ai-limit-benefits>
         <div><b>Фото еды</b><span>кафе, доставка, сложные блюда</span></div>
         <div><b>Текст и голос</b><span>обычным языком без таблиц</span></div>
         <div><b>Уточнения</b><span>порции, соусы, граммы и БЖУ</span></div>
@@ -2545,12 +2615,18 @@ function ensureAiLimitScreen() {
         <button class="secondary-button" type="submit">Применить</button>
       </form>
       <button class="primary-button" type="button" data-ai-limit-subscribe>Купить подписку</button>
-      <button class="secondary-button" type="button" data-ai-limit-close>Пока вручную</button>
+      <button class="secondary-button" type="button" data-ai-limit-manual>Пока вручную</button>
     </div>
   `;
   screen.addEventListener("click", (event) => {
     if (event.target.closest("[data-ai-limit-subscribe]")) {
       openSubscriptionFlow();
+      return;
+    }
+    if (event.target.closest("[data-ai-limit-manual]")) {
+      closeAiLimitScreen();
+      openFoodAddSheet();
+      switchAddMode("manual");
       return;
     }
     if (event.target.closest("[data-ai-limit-close]")) {

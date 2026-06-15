@@ -11,6 +11,8 @@
   feedback, first-food, paywall, search, barcode, and AI failure signals.
 - Turned the Mini App first-day prompt into a smart daily nudge that points to
   food, water, progress, or Premium based on the current day state.
+- Made the Mini App AI limit paywall contextual for text parsing, photo
+  recognition, AI food search, and food refinement, with a manual-entry fallback.
 
 ## 2026-06-04
 
