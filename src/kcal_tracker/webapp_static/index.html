@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/styles.css?v=multi-photo-brand-20260615" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=missions-header-20260615" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -31,6 +31,10 @@
       <symbol id="icon-refresh" viewBox="0 0 24 24">
         <path d="M20 12a8 8 0 1 1-2.35-5.65" />
         <path d="M20 4.75v5h-5" />
+      </symbol>
+      <symbol id="icon-missions" viewBox="0 0 24 24">
+        <path d="M6.5 19.25V5.5" />
+        <path d="M6.5 6.25h8.2l1.05 2.25h2.75v7h-8.2l-1.05-2.25H6.5" />
       </symbol>
       <symbol id="icon-chevron" viewBox="0 0 24 24">
         <path d="m7 10 5 5 5-5" />
@@ -83,9 +87,15 @@
               <p id="today-hello" class="caption">Kcal Flow</p>
               <h1>Сегодня</h1>
             </div>
-            <button id="refresh-hero" class="icon-button" type="button" aria-label="Обновить">
-              <svg><use href="#icon-refresh"></use></svg>
-            </button>
+            <div class="today-actions">
+              <button id="weekly-missions-trigger" class="mission-button hidden" type="button" aria-label="Открыть миссии недели">
+                <svg><use href="#icon-missions"></use></svg>
+                <span id="weekly-missions-count">0/2</span>
+              </button>
+              <button id="refresh-hero" class="icon-button" type="button" aria-label="Обновить">
+                <svg><use href="#icon-refresh"></use></svg>
+              </button>
+            </div>
           </div>
 
           <div class="calorie-card component-card">
@@ -119,21 +129,6 @@
             <button id="first-day-action" class="primary-button" type="button" data-nudge-action="add-food">
               Добавить еду
             </button>
-          </section>
-
-          <section id="weekly-missions" class="weekly-missions component-card hidden" aria-live="polite">
-            <div class="weekly-missions-head">
-              <div>
-                <span id="weekly-missions-caption" class="caption">Неделя</span>
-                <strong id="weekly-missions-title">Миссии недели</strong>
-                <p id="weekly-missions-text">Выполни 2 миссии и забери +1 день AI.</p>
-              </div>
-              <div class="weekly-missions-actions">
-                <button id="weekly-missions-claim" class="primary-button hidden" type="button">Забрать +1 день AI</button>
-                <button class="secondary-button" type="button" data-view-shortcut="progress">Прогресс</button>
-              </div>
-            </div>
-            <div id="weekly-missions-list" class="weekly-missions-list"></div>
           </section>
 
           <section class="nutrition-overview" aria-label="Сводка питания">
@@ -954,7 +949,35 @@
       </form>
     </section>
 
+    <section id="weekly-missions-sheet" class="sheet missions-sheet hidden" aria-modal="true" role="dialog" aria-labelledby="weekly-missions-title">
+      <div class="sheet-panel missions-panel component-card">
+        <div class="missions-sheet-title">
+          <div>
+            <span class="caption">Неделя</span>
+            <h2>Миссии</h2>
+          </div>
+          <button id="weekly-missions-close" class="icon-button" type="button" aria-label="Закрыть миссии">
+            <svg><use href="#icon-chevron"></use></svg>
+          </button>
+        </div>
+        <section id="weekly-missions" class="weekly-missions hidden" aria-live="polite">
+          <div class="weekly-missions-head">
+            <div>
+              <span id="weekly-missions-caption" class="caption">Неделя</span>
+              <strong id="weekly-missions-title">Миссии недели</strong>
+              <p id="weekly-missions-text">Выполни 2 миссии и забери +1 день AI.</p>
+            </div>
+            <div class="weekly-missions-actions">
+              <button id="weekly-missions-claim" class="primary-button hidden" type="button">Забрать +1 день AI</button>
+              <button class="secondary-button" type="button" data-view-shortcut="progress">Прогресс</button>
+            </div>
+          </div>
+          <div id="weekly-missions-list" class="weekly-missions-list"></div>
+        </section>
+      </div>
+    </section>
+
     <div id="toast" class="toast hidden"></div>
-    <script src="/app/static/app.js?v=multi-photo-brand-20260615" type="module"></script>
+    <script src="/app/static/app.js?v=missions-header-20260615" type="module"></script>
   </body>
 </html>

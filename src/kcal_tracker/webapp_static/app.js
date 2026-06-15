@@ -130,6 +130,10 @@ const nodes = {
   firstDayTitle: document.querySelector("#first-day-title"),
   firstDayText: document.querySelector("#first-day-text"),
   firstDayAction: document.querySelector("#first-day-action"),
+  weeklyMissionsTrigger: document.querySelector("#weekly-missions-trigger"),
+  weeklyMissionsCount: document.querySelector("#weekly-missions-count"),
+  weeklyMissionsSheet: document.querySelector("#weekly-missions-sheet"),
+  weeklyMissionsClose: document.querySelector("#weekly-missions-close"),
   weeklyMissions: document.querySelector("#weekly-missions"),
   weeklyMissionsCaption: document.querySelector("#weekly-missions-caption"),
   weeklyMissionsTitle: document.querySelector("#weekly-missions-title"),
@@ -385,10 +389,16 @@ document.querySelectorAll("[data-meal]").forEach((button) => {
 
 nodes.refresh.addEventListener("click", loadAll);
 document.querySelector("#refresh-hero")?.addEventListener("click", loadAll);
+nodes.weeklyMissionsTrigger?.addEventListener("click", openWeeklyMissionsSheet);
+nodes.weeklyMissionsClose?.addEventListener("click", closeWeeklyMissionsSheet);
+nodes.weeklyMissionsSheet?.addEventListener("click", (event) => {
+  if (event.target === nodes.weeklyMissionsSheet) closeWeeklyMissionsSheet();
+});
 nodes.weeklyMissionsClaim?.addEventListener("click", claimWeeklyMissionBonus);
 document.addEventListener("click", (event) => {
   const shortcut = event.target.closest("[data-view-shortcut]");
   if (shortcut) {
+    closeWeeklyMissionsSheet();
     const meal = shortcut.dataset.mealShortcut;
     if (meal) setSelectedMeal(meal);
     if (shortcut.dataset.viewShortcut === "food") {
@@ -1283,13 +1293,38 @@ function handleSmartNudgeAction() {
   openFoodAddSheet();
 }
 
+function openWeeklyMissionsSheet() {
+  if (!nodes.weeklyMissionsSheet || nodes.weeklyMissionsTrigger?.classList.contains("hidden")) return;
+  nodes.weeklyMissionsSheet.classList.remove("hidden");
+  document.body.classList.add("sheet-open");
+  triggerHaptic("light");
+}
+
+function closeWeeklyMissionsSheet() {
+  if (!nodes.weeklyMissionsSheet || nodes.weeklyMissionsSheet.classList.contains("hidden")) return;
+  nodes.weeklyMissionsSheet.classList.add("hidden");
+  document.body.classList.remove("sheet-open");
+}
+
 function renderWeeklyMissions(missions) {
   if (!nodes.weeklyMissions || !nodes.weeklyMissionsList) return;
   const items = missions?.missions || [];
   nodes.weeklyMissions.classList.toggle("hidden", !items.length);
-  if (!items.length) return;
+  nodes.weeklyMissionsTrigger?.classList.toggle("hidden", !items.length);
+  if (!items.length) {
+    closeWeeklyMissionsSheet();
+    return;
+  }
 
   const completedCount = Number(missions.completed_count || 0);
+  const missionTarget = 2;
+  if (nodes.weeklyMissionsCount) {
+    nodes.weeklyMissionsCount.textContent = missions.bonus_claimed
+      ? "OK"
+      : `${Math.min(completedCount, missionTarget)}/${missionTarget}`;
+  }
+  nodes.weeklyMissionsTrigger?.classList.toggle("is-eligible", Boolean(missions.eligible_for_bonus));
+  nodes.weeklyMissionsTrigger?.classList.toggle("is-claimed", Boolean(missions.bonus_claimed));
   nodes.weeklyMissions.classList.toggle("is-eligible", Boolean(missions.eligible_for_bonus));
   nodes.weeklyMissions.classList.toggle("is-claimed", Boolean(missions.bonus_claimed));
   nodes.weeklyMissionsCaption.textContent = missions.bonus_claimed

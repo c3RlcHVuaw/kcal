@@ -512,6 +512,49 @@ h2 {
   transition: transform var(--motion-spring);
 }
 
+.mission-button {
+  display: inline-grid;
+  grid-template-columns: 18px auto;
+  gap: 6px;
+  align-items: center;
+  min-width: 58px;
+  height: var(--control-md);
+  padding: 0 11px;
+  border: 1px solid rgba(207, 216, 232, 0.82);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(255, 208, 115, 0.3), rgba(82, 190, 182, 0.16)),
+    rgba(255, 255, 255, 0.72);
+  color: var(--text);
+  box-shadow: var(--shadow-tight);
+  backdrop-filter: var(--control-blur);
+  -webkit-backdrop-filter: var(--control-blur);
+  font-size: 13px;
+  font-weight: 860;
+  white-space: nowrap;
+}
+
+.mission-button svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: var(--accent-strong);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.4;
+}
+
+.mission-button.is-eligible {
+  border-color: rgba(71, 192, 139, 0.48);
+  background:
+    linear-gradient(135deg, rgba(71, 192, 139, 0.24), rgba(7, 190, 184, 0.2)),
+    rgba(255, 255, 255, 0.78);
+}
+
+.mission-button.is-claimed {
+  color: var(--accent-strong);
+}
+
 .icon-button:not(:disabled):active svg,
 .icon-mini:not(:disabled):active svg,
 .tab-bar button:not(:disabled):active svg {
@@ -542,6 +585,12 @@ h2 {
 
 .today-top {
   min-height: 48px;
+}
+
+.today-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 
 .today-top .caption {
@@ -649,33 +698,82 @@ h2 {
 .first-day-nudge {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--space-3);
+  gap: 10px;
   align-items: center;
-  padding: 14px;
+  padding: 11px 12px;
   border-radius: var(--radius-lg);
   background:
     linear-gradient(135deg, rgba(71, 192, 139, 0.14), rgba(99, 128, 214, 0.12)),
     var(--surface);
 }
 
+.first-day-nudge > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 7px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.first-day-nudge .caption {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .first-day-nudge strong {
   display: block;
-  margin-top: 3px;
-  font-size: 18px;
-  line-height: 1.16;
+  margin-top: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 16px;
+  line-height: 1.12;
 }
 
 .first-day-nudge p {
-  margin: 5px 0 0;
+  grid-column: 1 / -1;
+  margin: 3px 0 0;
+  overflow: hidden;
   color: var(--muted);
-  font-size: 13px;
-  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 1.22;
 }
 
 .first-day-nudge .primary-button {
-  min-height: 42px;
-  padding-inline: 16px;
+  min-height: 34px;
+  padding-inline: 12px;
+  border-radius: 999px;
+  font-size: 13px;
   white-space: nowrap;
+}
+
+.missions-panel {
+  padding: 14px;
+  background:
+    radial-gradient(circle at 16% 0%, rgba(255, 208, 115, 0.22), transparent 34%),
+    var(--surface);
+}
+
+.missions-sheet-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.missions-sheet-title h2 {
+  margin: 1px 0 0;
+  font-size: 22px;
+  line-height: 1.08;
+}
+
+.missions-sheet-title .icon-button svg {
+  transform: rotate(180deg);
 }
 
 .weekly-missions {
@@ -3857,14 +3955,6 @@ body.sheet-open .tab-bar [data-view="food"] {
 
   .calorie-card {
     grid-template-columns: 1fr;
-  }
-
-  .first-day-nudge {
-    grid-template-columns: 1fr;
-  }
-
-  .first-day-nudge .primary-button {
-    width: 100%;
   }
 
   .weekly-missions-head {
