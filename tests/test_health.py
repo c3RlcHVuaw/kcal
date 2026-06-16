@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 
 from kcal_tracker.api import routes
@@ -32,6 +35,8 @@ def test_landing_page_is_served_with_seo_metadata() -> None:
     assert '<link rel="canonical" href="https://kcal-bot.ru/" />' in response.text
     assert "https://t.me/trackerkcal_bot" in response.text
     assert "/landing/static/tracker.js?v=20260615-landing-stats" in response.text
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
 
 
 def test_seo_discovery_files_are_served() -> None:
@@ -72,6 +77,36 @@ def test_openapi_exposes_external_client_routes() -> None:
     assert "/webapp/me/weekly-missions/claim" in paths
     assert "/webapp/me/activity" in paths
     assert "/webapp/me/exports/food.csv" in paths
+
+
+def test_legacy_api_is_disabled_in_production_without_token(monkeypatch) -> None:
+    request = SimpleNamespace(headers={}, query_params={})
+    monkeypatch.setattr(routes.settings, "app_env", "production")
+    monkeypatch.setattr(routes.settings, "external_api_token", "")
+
+    response = asyncio.run(_legacy_access_error(request))
+
+    assert response == (403, "Legacy API is disabled")
+
+
+def test_legacy_api_requires_matching_token(monkeypatch) -> None:
+    monkeypatch.setattr(routes.settings, "app_env", "production")
+    monkeypatch.setattr(routes.settings, "external_api_token", "secret")
+    bad_request = SimpleNamespace(headers={"x-kcal-api-key": "wrong"}, query_params={})
+    good_request = SimpleNamespace(headers={"x-kcal-api-key": "secret"}, query_params={})
+
+    response = asyncio.run(_legacy_access_error(bad_request))
+    asyncio.run(routes.require_legacy_api_access(good_request))
+
+    assert response == (401, "Invalid API key")
+
+
+async def _legacy_access_error(request) -> tuple[int, str]:
+    try:
+        await routes.require_legacy_api_access(request)
+    except Exception as exc:
+        return exc.status_code, exc.detail
+    raise AssertionError("Legacy API access unexpectedly passed")
 
 
 def test_readiness_returns_ok_when_dependencies_are_available(monkeypatch) -> None:

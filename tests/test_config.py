@@ -113,6 +113,16 @@ def test_food_search_timeouts_are_configurable() -> None:
     assert settings.food_search_fatsecret_timeout_seconds == 2.5
 
 
+def test_landing_event_limits_are_configurable() -> None:
+    settings = Settings(
+        landing_event_rate_limit_per_minute=12,
+        landing_event_dedupe_seconds=60,
+    )
+
+    assert settings.landing_event_rate_limit_per_minute == 12
+    assert settings.landing_event_dedupe_seconds == 60
+
+
 def test_webapp_init_data_validation_accepts_signed_payload() -> None:
     identity = validate_webapp_init_data(
         _signed_init_data("bot-token"),

@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 3100
     public_api_url: str = "http://127.0.0.1:3100"
+    external_api_token: str = ""
 
     database_url: str = "postgresql+asyncpg://kcal:kcal@postgres:5432/kcal"
     redis_url: str = "redis://redis:6379/0"
@@ -37,6 +38,8 @@ class Settings(BaseSettings):
     fatsecret_language: str = "ru"
     food_search_openfoodfacts_timeout_seconds: float = Field(default=3.0, ge=0.5)
     food_search_fatsecret_timeout_seconds: float = Field(default=3.0, ge=0.5)
+    landing_event_rate_limit_per_minute: int = Field(default=30, ge=1)
+    landing_event_dedupe_seconds: int = Field(default=1800, ge=0)
 
     default_timezone: str = "Europe/Samara"
     default_daily_kcal_target: int = 2200

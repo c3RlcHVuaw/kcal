@@ -122,6 +122,10 @@ async def log_requests(request: Request, call_next):
         raise
 
     duration_ms = (time.perf_counter() - started_at) * 1000
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    if request.url.path.startswith(("/app/static/", "/landing/static/")):
+        response.headers.setdefault("Cache-Control", "public, max-age=604800, immutable")
     logger.info(
         "Request completed method=%s path=%s status=%s duration_ms=%.1f",
         request.method,

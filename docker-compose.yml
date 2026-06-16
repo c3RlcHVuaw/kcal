@@ -1,8 +1,15 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   api:
     build: .
     command: ["./scripts/entrypoint.sh", "api"]
     env_file: .env
+    logging: *default-logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -27,6 +34,7 @@ services:
     build: .
     command: ["./scripts/entrypoint.sh", "bot"]
     env_file: .env
+    logging: *default-logging
     depends_on:
       api:
         condition: service_healthy
@@ -36,6 +44,7 @@ services:
     build: .
     command: ["./scripts/entrypoint.sh", "admin-bot"]
     env_file: .env
+    logging: *default-logging
     depends_on:
       api:
         condition: service_healthy
@@ -43,6 +52,7 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    logging: *default-logging
     environment:
       POSTGRES_DB: kcal
       POSTGRES_USER: kcal
@@ -59,6 +69,7 @@ services:
   redis:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "yes"]
+    logging: *default-logging
     volumes:
       - redis-data:/data
     healthcheck:

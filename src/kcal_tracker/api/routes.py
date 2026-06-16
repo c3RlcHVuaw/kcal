@@ -7,6 +7,7 @@ import io
 import json
 import logging
 import re
+import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
@@ -103,7 +104,19 @@ async def get_webapp_identity(request: Request) -> WebAppIdentity:
         raise HTTPException(status_code=401, detail=str(exc)) from exc
 
 
+async def require_legacy_api_access(request: Request) -> None:
+    token = settings.external_api_token
+    if not token:
+        if settings.is_production:
+            raise HTTPException(status_code=403, detail="Legacy API is disabled")
+        return
+    supplied = request.headers.get("x-kcal-api-key") or request.query_params.get("api_key")
+    if supplied is None or not secrets.compare_digest(supplied, token):
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+
 WebAppIdentityDep = Annotated[WebAppIdentity, Depends(get_webapp_identity)]
+LegacyAccessDep = Annotated[None, Depends(require_legacy_api_access)]
 ImageUploadDep = Annotated[UploadFile, File()]
 ImageUploadsDep = Annotated[list[UploadFile], File()]
 OptionalTextHintDep = Annotated[str | None, Form()]
@@ -134,6 +147,9 @@ async def record_landing_event(
     session: SessionDep,
 ) -> None:
     client_host = request.client.host if request.client else ""
+    ip_hash = _hash_landing_ip(client_host) if client_host else None
+    if not await _should_record_landing_event(payload, ip_hash):
+        return
     session.add(
         LandingEvent(
             event_type=payload.event_type,
@@ -148,7 +164,7 @@ async def record_landing_event(
             visitor_id=payload.visitor_id,
             session_id=payload.session_id,
             user_agent=_limit_text(request.headers.get("user-agent"), 512),
-            ip_hash=_hash_landing_ip(client_host) if client_host else None,
+            ip_hash=ip_hash,
         )
     )
     await session.commit()
@@ -163,6 +179,7 @@ async def yookassa_return() -> dict[str, str]:
 async def upsert_user(
     telegram_id: int,
     session: SessionDep,
+    _: LegacyAccessDep,
     username: str | None = None,
 ) -> UserRead:
     return await UserService(session).get_or_create(telegram_id=telegram_id, username=username)
@@ -172,6 +189,7 @@ async def upsert_user(
 async def get_user(
     telegram_id: int,
     session: SessionDep,
+    _: LegacyAccessDep,
 ) -> UserRead:
     user = await UserService(session).get_by_telegram_id(telegram_id)
     if user is None:
@@ -183,6 +201,7 @@ async def get_user(
 async def today_diary(
     telegram_id: int,
     session: SessionDep,
+    _: LegacyAccessDep,
 ) -> DiarySummary:
     user = await UserService(session).get_by_telegram_id(telegram_id)
     if user is None:
@@ -194,6 +213,7 @@ async def today_diary(
 async def week_analytics(
     telegram_id: int,
     session: SessionDep,
+    _: LegacyAccessDep,
 ) -> WeeklyAnalyticsRead:
     user = await UserService(session).get_by_telegram_id(telegram_id)
     if user is None:
@@ -221,6 +241,7 @@ async def week_analytics(
 async def get_weight_goal(
     telegram_id: int,
     session: SessionDep,
+    _: LegacyAccessDep,
 ) -> WeightGoalRead:
     user = await UserService(session).get_by_telegram_id(telegram_id)
     if user is None:
@@ -233,6 +254,7 @@ async def update_weight_goal(
     telegram_id: int,
     payload: WeightGoalUpdate,
     session: SessionDep,
+    _: LegacyAccessDep,
 ) -> WeightGoalRead:
     user = await UserService(session).get_by_telegram_id(telegram_id)
     if user is None:
@@ -251,6 +273,7 @@ async def update_weight_goal(
 async def today_ai_usage(
     telegram_id: int,
     session: SessionDep,
+    _: LegacyAccessDep,
 ) -> AIUsageSummary:
     user = await UserService(session).get_by_telegram_id(telegram_id)
     if user is None:
@@ -264,6 +287,7 @@ async def create_entry(
     telegram_id: int,
     payload: FoodEntryCreate,
     session: SessionDep,
+    _: LegacyAccessDep,
 ) -> FoodEntryRead:
     user = await UserService(session).get_by_telegram_id(telegram_id)
     if user is None:
@@ -275,6 +299,7 @@ async def create_entry(
 async def export_food_csv(
     telegram_id: int,
     session: SessionDep,
+    _: LegacyAccessDep,
 ) -> PlainTextResponse:
     user = await UserService(session).get_by_telegram_id(telegram_id)
     if user is None:
@@ -291,6 +316,7 @@ async def export_food_csv(
 async def export_wellness_csv(
     telegram_id: int,
     session: SessionDep,
+    _: LegacyAccessDep,
 ) -> PlainTextResponse:
     user = await UserService(session).get_by_telegram_id(telegram_id)
     if user is None:
@@ -1416,6 +1442,45 @@ async def _ensure_webapp_ai_allowed(user, usage_service: AIUsageService, request
 def _hash_landing_ip(value: str) -> str:
     salt = settings.telegram_bot_token or settings.admin_bot_token or settings.app_env
     return hashlib.sha256(f"{salt}:{value}".encode()).hexdigest()
+
+
+async def _should_record_landing_event(payload: LandingEventCreate, ip_hash: str | None) -> bool:
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        visitor_key = ip_hash or payload.visitor_id or "anonymous"
+        rate_key = f"landing:rate:{visitor_key}"
+        request_count = await redis.incr(rate_key)
+        if request_count == 1:
+            await redis.expire(rate_key, 60)
+        if request_count > settings.landing_event_rate_limit_per_minute:
+            logger.info("Landing event rate limited key=%s type=%s", visitor_key[:12], payload.event_type)
+            return False
+
+        if payload.event_type != "view" or settings.landing_event_dedupe_seconds <= 0:
+            return True
+
+        dedupe_source = ":".join(
+            [
+                payload.session_id or visitor_key,
+                payload.path or "/",
+                payload.utm_source or "",
+                payload.utm_medium or "",
+                payload.utm_campaign or "",
+            ]
+        )
+        dedupe_hash = hashlib.sha256(dedupe_source.encode()).hexdigest()
+        stored = await redis.set(
+            f"landing:dedupe:{dedupe_hash}",
+            "1",
+            ex=settings.landing_event_dedupe_seconds,
+            nx=True,
+        )
+        return bool(stored)
+    except Exception:
+        logger.warning("Landing event Redis guard failed", exc_info=True)
+        return payload.event_type == "bot_click"
+    finally:
+        await redis.aclose()
 
 
 def _limit_text(value: str | None, max_length: int) -> str | None:
