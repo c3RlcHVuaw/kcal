@@ -735,6 +735,12 @@ async def broadcast_callback(callback: CallbackQuery, state: FSMContext) -> None
 @router.callback_query(F.data.startswith("admin:broadcast:segment:"))
 async def broadcast_segment_callback(callback: CallbackQuery, state: FSMContext) -> None:
     segment = callback.data.rsplit(":", 1)[1]
+    if not _broadcast_segment_allowed(segment):
+        await callback.answer(
+            "Сегмент «все пользователи» выключен в конфиге.",
+            show_alert=True,
+        )
+        return
     await state.set_state(AdminFlow.waiting_broadcast_text)
     await state.update_data(broadcast_segment=segment)
     await callback.message.edit_text(
@@ -777,6 +783,12 @@ async def broadcast_send_callback(callback: CallbackQuery, state: FSMContext) ->
     text = str(data.get("broadcast_text") or "").strip()
     if not text:
         await callback.answer("Нет текста рассылки.", show_alert=True)
+        return
+    if not _broadcast_segment_allowed(segment):
+        await callback.answer(
+            "Сегмент «все пользователи» выключен в конфиге.",
+            show_alert=True,
+        )
         return
     async with SessionLocal() as session:
         recipients = await _broadcast_recipients(session, segment)
@@ -1688,6 +1700,8 @@ async def _recent_payments(session, user: User, *, limit: int) -> list[Payment]:
 
 
 async def _broadcast_recipients(session, segment: str) -> list[int]:
+    if not _broadcast_segment_allowed(segment):
+        return []
     now = datetime.now(UTC)
     since_7d = now - timedelta(days=7)
     statement = select(User.telegram_id)
@@ -2115,6 +2129,8 @@ def _broadcast_segment_keyboard(selected: str) -> InlineKeyboardMarkup:
     def label(segment: str, text: str) -> str:
         return ("✓ " if segment == selected else "") + text
 
+    all_label = "Все" if settings.admin_broadcast_all_enabled else "Все (выкл)"
+
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -2126,7 +2142,7 @@ def _broadcast_segment_keyboard(selected: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=label("not_onboarded", "Без onboarding"), callback_data="admin:broadcast:segment:not_onboarded"),
             ],
             [
-                InlineKeyboardButton(text=label("all", "Все"), callback_data="admin:broadcast:segment:all"),
+                InlineKeyboardButton(text=label("all", all_label), callback_data="admin:broadcast:segment:all"),
             ],
             [InlineKeyboardButton(text="❌ Отмена", callback_data="admin:cancel")],
         ]
@@ -2150,6 +2166,10 @@ def _broadcast_segment_title(segment: str) -> str:
         "not_onboarded": "не завершили onboarding",
         "all": "все пользователи",
     }.get(segment, segment)
+
+
+def _broadcast_segment_allowed(segment: str) -> bool:
+    return segment != "all" or settings.admin_broadcast_all_enabled
 
 
 def _cancel_keyboard() -> InlineKeyboardMarkup:

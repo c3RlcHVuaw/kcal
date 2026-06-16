@@ -5,7 +5,13 @@ from types import SimpleNamespace
 from fastapi import HTTPException
 from starlette.requests import Request
 
-from kcal_tracker.admin_bot.main import _funnel_period_text, _landing_period_text, _percent
+from kcal_tracker.admin_bot.main import (
+    _broadcast_segment_allowed,
+    _broadcast_segment_keyboard,
+    _funnel_period_text,
+    _landing_period_text,
+    _percent,
+)
 from kcal_tracker.api import routes
 from kcal_tracker.api.routes import (
     _apple_health_payload_summary,
@@ -225,6 +231,26 @@ def test_admin_landing_formats_click_rate() -> None:
     assert "Визиты: 100" in text
     assert "Уникальные: 72" in text
     assert "Клики в Telegram: 12 (12%)" in text
+
+
+def test_admin_broadcast_all_segment_is_disabled_by_default(monkeypatch) -> None:
+    monkeypatch.setattr(routes.settings, "admin_broadcast_all_enabled", False)
+
+    assert _broadcast_segment_allowed("active_7") is True
+    assert _broadcast_segment_allowed("all") is False
+
+    labels = [
+        button.text
+        for row in _broadcast_segment_keyboard("active_7").inline_keyboard
+        for button in row
+    ]
+    assert "Все (выкл)" in labels
+
+
+def test_admin_broadcast_all_segment_can_be_enabled(monkeypatch) -> None:
+    monkeypatch.setattr(routes.settings, "admin_broadcast_all_enabled", True)
+
+    assert _broadcast_segment_allowed("all") is True
 
 
 def test_food_insights_add_emoji_and_advice() -> None:

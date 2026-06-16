@@ -81,6 +81,7 @@ class Settings(BaseSettings):
     admin_quality_ai_failed_hour_threshold: int = Field(default=3, ge=1)
     admin_quality_no_match_hour_threshold: int = Field(default=5, ge=1)
     admin_daily_digest_time: str = "09:05"
+    admin_broadcast_all_enabled: bool = False
 
     @property
     def is_production(self) -> bool:
