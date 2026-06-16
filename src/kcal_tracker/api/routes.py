@@ -87,6 +87,7 @@ from kcal_tracker.services.throttle import (
     ThrottleLimitReached,
     ensure_ai_rate_limit,
     ensure_barcode_rate_limit,
+    ensure_rate_limit,
 )
 from kcal_tracker.services.users import UserService
 from kcal_tracker.services.webapp_auth import (
@@ -1099,6 +1100,7 @@ async def import_apple_health(
     request: Request,
     session: SessionDep,
 ) -> AppleHealthImportResult:
+    await _ensure_apple_health_import_allowed(token, request)
     user = await UserService(session).get_by_apple_health_token(token)
     if user is None:
         raise HTTPException(status_code=404, detail="Integration not found")
@@ -1202,9 +1204,19 @@ async def _check_redis() -> bool:
 
 
 async def _read_apple_health_payload(request: Request) -> dict[str, Any]:
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > settings.apple_health_payload_max_bytes:
+                raise HTTPException(status_code=413, detail={"message": "Request body is too large"})
+        except ValueError:
+            pass
+
     body = await request.body()
     if not body:
         raise HTTPException(status_code=400, detail={"message": "Empty request body"})
+    if len(body) > settings.apple_health_payload_max_bytes:
+        raise HTTPException(status_code=413, detail={"message": "Request body is too large"})
     try:
         payload = json.loads(body)
     except json.JSONDecodeError as exc:
@@ -1218,6 +1230,28 @@ async def _read_apple_health_payload(request: Request) -> dict[str, Any]:
             detail={"message": "JSON body must be an object"},
         )
     return payload
+
+
+async def _ensure_apple_health_import_allowed(token: str, request: Request) -> None:
+    client_host = request.client.host if request.client else "unknown"
+    token_hash = hashlib.sha256(token.encode()).hexdigest()[:24]
+    try:
+        await ensure_rate_limit(
+            f"apple-health:ip:{client_host}",
+            limit=settings.apple_health_import_rate_limit_per_minute,
+            window_seconds=60,
+        )
+        await ensure_rate_limit(
+            f"apple-health:token:{token_hash}",
+            limit=settings.apple_health_import_rate_limit_per_minute,
+            window_seconds=60,
+        )
+    except ThrottleLimitReached as exc:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many Apple Health imports",
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        ) from exc
 
 
 def _normalize_apple_health_payload(

@@ -43,6 +43,8 @@ class Settings(BaseSettings):
     ai_burst_per_user_per_minute: int = Field(default=6, ge=1)
     ai_global_burst_per_minute: int = Field(default=60, ge=1)
     barcode_burst_per_user_per_minute: int = Field(default=12, ge=1)
+    apple_health_import_rate_limit_per_minute: int = Field(default=12, ge=1)
+    apple_health_payload_max_bytes: int = Field(default=64 * 1024, ge=1024)
 
     default_timezone: str = "Europe/Samara"
     default_daily_kcal_target: int = 2200

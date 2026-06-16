@@ -1,12 +1,19 @@
+import asyncio
 from datetime import UTC, date, datetime, timedelta
 from types import SimpleNamespace
 
+from fastapi import HTTPException
+from starlette.requests import Request
+
 from kcal_tracker.admin_bot.main import _funnel_period_text, _landing_period_text, _percent
+from kcal_tracker.api import routes
 from kcal_tracker.api.routes import (
     _apple_health_payload_summary,
+    _ensure_apple_health_import_allowed,
     _extract_numeric_total,
     _extract_numeric_value,
     _normalize_apple_health_payload,
+    _read_apple_health_payload,
     _steps_to_kcal,
 )
 from kcal_tracker.bot.handlers.diary import (
@@ -88,6 +95,25 @@ from kcal_tracker.services.reminders import (
 )
 from kcal_tracker.services.share_cards import _wrap_card_lines
 from kcal_tracker.services.subscriptions import _discounted_amount, normalize_promo_code
+from kcal_tracker.services.throttle import ThrottleLimitReached
+
+
+def _request_with_body(body: bytes, headers: dict[str, str] | None = None) -> Request:
+    async def receive() -> dict[str, object]:
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    raw_headers = [
+        (key.lower().encode("latin-1"), value.encode("latin-1"))
+        for key, value in (headers or {}).items()
+    ]
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "path": "/",
+        "headers": raw_headers,
+        "client": ("127.0.0.1", 12345),
+    }
+    return Request(scope, receive)
 
 
 def test_confidence_must_be_less_than_one() -> None:
@@ -112,6 +138,34 @@ def test_apple_health_log_summary_does_not_include_raw_values() -> None:
     }
     assert "82.4" not in str(summary)
     assert "Morning sync" not in str(summary)
+
+
+def test_apple_health_payload_rejects_oversized_body(monkeypatch) -> None:
+    monkeypatch.setattr(routes.settings, "apple_health_payload_max_bytes", 12)
+    request = _request_with_body(b'{"steps": 1000}', headers={"content-length": "15"})
+
+    try:
+        asyncio.run(_read_apple_health_payload(request))
+    except HTTPException as exc:
+        assert exc.status_code == 413
+    else:
+        raise AssertionError("Oversized Apple Health payload was accepted")
+
+
+def test_apple_health_import_throttle_maps_to_429(monkeypatch) -> None:
+    async def blocked_rate_limit(key: str, *, limit: int, window_seconds: int) -> None:
+        raise ThrottleLimitReached(23)
+
+    monkeypatch.setattr(routes, "ensure_rate_limit", blocked_rate_limit)
+    request = _request_with_body(b"{}")
+
+    try:
+        asyncio.run(_ensure_apple_health_import_allowed("token", request))
+    except HTTPException as exc:
+        assert exc.status_code == 429
+        assert exc.headers == {"Retry-After": "23"}
+    else:
+        raise AssertionError("Apple Health throttle did not raise HTTPException")
 
 
 def test_weight_goal_forecast_for_loss() -> None:
