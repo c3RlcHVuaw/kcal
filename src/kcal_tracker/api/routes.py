@@ -83,6 +83,11 @@ from kcal_tracker.services.subscriptions import (
     subscription_plans,
     user_ai_daily_limit,
 )
+from kcal_tracker.services.throttle import (
+    ThrottleLimitReached,
+    ensure_ai_rate_limit,
+    ensure_barcode_rate_limit,
+)
 from kcal_tracker.services.users import UserService
 from kcal_tracker.services.webapp_auth import (
     WebAppAuthError,
@@ -433,7 +438,7 @@ async def webapp_parse_food_text(
 
     usage = AIUsageService(session)
     try:
-        await _ensure_webapp_ai_allowed(user, usage)
+        await _ensure_webapp_ai_allowed(user, usage, action="webapp_text")
     except AILimitReachedError as exc:
         raise HTTPException(status_code=402, detail="AI limit reached") from exc
 
@@ -491,7 +496,7 @@ async def _webapp_parse_food_photos(
     user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
     usage = AIUsageService(session)
     try:
-        await _ensure_webapp_ai_allowed(user, usage)
+        await _ensure_webapp_ai_allowed(user, usage, action="webapp_photo")
     except AILimitReachedError as exc:
         raise HTTPException(status_code=402, detail="AI limit reached") from exc
 
@@ -530,6 +535,7 @@ async def webapp_scan_barcode(
     session: SessionDep,
     image: ImageUploadDep,
 ) -> WebAppFoodTextParseResult:
+    await _ensure_webapp_barcode_allowed(identity)
     content_type = image.content_type or "image/jpeg"
     if not content_type.startswith("image/"):
         raise HTTPException(status_code=415, detail="Upload an image")
@@ -557,6 +563,7 @@ async def webapp_lookup_barcode(
     identity: WebAppIdentityDep,
     session: SessionDep,
 ) -> WebAppFoodTextParseResult:
+    await _ensure_webapp_barcode_allowed(identity)
     barcode = normalize_barcode(payload.code)
     if barcode is None:
         raise HTTPException(status_code=422, detail="Barcode is invalid")
@@ -621,7 +628,7 @@ async def webapp_search_food(
     deduped = _dedupe_food_estimates(estimates, limit=8)
     if (force_ai or not deduped) and len(text) >= 4 and normalize_barcode(text) is None:
         try:
-            await _ensure_webapp_ai_allowed(user, usage)
+            await _ensure_webapp_ai_allowed(user, usage, action="webapp_search_ai")
             ai_estimates = await AIFoodService().parse_text(text)
             await usage.record_request(user, "webapp_food_search_ai")
             ai_used = True
@@ -650,7 +657,7 @@ async def webapp_refine_food(
     user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
     usage = AIUsageService(session)
     try:
-        await _ensure_webapp_ai_allowed(user, usage)
+        await _ensure_webapp_ai_allowed(user, usage, action="webapp_refine")
     except AILimitReachedError as exc:
         raise HTTPException(status_code=402, detail="AI limit reached") from exc
 
@@ -1432,11 +1439,36 @@ async def _remaining_ai_for_webapp(user, usage_service: AIUsageService) -> int:
     return min(await usage_service.remaining_today(user), await usage_service.remaining_trial(user))
 
 
-async def _ensure_webapp_ai_allowed(user, usage_service: AIUsageService, request_count: int = 1) -> None:
+async def _ensure_webapp_ai_allowed(
+    user,
+    usage_service: AIUsageService,
+    request_count: int = 1,
+    *,
+    action: str = "webapp_ai",
+) -> None:
     if has_active_subscription(user):
         await usage_service.ensure_allowed(user, request_count=request_count)
-        return
-    await usage_service.ensure_trial_allowed(user, request_count=request_count)
+    else:
+        await usage_service.ensure_trial_allowed(user, request_count=request_count)
+    try:
+        await ensure_ai_rate_limit(user.telegram_id, action)
+    except ThrottleLimitReached as exc:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many AI requests",
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        ) from exc
+
+
+async def _ensure_webapp_barcode_allowed(identity: WebAppIdentity) -> None:
+    try:
+        await ensure_barcode_rate_limit(identity.telegram_id)
+    except ThrottleLimitReached as exc:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many barcode requests",
+            headers={"Retry-After": str(exc.retry_after_seconds)},
+        ) from exc
 
 
 def _hash_landing_ip(value: str) -> str:

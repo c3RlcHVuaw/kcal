@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     food_search_fatsecret_timeout_seconds: float = Field(default=3.0, ge=0.5)
     landing_event_rate_limit_per_minute: int = Field(default=30, ge=1)
     landing_event_dedupe_seconds: int = Field(default=1800, ge=0)
+    ai_burst_per_user_per_minute: int = Field(default=6, ge=1)
+    ai_global_burst_per_minute: int = Field(default=60, ge=1)
+    barcode_burst_per_user_per_minute: int = Field(default=12, ge=1)
 
     default_timezone: str = "Europe/Samara"
     default_daily_kcal_target: int = 2200

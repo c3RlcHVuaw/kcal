@@ -3,12 +3,16 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime, timedelta
 
+from fastapi import HTTPException
+
+from kcal_tracker.api import routes
 from kcal_tracker.api.routes import (
     _ai_usage_summary,
     _ensure_webapp_ai_allowed,
     _remaining_ai_for_webapp,
 )
 from kcal_tracker.models import User
+from kcal_tracker.services.throttle import ThrottleLimitReached
 
 
 class FakeUsageService:
@@ -59,18 +63,25 @@ def test_webapp_free_ai_summary_uses_trial_remaining() -> None:
     assert summary.remaining_today == 1
 
 
-def test_webapp_free_ai_check_uses_trial_limit() -> None:
+def test_webapp_free_ai_check_uses_trial_limit(monkeypatch) -> None:
     user = User(id=1, telegram_id=1001)
     usage = FakeUsageService(remaining_today=29, remaining_trial=1)
+    called = []
+
+    async def ok_throttle(telegram_id: int, action: str) -> None:
+        called.append((telegram_id, action))
+
+    monkeypatch.setattr(routes, "ensure_ai_rate_limit", ok_throttle)
 
     asyncio.run(_ensure_webapp_ai_allowed(user, usage))
 
     assert usage.trial_checked is True
     assert usage.paid_checked is False
+    assert called == [(1001, "webapp_ai")]
     assert asyncio.run(_remaining_ai_for_webapp(user, usage)) == 1
 
 
-def test_webapp_paid_ai_check_uses_plan_daily_limit() -> None:
+def test_webapp_paid_ai_check_uses_plan_daily_limit(monkeypatch) -> None:
     user = User(
         id=1,
         telegram_id=1001,
@@ -79,8 +90,31 @@ def test_webapp_paid_ai_check_uses_plan_daily_limit() -> None:
     )
     usage = FakeUsageService(remaining_today=12, remaining_trial=0)
 
+    async def ok_throttle(telegram_id: int, action: str) -> None:
+        return None
+
+    monkeypatch.setattr(routes, "ensure_ai_rate_limit", ok_throttle)
+
     asyncio.run(_ensure_webapp_ai_allowed(user, usage))
 
     assert usage.paid_checked is True
     assert usage.trial_checked is False
     assert asyncio.run(_remaining_ai_for_webapp(user, usage)) == 12
+
+
+def test_webapp_ai_check_maps_throttle_to_429(monkeypatch) -> None:
+    user = User(id=1, telegram_id=1001)
+    usage = FakeUsageService(remaining_today=29, remaining_trial=1)
+
+    async def blocked_throttle(telegram_id: int, action: str) -> None:
+        raise ThrottleLimitReached(17)
+
+    monkeypatch.setattr(routes, "ensure_ai_rate_limit", blocked_throttle)
+
+    try:
+        asyncio.run(_ensure_webapp_ai_allowed(user, usage, action="webapp_photo"))
+    except HTTPException as exc:
+        assert exc.status_code == 429
+        assert exc.headers == {"Retry-After": "17"}
+    else:
+        raise AssertionError("Throttle did not raise HTTPException")

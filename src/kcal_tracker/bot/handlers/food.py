@@ -47,6 +47,11 @@ from kcal_tracker.services.nutrition import high_calorie_add_warning, suspicious
 from kcal_tracker.services.open_food_facts import OpenFoodFactsService, ProductNotFoundError
 from kcal_tracker.services.quality import record_quality_event
 from kcal_tracker.services.subscriptions import has_active_subscription
+from kcal_tracker.services.throttle import (
+    ThrottleLimitReached,
+    ensure_ai_rate_limit,
+    ensure_barcode_rate_limit,
+)
 from kcal_tracker.services.users import UserService
 from kcal_tracker.services.wellness import WellnessService
 
@@ -224,6 +229,9 @@ async def handle_photo(message: Message, state: FSMContext) -> None:
     image_frames = await _download_image_or_video_frames(message)
     if not image_frames:
         await message.answer("Не смог достать кадры из видео. Пришли фото штрихкода крупнее.")
+        return
+
+    if not await _ensure_barcode_available(message):
         return
 
     async with SessionLocal() as session:
@@ -1579,6 +1587,15 @@ async def _ensure_ai_available(message: Message, request_count: int = 1) -> bool
                 reply_markup=food_recovery_keyboard(allow_ai=False),
             )
             return False
+    try:
+        await ensure_ai_rate_limit(message.from_user.id, "bot")
+    except ThrottleLimitReached as exc:
+        await message.answer(
+            f"Слишком много AI-запросов подряд. Подожди примерно {exc.retry_after_seconds} сек. "
+            "и попробуй ещё раз.",
+            reply_markup=food_recovery_keyboard(),
+        )
+        return False
     return True
 
 
@@ -1605,6 +1622,11 @@ async def _ensure_ai_available_for_callback(
             )
             await callback.answer("AI недоступен", show_alert=True)
             return False
+    try:
+        await ensure_ai_rate_limit(callback.from_user.id, "bot_callback")
+    except ThrottleLimitReached as exc:
+        await callback.answer(f"Подожди {exc.retry_after_seconds} сек.", show_alert=True)
+        return False
     return True
 
 
@@ -1622,6 +1644,17 @@ async def _can_use_ai(message: Message, request_count: int = 1) -> bool:
                 await usage_service.ensure_trial_allowed(user, request_count=request_count)
         except AILimitReachedError:
             return False
+    return True
+
+
+async def _ensure_barcode_available(message: Message) -> bool:
+    try:
+        await ensure_barcode_rate_limit(message.from_user.id)
+    except ThrottleLimitReached as exc:
+        await message.answer(
+            f"Слишком много распознаваний штрихкода подряд. Подожди {exc.retry_after_seconds} сек."
+        )
+        return False
     return True
 
 
@@ -1735,6 +1768,8 @@ async def _download_image_or_video_frames(message: Message) -> list[bytes]:
 
 
 async def _barcode_estimates_from_images(images: list[bytes], message: Message) -> list[FoodEstimate]:
+    if not await _ensure_barcode_available(message):
+        return []
     estimates: list[FoodEstimate] = []
     seen_barcodes: set[str] = set()
     async with SessionLocal() as session:
