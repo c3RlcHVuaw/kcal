@@ -79,6 +79,12 @@ Run:
 ./scripts/post-deploy.sh https://your-api.example.com
 ```
 
+Before sending real traffic, run a short load smoke check:
+
+```bash
+LOAD_SMOKE_REQUESTS=200 LOAD_SMOKE_CONCURRENCY=12 ./scripts/load-smoke.sh https://your-api.example.com
+```
+
 Expected health response:
 
 ```json

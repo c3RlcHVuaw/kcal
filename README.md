@@ -133,6 +133,12 @@ alembic upgrade head
 ./scripts/smoke.sh https://your-api.example.com
 ```
 
+Лёгкий нагрузочный smoke-тест перед запуском трафика:
+
+```bash
+LOAD_SMOKE_REQUESTS=200 LOAD_SMOKE_CONCURRENCY=12 ./scripts/load-smoke.sh https://your-api.example.com
+```
+
 На сервере helper пересобирает контейнеры, перезапускает стек, проверяет health
 и показывает хвост логов:
 
@@ -295,6 +301,12 @@ Post-deploy smoke check:
 
 ```bash
 ./scripts/smoke.sh https://your-api.example.com
+```
+
+Lightweight load smoke check before sending traffic:
+
+```bash
+LOAD_SMOKE_REQUESTS=200 LOAD_SMOKE_CONCURRENCY=12 ./scripts/load-smoke.sh https://your-api.example.com
 ```
 
 Server deploy helper:
