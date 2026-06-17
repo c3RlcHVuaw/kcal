@@ -104,6 +104,7 @@ from kcal_tracker.services.reminders import (
     _has_meal_entry,
     _inactivity_reminder_due,
     _inactivity_reminder_text,
+    evening_close_keyboard,
 )
 from kcal_tracker.services.share_cards import _wrap_card_lines
 from kcal_tracker.services.subscriptions import (
@@ -296,6 +297,18 @@ def test_webapp_quality_event_accepts_product_analytics_events() -> None:
     )
 
     assert payload.event_type == "webapp_payment_start"
+
+
+def test_webapp_quality_event_accepts_launch_funnel_events() -> None:
+    for event_type in (
+        "webapp_packaged_unverified",
+        "webapp_paywall_subscribe",
+        "webapp_paywall_manual",
+        "webapp_promo_apply",
+    ):
+        payload = WebAppQualityEventCreate(event_type=event_type, source="webapp")
+
+        assert payload.event_type == event_type
 
 
 def test_admin_landing_formats_click_rate() -> None:
@@ -1025,6 +1038,16 @@ def test_inactivity_reminder_text_is_soft_return() -> None:
     )
     assert "Вернёмся мягко" in text
     assert "один приём пищи" in text
+
+
+def test_evening_close_keyboard_has_fast_day_actions() -> None:
+    callbacks = [
+        button.callback_data
+        for row in evening_close_keyboard().inline_keyboard
+        for button in row
+    ]
+
+    assert callbacks == ["nav:add-food", "water:add:250", "nav:today"]
 
 
 def test_parse_int_accepts_units() -> None:

@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from sqlalchemy import or_, select
 
 from kcal_tracker.bot.keyboards import subscription_cta_keyboard
@@ -139,6 +140,7 @@ async def _send_due_reminders(bot: Bot) -> None:
                     await bot.send_message(
                         user.telegram_id,
                         _dinner_reminder_intro(summary) + smart_evening_hint(summary),
+                        reply_markup=evening_close_keyboard(),
                     )
                     user.last_dinner_reminder_date = today
 
@@ -275,10 +277,22 @@ def _lunch_reminder_intro(summary) -> str:
 
 def _dinner_reminder_intro(summary) -> str:
     if not summary.entries:
-        return "День почти прошёл без записей. Можно восстановить хотя бы крупными мазками.\n"
+        return "День почти прошёл без записей. Закроем его без идеальности: хотя бы крупными мазками.\n"
     if summary.kcal > summary.target_kcal:
-        return "Ужин ещё не записан, а калории уже выше цели.\n"
-    return "Ужин ещё не записан.\n"
+        return "Ужин ещё не записан, а калории уже выше цели. Можно просто сверить день и не добивать лишнее.\n"
+    return "Ужин ещё не записан. Пора мягко закрыть день: еда, вода или быстрый взгляд на итог.\n"
+
+
+def evening_close_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="➕ Добавить ужин", callback_data="nav:add-food"),
+                InlineKeyboardButton(text="💧 Вода", callback_data="water:add:250"),
+            ],
+            [InlineKeyboardButton(text="📊 Открыть сегодня", callback_data="nav:today")],
+        ]
+    )
 
 
 def _has_meal_entry(entries, timezone_name: str, meal: str) -> bool:

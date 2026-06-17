@@ -2,6 +2,7 @@ const tg = window.Telegram?.WebApp;
 const initData = tg?.initData || "";
 const ONBOARDING_KEY = "kcal:onboarding:v2";
 const TOUR_SAFE_GAP = 18;
+const DEFAULT_START_PROMO = "START20";
 const FALLBACK_SUBSCRIPTION_PLANS = [
   {
     code: "basic",
@@ -608,11 +609,19 @@ async function parseFoodPhoto() {
     const result = await apiForm(endpoint, form);
     setParsedFoods(result);
     const hasBrandMatch = result.foods?.some((food) => food.source_label === "База бренда");
+    const unverifiedPackagedCount = result.foods?.filter((food) => food.source_label === "Проверь бренд").length || 0;
     if (hasBrandMatch) {
       recordWebappEvent("webapp_brand_lookup", {
         source: "photo",
         query: hint,
         details: { photos: files.length, matched: true },
+      });
+    }
+    if (unverifiedPackagedCount) {
+      recordWebappEvent("webapp_packaged_unverified", {
+        source: "photo",
+        query: hint,
+        details: { photos: files.length, count: unverifiedPackagedCount },
       });
     }
     toast(hasBrandMatch ? "Нашёл продукт в базе брендов" : files.length > 1 ? "Фото распознаны" : "Фото распознано");
@@ -1835,6 +1844,14 @@ async function validatePromoCode(code, button) {
       body: JSON.stringify({ code }),
     });
     renderPromo(result);
+    recordWebappEvent("webapp_promo_apply", {
+      source: "subscription",
+      query: code,
+      details: {
+        valid: Boolean(result.valid),
+        discount_percent: result.discount_percent || 0,
+      },
+    });
     if (result.valid) openSubscriptionFlow({ highlight: false });
     return Boolean(result.valid);
   } catch {
@@ -1916,7 +1933,7 @@ function renderSubscriptionCopy() {
   if (nodes.subscriptionSubtitle) {
     nodes.subscriptionSubtitle.textContent = isRenewal
       ? "Выберите тариф и способ оплаты. Новый срок добавится к текущей подписке."
-      : "Тариф, промокод и способ оплаты. Счёт создаст бот.";
+      : `Тариф, промокод и способ оплаты. Для первого запуска попробуй ${DEFAULT_START_PROMO}.`;
   }
   if (nodes.subscriptionConnect) {
     nodes.subscriptionConnect.textContent = isRenewal ? "Продолжить продление" : "Продолжить подключение";
@@ -2838,7 +2855,7 @@ function ensureAiLimitScreen() {
         <div><b>Уточнения</b><span>порции, соусы, граммы и БЖУ</span></div>
       </div>
       <form class="ai-limit-promo" data-ai-limit-promo-form>
-        <input data-ai-limit-promo-code autocomplete="off" placeholder="Промокод" />
+        <input data-ai-limit-promo-code autocomplete="off" placeholder="${DEFAULT_START_PROMO}" />
         <button class="secondary-button" type="submit">Применить</button>
       </form>
       <button class="primary-button" type="button" data-ai-limit-subscribe>Купить подписку</button>
@@ -2847,10 +2864,23 @@ function ensureAiLimitScreen() {
   `;
   screen.addEventListener("click", (event) => {
     if (event.target.closest("[data-ai-limit-subscribe]")) {
+      recordWebappEvent("webapp_paywall_subscribe", {
+        source: "ai_limit",
+        details: {
+          remaining_ai: Number(state.aiUsage?.trial_remaining ?? state.aiUsage?.remaining_today ?? 0),
+          has_subscription: state.hasActiveSubscription,
+        },
+      });
       openSubscriptionFlow();
       return;
     }
     if (event.target.closest("[data-ai-limit-manual]")) {
+      recordWebappEvent("webapp_paywall_manual", {
+        source: "ai_limit",
+        details: {
+          remaining_ai: Number(state.aiUsage?.trial_remaining ?? state.aiUsage?.remaining_today ?? 0),
+        },
+      });
       closeAiLimitScreen();
       openFoodAddSheet();
       switchAddMode("manual");

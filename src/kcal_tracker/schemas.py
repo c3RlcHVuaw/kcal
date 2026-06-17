@@ -91,6 +91,8 @@ class WebAppQualityEventCreate(BaseModel):
             "^(webapp_ai_accept|webapp_ai_reject|webapp_ai_adjust|webapp_ai_failed|"
             "webapp_first_food_saved|webapp_paywall_open|webapp_search_failed|"
             "webapp_barcode_failed|webapp_weekly_bonus_claim|webapp_brand_lookup|"
+            "webapp_packaged_unverified|webapp_paywall_subscribe|webapp_paywall_manual|"
+            "webapp_promo_apply|"
             "webapp_open|webapp_add_food_open|webapp_food_saved|webapp_subscription_view|"
             "webapp_subscription_plan_select|webapp_subscription_method_select|"
             "webapp_payment_start|webapp_bot_open)$"

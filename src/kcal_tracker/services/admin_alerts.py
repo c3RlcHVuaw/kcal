@@ -243,6 +243,20 @@ async def _business_alerts() -> list[AdminAlert]:
                 QualityEvent.event_type == "webapp_payment_start",
             ),
         )
+        paywall_opens_hour = await _scalar(
+            session,
+            select(func.count(QualityEvent.id)).where(
+                QualityEvent.created_at >= hour_ago,
+                QualityEvent.event_type == "webapp_paywall_open",
+            ),
+        )
+        unverified_packaged_hour = await _scalar(
+            session,
+            select(func.count(QualityEvent.id)).where(
+                QualityEvent.created_at >= hour_ago,
+                QualityEvent.event_type == "webapp_packaged_unverified",
+            ),
+        )
         succeeded_payments_hour = await _scalar(
             session,
             select(func.count(Payment.id)).where(
@@ -316,6 +330,35 @@ async def _business_alerts() -> list[AdminAlert]:
                     (
                         f"За последний час стартов оплаты: {payment_starts_hour}, "
                         "успешных платежей: 0."
+                    ),
+                ),
+            )
+        )
+    if (
+        paywall_opens_hour >= settings.admin_paywall_no_payment_start_hour_threshold
+        and payment_starts_hour == 0
+    ):
+        alerts.append(
+            AdminAlert(
+                "paywall_opens_no_payment_start",
+                _alert_text(
+                    "Paywall открывают, но оплату не начинают",
+                    (
+                        f"За последний час paywall: {paywall_opens_hour}, "
+                        "стартов оплаты: 0. Проверь текст, цену, кнопку и переход в бота."
+                    ),
+                ),
+            )
+        )
+    if unverified_packaged_hour >= settings.admin_unverified_packaged_hour_threshold:
+        alerts.append(
+            AdminAlert(
+                "unverified_packaged_spike",
+                _alert_text(
+                    "Много упаковок без подтверждения бренда",
+                    (
+                        f"За последний час неподтверждённых упаковок: {unverified_packaged_hour}. "
+                        "Проверь качество фото, штрихкод и базу брендов."
                     ),
                 ),
             )
