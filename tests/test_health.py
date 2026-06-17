@@ -34,7 +34,8 @@ def test_landing_page_is_served_with_seo_metadata() -> None:
     assert "Kcal Bot - бот для подсчета калорий в Telegram" in response.text
     assert '<link rel="canonical" href="https://kcal-bot.ru/" />' in response.text
     assert "https://t.me/trackerkcal_bot" in response.text
-    assert "/landing/static/tracker.js?v=20260615-landing-stats" in response.text
+    assert "https://mc.yandex.ru/metrika/tag.js?id=109917758" in response.text
+    assert "/landing/static/tracker.js?v=20260617-metrika" in response.text
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
 

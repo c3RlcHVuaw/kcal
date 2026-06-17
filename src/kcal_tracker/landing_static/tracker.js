@@ -3,6 +3,11 @@
   const visitorKey = "kcal:landing:visitor";
   const sessionKey = "kcal:landing:session";
   const botLinkSelector = 'a[href*="t.me/trackerkcal_bot"]';
+  const metrikaCounterId = 109917758;
+  const metrikaGoals = {
+    view: "landing_view",
+    bot_click: "bot_click",
+  };
 
   const randomId = () => {
     if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -36,7 +41,18 @@
     session_id: getStoredId(window.sessionStorage, sessionKey),
   });
 
+  const reachMetrikaGoal = (eventType) => {
+    const goal = metrikaGoals[eventType];
+    if (!goal || typeof window.ym !== "function") return;
+    try {
+      window.ym(metrikaCounterId, "reachGoal", goal);
+    } catch {
+      // Ignore analytics failures; internal tracking must keep working.
+    }
+  };
+
   const send = (eventType) => {
+    reachMetrikaGoal(eventType);
     const body = JSON.stringify({ ...basePayload(), event_type: eventType });
     const blob = new Blob([body], { type: "application/json" });
     if (navigator.sendBeacon?.(endpoint, blob)) return;
