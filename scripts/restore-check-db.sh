@@ -35,6 +35,9 @@ docker run -d --name "$container" \
 until docker exec "$container" pg_isready -U kcal -d kcal >/dev/null 2>&1; do
   sleep 1
 done
+until docker exec "$container" psql -v ON_ERROR_STOP=1 -U kcal -d kcal -c "SELECT 1" >/dev/null 2>&1; do
+  sleep 1
+done
 
 gzip -dc "$backup" | docker exec -i "$container" psql -v ON_ERROR_STOP=1 -U kcal -d kcal >/dev/null
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U kcal -d kcal -c "SELECT 1" >/dev/null
