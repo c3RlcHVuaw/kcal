@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 
 from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
-from kcal_tracker.models import AIUsage, Payment, QualityEvent, User
+from kcal_tracker.models import AIUsage, LandingEvent, Payment, QualityEvent, User
 
 logger = logging.getLogger(__name__)
 
@@ -222,6 +222,34 @@ async def _business_alerts() -> list[AdminAlert]:
                 AIUsage.usage_date == now.date()
             ),
         )
+        landing_views_hour = await _scalar(
+            session,
+            select(func.count(LandingEvent.id)).where(
+                LandingEvent.created_at >= hour_ago,
+                LandingEvent.event_type == "view",
+            ),
+        )
+        landing_clicks_hour = await _scalar(
+            session,
+            select(func.count(LandingEvent.id)).where(
+                LandingEvent.created_at >= hour_ago,
+                LandingEvent.event_type == "bot_click",
+            ),
+        )
+        payment_starts_hour = await _scalar(
+            session,
+            select(func.count(QualityEvent.id)).where(
+                QualityEvent.created_at >= hour_ago,
+                QualityEvent.event_type == "webapp_payment_start",
+            ),
+        )
+        succeeded_payments_hour = await _scalar(
+            session,
+            select(func.count(Payment.id)).where(
+                Payment.status == "succeeded",
+                Payment.paid_at >= hour_ago,
+            ),
+        )
         top_ai_user = await session.execute(
             select(User.telegram_id, User.username, func.sum(AIUsage.request_count))
             .join(User, User.id == AIUsage.user_id)
@@ -257,6 +285,38 @@ async def _business_alerts() -> list[AdminAlert]:
                 _alert_text(
                     "Просадка onboarding",
                     f"За 24 часа не завершили onboarding: {no_onboarding}.",
+                ),
+            )
+        )
+    if (
+        landing_views_hour >= settings.admin_landing_views_no_click_hour_threshold
+        and landing_clicks_hour == 0
+    ):
+        alerts.append(
+            AdminAlert(
+                "landing_traffic_no_clicks",
+                _alert_text(
+                    "Лендинг смотрят, но в бота не кликают",
+                    (
+                        f"За последний час просмотров: {landing_views_hour}, "
+                        "кликов в Telegram: 0."
+                    ),
+                ),
+            )
+        )
+    if (
+        payment_starts_hour >= settings.admin_payment_starts_no_success_hour_threshold
+        and succeeded_payments_hour == 0
+    ):
+        alerts.append(
+            AdminAlert(
+                "payment_starts_no_success",
+                _alert_text(
+                    "Люди доходят до оплаты, но успешных платежей нет",
+                    (
+                        f"За последний час стартов оплаты: {payment_starts_hour}, "
+                        "успешных платежей: 0."
+                    ),
                 ),
             )
         )

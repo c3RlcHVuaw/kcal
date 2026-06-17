@@ -45,6 +45,8 @@ services:
     command: ["./scripts/entrypoint.sh", "admin-bot"]
     env_file: .env
     logging: *default-logging
+    volumes:
+      - ./backups:/app/backups:ro
     depends_on:
       api:
         condition: service_healthy

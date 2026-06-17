@@ -74,6 +74,8 @@ FOOD_SEARCH_FATSECRET_TIMEOUT_SECONDS=3
 ```
 
 4. Upload the repository to the server while excluding local secrets and caches.
+   Keep server backups out of sync/delete operations, for example by excluding
+   `backups/` when using `rsync --delete`.
 5. Rebuild and restart the server compose stack.
 6. Verify health, readiness, and container status.
 

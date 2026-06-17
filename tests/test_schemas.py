@@ -44,7 +44,11 @@ from kcal_tracker.bot.handlers.food import (
     _scale_estimate,
     _should_use_ai_first,
 )
-from kcal_tracker.bot.handlers.payments import _payment_choice_from_callback, _payment_error_message
+from kcal_tracker.bot.handlers.payments import (
+    _payment_choice_from_callback,
+    _payment_error_message,
+    _payment_next_step_lines,
+)
 from kcal_tracker.bot.handlers.profile import _apple_health_shortcut_text, _parse_birth_date
 from kcal_tracker.bot.keyboards import (
     activity_menu_keyboard,
@@ -1198,6 +1202,14 @@ def test_subscription_bonuses_hide_refund_action() -> None:
 def test_yookassa_credentials_error_is_user_friendly() -> None:
     message = _payment_error_message("Error in shopId or secret key. Check their validity.")
     assert "правильный ShopID" in message
+
+
+def test_payment_next_steps_explain_pending_flow() -> None:
+    text = "\n".join(_payment_next_step_lines())
+
+    assert "автоматически" in text
+    assert "Проверить оплату" in text
+    assert "счёт истечёт" in text
 
 
 def test_steps_to_kcal_estimate_is_conservative() -> None:

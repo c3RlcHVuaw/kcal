@@ -419,8 +419,8 @@ async def buy_subscription_with_yookassa(callback: CallbackQuery) -> None:
             [
                 f"Счёт на оплату тарифа «{plan.title}» {method_text} готов.",
                 f"Сумма: {amount_text}.",
-                "После оплаты я сам проверю статус и открою AI.",
-                "Если не оплатить в течение часа, счёт истечёт.",
+                "",
+                *_payment_next_step_lines(),
             ]
         ),
         reply_markup=_yookassa_payment_keyboard(payment.id, payment.confirmation_url),
@@ -728,6 +728,15 @@ def _payment_error_message(message: str) -> str:
     return message
 
 
+def _payment_next_step_lines() -> list[str]:
+    return [
+        "После оплаты доступ откроется автоматически.",
+        "Обычно это занимает несколько секунд, иногда до минуты.",
+        "Если деньги списались, а Premium не открылся, нажми «Проверить оплату».",
+        "Если не оплатить в течение часа, счёт истечёт без списаний.",
+    ]
+
+
 async def _send_yookassa_invoice(
     callback: CallbackQuery,
     plan_code: str,
@@ -788,6 +797,16 @@ async def _send_yookassa_invoice(
             )
             return
         raise
+    await callback.message.answer(
+        "\n".join(
+            [
+                "Счёт отправлен выше.",
+                "",
+                *_payment_next_step_lines(),
+            ]
+        ),
+        reply_markup=_yookassa_payment_keyboard(payment.id, None),
+    )
     await callback.answer()
 
 
