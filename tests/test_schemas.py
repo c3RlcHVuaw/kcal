@@ -79,6 +79,7 @@ from kcal_tracker.schemas import (
     FoodEntryCreate,
     FoodEstimate,
     WebAppQualityEventCreate,
+    WebAppToday,
     WebAppWeeklyMission,
     WebAppWeeklyMissions,
 )
@@ -192,6 +193,51 @@ class _PaymentSessionStub:
 def test_confidence_must_be_less_than_one() -> None:
     estimate = FoodEstimate(name="Латте", kcal=120, confidence=0.99)
     assert estimate.confidence == 0.99
+
+
+def test_webapp_today_accepts_yesterday_diary() -> None:
+    diary = {
+        "kcal": 500,
+        "protein": 20,
+        "fat": 18,
+        "carbs": 55,
+        "activity_kcal": 0,
+        "base_target_kcal": 2200,
+        "target_kcal": 2200,
+        "target_protein": 110,
+        "target_fat": 73,
+        "target_carbs": 276,
+        "entries": [],
+    }
+    payload = WebAppToday.model_validate(
+        {
+            "user": {
+                "id": 1,
+                "telegram_id": 1,
+                "username": None,
+                "timezone": "Europe/Samara",
+                "daily_kcal_target": 2200,
+                "created_at": datetime(2026, 6, 17, tzinfo=UTC),
+            },
+            "diary": diary,
+            "yesterday_diary": {**diary, "kcal": 900},
+            "water_ml": 0,
+            "latest_weight_kg": None,
+            "ai_usage": {"used_today": 0, "remaining_today": 3, "daily_limit": 3},
+            "weight_goal": {
+                "goal": None,
+                "current_weight_kg": None,
+                "target_weight_kg": None,
+                "weekly_weight_change_kg": None,
+                "daily_kcal_target": 2200,
+                "forecast_weeks": None,
+                "forecast_text": "Цель не настроена",
+            },
+        }
+    )
+
+    assert payload.yesterday_diary is not None
+    assert payload.yesterday_diary.kcal == 900
 
 
 def test_apple_health_log_summary_does_not_include_raw_values() -> None:

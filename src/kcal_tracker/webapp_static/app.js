@@ -147,6 +147,7 @@ const nodes = {
   kcalTarget: document.querySelector("#kcal-target"),
   kcalPercent: document.querySelector("#kcal-percent"),
   kcalProgress: document.querySelector("#kcal-progress"),
+  kcalCompare: document.querySelector("#kcal-compare"),
   firstDayNudge: document.querySelector("#first-day-nudge"),
   firstDayCaption: document.querySelector("#first-day-caption"),
   firstDayTitle: document.querySelector("#first-day-title"),
@@ -1280,6 +1281,7 @@ function renderToday(data) {
   setTextWithPulse(nodes.kcalBurned, Math.round(diary.activity_kcal));
   setTextWithPulse(nodes.kcalLeft, left >= 0 ? String(left) : `+${Math.abs(left)}`);
   setTextWithPulse(nodes.kcalTarget, `${Math.round(diary.kcal)} / ${diary.target_kcal} ккал`);
+  renderKcalCompare(data);
   renderFoodAddSummary(diary);
   renderMacroRing("protein", diary.protein, diary.target_protein);
   renderMacroRing("fat", diary.fat, diary.target_fat);
@@ -1301,6 +1303,34 @@ function renderToday(data) {
   nodes.entries.innerHTML = renderMealDiary(diary.entries);
   renderWeeklyMissions(data.weekly_missions);
   renderSmartNudge(data);
+}
+
+function renderKcalCompare(data) {
+  if (!nodes.kcalCompare) return;
+  const todayKcal = Number(data?.diary?.kcal || 0);
+  const yesterday = data?.yesterday_diary;
+  const yesterdayKcal = Number(yesterday?.kcal || 0);
+  const yesterdayEntries = Number(yesterday?.entries?.length || 0);
+  let text = "";
+  let tone = "neutral";
+  if (todayKcal > 0 && yesterdayEntries > 0) {
+    const delta = Math.round(todayKcal - yesterdayKcal);
+    if (Math.abs(delta) < 80) {
+      text = "Почти как вчера по калориям";
+    } else if (delta > 0) {
+      text = `На ${delta} ккал больше, чем вчера`;
+      tone = "up";
+    } else {
+      text = `На ${Math.abs(delta)} ккал меньше, чем вчера`;
+      tone = "down";
+    }
+  } else if (todayKcal > 0) {
+    text = "Сегодня уже есть первая запись";
+  } else if (yesterdayEntries > 0) {
+    text = "Можно повторить вчерашнюю еду";
+  }
+  nodes.kcalCompare.className = `kcal-compare ${text ? "" : "hidden"} tone-${tone}`.trim();
+  nodes.kcalCompare.textContent = text;
 }
 
 function renderSmartNudge(data) {
@@ -1598,7 +1628,8 @@ function renderMealDiary(entries) {
       ? meal.items.map(renderFoodEntry).join("")
       : `
         <button class="meal-empty" type="button" data-view-shortcut="food" data-meal-shortcut="${meal.id}">
-          <span>Пока нет записей</span>
+          <span>${escapeHtml(emptyMealTitle(meal.id))}</span>
+          <em>${escapeHtml(emptyMealText(meal.id))}</em>
           <b aria-hidden="true"><svg><use href="#icon-plus"></use></svg></b>
         </button>
       `;
@@ -1640,6 +1671,30 @@ function mealSummaryText(meal, macros) {
   const count = meal.items.length;
   const totalGrams = Math.round(macros.protein + macros.fat + macros.carbs);
   return `${count} ${pluralRu(count, "позиция", "позиции", "позиций")} · ${totalGrams} г БЖУ`;
+}
+
+function emptyMealTitle(mealId) {
+  const current = mealIdForNow();
+  if (mealId === current) {
+    return {
+      breakfast: "Добавить завтрак",
+      lunch: "Добавить обед",
+      dinner: "Добавить ужин",
+      snack: "Добавить перекус",
+    }[mealId] || "Добавить еду";
+  }
+  return "Пока пусто";
+}
+
+function emptyMealText(mealId) {
+  const current = mealIdForNow();
+  const activeSuffix = mealId === current ? " Сейчас самое время." : "";
+  return {
+    breakfast: `Кофе, яйца, каша или фото упаковки.${activeSuffix}`,
+    lunch: `Сфоткай тарелку или найди продукт по бренду.${activeSuffix}`,
+    dinner: `Закрой день: блюдо, доставка или ручные цифры.${activeSuffix}`,
+    snack: `Батончик, йогурт, фрукт или напиток.${activeSuffix}`,
+  }[mealId] || "Добавь запись любым способом.";
 }
 
 function renderFoodEntry(entry) {

@@ -1273,6 +1273,27 @@ h2 {
   font-weight: 720;
 }
 
+.meal-empty span,
+.meal-empty em {
+  min-width: 0;
+}
+
+.meal-empty span {
+  display: block;
+  color: var(--text);
+}
+
+.meal-empty em {
+  display: block;
+  max-width: 250px;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
 .meal-empty b,
 .row-action,
 .meal-add {
@@ -1537,6 +1558,27 @@ h2 {
   text-align: center;
   font-size: 14px;
   line-height: 1.35;
+}
+
+.kcal-compare {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  color: color-mix(in srgb, var(--accent-strong) 76%, var(--text));
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.kcal-compare.tone-up {
+  background: color-mix(in srgb, #ffb43e 13%, transparent);
+  color: color-mix(in srgb, #9a6100 76%, var(--text));
+}
+
+.kcal-compare.tone-down {
+  background: color-mix(in srgb, #47c08b 13%, transparent);
+  color: color-mix(in srgb, #00785d 76%, var(--text));
 }
 
 .glass-control,
@@ -6147,6 +6189,29 @@ body.is-free-user .premium-feature-note {
   color: var(--muted);
   font-size: 13px;
   line-height: 1.35;
+}
+
+.photo-checklist {
+  display: grid;
+  gap: 7px;
+  margin: 2px 0 4px;
+}
+
+.photo-checklist span {
+  display: block;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--line));
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface-solid));
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.photo-checklist b {
+  color: var(--text);
+  font-weight: 800;
 }
 
 #food-add-sheet #food-form .field-row {

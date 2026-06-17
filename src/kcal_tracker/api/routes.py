@@ -346,7 +346,9 @@ async def webapp_today(
 
 
 async def _webapp_today_payload(user, session: AsyncSession) -> WebAppToday:
-    diary = await DiaryService(session).today_summary(user)
+    diary_service = DiaryService(session)
+    diary = await diary_service.today_summary(user)
+    yesterday_diary = await diary_service.summary_for_day_offset(user, days_ago=1)
     wellness = WellnessService(session)
     latest_weight = await wellness.latest_weight(user)
     usage_service = AIUsageService(session)
@@ -354,6 +356,7 @@ async def _webapp_today_payload(user, session: AsyncSession) -> WebAppToday:
     return WebAppToday(
         user=user,
         diary=diary,
+        yesterday_diary=yesterday_diary,
         water_ml=await wellness.today_water_ml(user),
         latest_weight_kg=latest_weight.weight_kg if latest_weight else user.weight,
         ai_usage=await _ai_usage_summary(user, usage_service),

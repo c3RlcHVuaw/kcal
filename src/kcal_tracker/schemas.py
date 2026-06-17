@@ -273,6 +273,7 @@ class WebAppWeeklyMissions(BaseModel):
 class WebAppToday(BaseModel):
     user: UserRead
     diary: DiarySummary
+    yesterday_diary: DiarySummary | None = None
     water_ml: int
     latest_weight_kg: float | None
     ai_usage: AIUsageSummary
