@@ -5,7 +5,7 @@ from kcal_tracker.bot.handlers.food import (
     _is_confident_single_search_match,
 )
 from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate
-from kcal_tracker.services.brand_lookup import _best_brand_match
+from kcal_tracker.services.brand_lookup import _best_brand_match, mark_unverified_packaged_estimate
 from kcal_tracker.services.food_catalog import _can_learn, normalize_food_text, scale_estimate
 from kcal_tracker.services.food_search import estimate_common_food
 
@@ -55,6 +55,24 @@ def test_brand_lookup_prefers_real_packaged_product_match() -> None:
 
     assert matched is not None
     assert matched.name == "Bombbar протеиновый батончик фисташковая меренга"
+
+
+def test_packaged_ai_estimate_is_marked_unverified_without_database_match() -> None:
+    estimate = FoodEstimate(
+        name="Bombbar похожий батончик",
+        kcal=210,
+        confidence=0.82,
+        packaged=True,
+    )
+
+    marked = mark_unverified_packaged_estimate(estimate)
+
+    assert marked.source_label == "Проверь бренд"
+    assert marked.is_ai_suggestion is True
+    assert marked.packaged is True
+    assert marked.confidence == 0.55
+    assert marked.advice is not None
+    assert "Проверь бренд" in marked.advice
 
 
 def test_catalog_normalize_handles_case_and_yo() -> None:

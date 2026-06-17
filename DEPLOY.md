@@ -113,3 +113,16 @@ Postgres container:
 ```bash
 ./scripts/restore-check-db.sh backups/kcal-YYYYMMDDTHHMMSSZ.sql.gz
 ```
+
+For a regular launch-safe check, create a backup and immediately test the newest
+dump in a temporary container:
+
+```bash
+./scripts/backup-and-restore-check.sh
+```
+
+Recommended server cron example:
+
+```cron
+17 2 * * * cd /opt/kcal-tracker && ./scripts/backup-and-restore-check.sh >> backups/restore-check.log 2>&1
+```

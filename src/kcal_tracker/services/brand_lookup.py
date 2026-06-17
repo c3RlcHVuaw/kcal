@@ -13,6 +13,10 @@ from kcal_tracker.services.fatsecret import FatSecretService
 from kcal_tracker.services.open_food_facts import OpenFoodFactsService
 
 BRAND_LOOKUP_MIN_SCORE = 0.55
+UNVERIFIED_PACKAGED_LABEL = "Проверь бренд"
+UNVERIFIED_PACKAGED_ADVICE = (
+    "Не нашёл точное совпадение упаковки в базе. Проверь бренд, вкус и КБЖУ перед сохранением."
+)
 BRAND_HINT_TOKENS = {
     "activia",
     "alpen",
@@ -55,7 +59,7 @@ async def match_photo_estimates_to_brands(
     matched: list[FoodEstimate] = []
     for estimate in estimates.foods[:limit]:
         brand_match = await match_photo_estimate_to_brand(session, estimate)
-        matched.append(brand_match or estimate)
+        matched.append(brand_match or mark_unverified_packaged_estimate(estimate))
     return FoodEstimateList(foods=matched)
 
 
@@ -114,6 +118,18 @@ def _best_brand_match(estimate: FoodEstimate, candidates: list[FoodEstimate]) ->
             best = candidate
             best_score = score
     return best if best is not None and best_score >= BRAND_LOOKUP_MIN_SCORE else None
+
+
+def mark_unverified_packaged_estimate(estimate: FoodEstimate) -> FoodEstimate:
+    if not _looks_like_packaged_estimate(estimate):
+        return estimate
+    estimate.confidence = min(estimate.confidence or 0.55, 0.55)
+    estimate.source_label = UNVERIFIED_PACKAGED_LABEL
+    estimate.is_ai_suggestion = True
+    estimate.packaged = True
+    if not estimate.advice or "точное совпадение упаковки" not in estimate.advice:
+        estimate.advice = UNVERIFIED_PACKAGED_ADVICE
+    return estimate
 
 
 def _name_similarity(left: str, right: str) -> float:

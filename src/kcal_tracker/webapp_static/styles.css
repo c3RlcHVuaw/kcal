@@ -1918,6 +1918,35 @@ textarea:focus {
   font-size: 11px;
 }
 
+.packaged-warning {
+  display: grid;
+  gap: 3px;
+  margin-top: 8px;
+  padding: 9px 10px;
+  border: 1px solid color-mix(in srgb, var(--carbs) 34%, var(--line));
+  border-radius: 14px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--carbs) 14%, white), var(--surface-solid));
+  color: var(--text);
+}
+
+.packaged-warning b,
+.packaged-warning span {
+  display: block;
+  min-width: 0;
+}
+
+.packaged-warning b {
+  font-size: 12px;
+  font-weight: 790;
+}
+
+.packaged-warning span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.28;
+}
+
 .parsed-entry-actions {
   grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   margin-top: 7px;

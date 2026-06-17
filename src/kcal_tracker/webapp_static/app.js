@@ -1984,6 +1984,12 @@ async function connectSubscription() {
       renewal: state.hasActiveSubscription,
     },
   });
+  if (nodes.subscriptionHint) {
+    nodes.subscriptionHint.textContent =
+      "Открываю бота для оплаты. После успешной оплаты Premium включится автоматически; " +
+      "если не откроется за минуту, нажми «Проверить оплату» в боте.";
+  }
+  toast("Открываю бота для оплаты");
   openBotFromWebApp(`subscription_${plan.code}_${state.selectedSubscriptionMethod}`);
 }
 
@@ -2235,6 +2241,7 @@ function renderParsedFoods(result) {
           <button type="button" data-toggle-parsed="${index}">${state.expandedParsedFood === index ? "Свернуть" : "Изменить"}</button>
           <button type="button" data-remove-parsed="${index}" aria-label="Удалить ${escapeHtml(food.name)}">Удалить</button>
         </div>
+        ${renderPackagedVerificationNote(food)}
         <div class="parsed-food-editor" ${state.expandedParsedFood === index ? "" : "hidden"}>
           <label class="wide-field compact-fields">
             <span>Название</span>
@@ -2270,6 +2277,16 @@ function renderParsedFoods(result) {
       </div>
     </article>
   `).join("");
+}
+
+function renderPackagedVerificationNote(food) {
+  if (!food?.packaged || food.source_label !== "Проверь бренд") return "";
+  return `
+    <div class="packaged-warning" role="status">
+      <b>Упаковка не подтверждена базой</b>
+      <span>Проверь название, вкус и КБЖУ на этикетке. Если есть штрихкод, лучше отсканировать его.</span>
+    </div>
+  `;
 }
 
 function handleReviewFeedback(kind, button) {
@@ -3308,6 +3325,7 @@ function normalizeParsedFood(food) {
     emoji: food.emoji || null,
     advice: food.advice || null,
     source_label: food.source_label || null,
+    packaged: food.packaged === true,
     catalog_id: Number.isFinite(Number(food.catalog_id)) ? Number(food.catalog_id) : null,
     is_ai_suggestion: Boolean(food.is_ai_suggestion),
     trust_score: numberOrNull(food.trust_score),
