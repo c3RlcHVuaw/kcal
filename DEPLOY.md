@@ -104,3 +104,10 @@ Restores are destructive. Run only with an explicit confirmation:
 ```bash
 RESTORE_CONFIRM=yes ./scripts/restore-db.sh backups/kcal-YYYYMMDDTHHMMSSZ.sql.gz
 ```
+
+To test a backup without touching production data, restore it into a temporary
+Postgres container:
+
+```bash
+./scripts/restore-check-db.sh backups/kcal-YYYYMMDDTHHMMSSZ.sql.gz
+```

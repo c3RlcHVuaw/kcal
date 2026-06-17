@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     ai_daily_request_limit: int = Field(default=30, ge=0)
     ai_basic_daily_request_limit: int = Field(default=30, ge=0)
     ai_unlimited_daily_request_limit: int = Field(default=0, ge=0)
+    ai_unlimited_safety_daily_request_limit: int = Field(default=0, ge=0)
     ai_trial_request_limit: int = Field(default=3, ge=0)
     ai_subscription_stars: int = Field(default=499, ge=1)
     ai_subscription_rub: int = Field(default=299, ge=1)
@@ -80,6 +81,7 @@ class Settings(BaseSettings):
     admin_quality_not_it_hour_threshold: int = Field(default=5, ge=1)
     admin_quality_ai_failed_hour_threshold: int = Field(default=3, ge=1)
     admin_quality_no_match_hour_threshold: int = Field(default=5, ge=1)
+    admin_ai_user_day_threshold: int = Field(default=40, ge=1)
     admin_daily_digest_time: str = "09:05"
     admin_broadcast_all_enabled: bool = False
 

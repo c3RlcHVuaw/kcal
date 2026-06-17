@@ -463,11 +463,19 @@ document.addEventListener("click", (event) => {
   const planButton = event.target.closest("[data-subscription-plan]");
   if (planButton) {
     selectSubscriptionPlan(planButton.dataset.subscriptionPlan);
+    recordWebappEvent("webapp_subscription_plan_select", {
+      source: "subscription",
+      details: { plan: planButton.dataset.subscriptionPlan || "" },
+    });
     return;
   }
   const methodButton = event.target.closest("[data-subscription-method]");
   if (methodButton) {
     selectSubscriptionMethod(methodButton.dataset.subscriptionMethod);
+    recordWebappEvent("webapp_subscription_method_select", {
+      source: "subscription",
+      details: { method: methodButton.dataset.subscriptionMethod || "" },
+    });
   }
 });
 nodes.repeatYesterday.addEventListener("click", repeatYesterday);
@@ -794,6 +802,11 @@ async function addFoodEstimateToDiary(food, source, button) {
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     added = true;
     toast(`${food.name} добавлено`);
+    recordWebappEvent("webapp_food_saved", {
+      source,
+      query: food.name || null,
+      details: { foods_count: 1, meal_type: state.selectedMeal },
+    });
     if (wasFirstFood) {
       recordWebappEvent("webapp_first_food_saved", {
         source,
@@ -851,6 +864,11 @@ async function saveParsedFoods() {
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     switchView("today");
     toast(foods.length === 1 ? "Еда добавлена" : `Добавлено позиций: ${foods.length}`);
+    recordWebappEvent("webapp_food_saved", {
+      source: state.parsedFoodSource,
+      query: foods.map((food) => food.name).filter(Boolean).join(", ").slice(0, 240),
+      details: { foods_count: foods.length, meal_type: state.selectedMeal },
+    });
     if (wasFirstFood) {
       recordWebappEvent("webapp_first_food_saved", {
         source: state.parsedFoodSource,
@@ -915,6 +933,11 @@ nodes.foodForm.addEventListener("submit", async (event) => {
     await Promise.allSettled([loadToday(), loadWeek(), loadFrequent()]);
     switchView("today");
     toast("Еда добавлена");
+    recordWebappEvent("webapp_food_saved", {
+      source: "manual",
+      query: payload.name,
+      details: { foods_count: 1, meal_type: payload.meal_type },
+    });
   } catch {
     toast("Не получилось добавить еду");
   } finally {
@@ -1027,6 +1050,13 @@ if (!initData) {
   loadSubscriptionPlans();
 } else {
   loadAll();
+  recordWebappEvent("webapp_open", {
+    source: "app",
+    details: {
+      start_param: tg?.initDataUnsafe?.start_param || "",
+      platform: tg?.platform || "",
+    },
+  });
 }
 
 window.addEventListener("unhandledrejection", (event) => {
@@ -1937,12 +1967,23 @@ function renderAiBadges() {
   });
 }
 
-function connectSubscription() {
+async function connectSubscription() {
   const plan = subscriptionPlansForDisplay().find((item) => item.code === state.selectedSubscriptionPlan);
   if (!plan) {
     toast("Тарифы ещё загружаются");
     return;
   }
+  await recordWebappEvent("webapp_payment_start", {
+    source: "subscription",
+    details: {
+      plan: plan.code,
+      method: state.selectedSubscriptionMethod,
+      price_rub: plan.rub,
+      price_stars: plan.stars,
+      promo: state.subscriptionPromo?.valid ? state.subscriptionPromo.code : "",
+      renewal: state.hasActiveSubscription,
+    },
+  });
   openBotFromWebApp(`subscription_${plan.code}_${state.selectedSubscriptionMethod}`);
 }
 
@@ -2332,6 +2373,10 @@ function openFoodAddSheet() {
   switchAddMode("browse");
   lockPageScroll("food-add");
   nodes.foodAddSheet.classList.remove("hidden");
+  recordWebappEvent("webapp_add_food_open", {
+    source: "food_add",
+    details: { active_view: state.activeView || "" },
+  });
 }
 
 function closeFoodAddSheet() {
@@ -2659,6 +2704,10 @@ function openBotFromWebApp(target = "landing") {
   const payloads = new Set(["landing", "subscription", "reminders", "support"]);
   const subscriptionPayload = /^subscription_(basic|unlimited)_(sbp|auto|stars)$/.test(target);
   const payload = payloads.has(target) || subscriptionPayload ? target : "landing";
+  recordWebappEvent("webapp_bot_open", {
+    source: "bot_link",
+    details: { payload },
+  });
   const url = `https://t.me/trackerkcal_bot?start=${payload}`;
   if (tg?.openTelegramLink) {
     tg.openTelegramLink(url);
@@ -2676,6 +2725,14 @@ function openSubscriptionFlow(options = {}) {
   const { highlight = true } = options;
   closeAiLimitScreen();
   switchView("subscription");
+  recordWebappEvent("webapp_subscription_view", {
+    source: "subscription",
+    details: {
+      highlight,
+      has_subscription: state.hasActiveSubscription,
+      days_left: state.subscriptionDaysLeft ?? null,
+    },
+  });
   if (!state.subscriptionPlans.length) {
     loadSubscriptionPlans().catch(() => toast("Не получилось загрузить тарифы"));
   }

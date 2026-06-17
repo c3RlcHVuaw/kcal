@@ -123,6 +123,16 @@ def test_landing_event_limits_are_configurable() -> None:
     assert settings.landing_event_dedupe_seconds == 60
 
 
+def test_ai_safety_limits_are_configurable() -> None:
+    settings = Settings(
+        ai_unlimited_safety_daily_request_limit=120,
+        admin_ai_user_day_threshold=50,
+    )
+
+    assert settings.ai_unlimited_safety_daily_request_limit == 120
+    assert settings.admin_ai_user_day_threshold == 50
+
+
 def test_webapp_init_data_validation_accepts_signed_payload() -> None:
     identity = validate_webapp_init_data(
         _signed_init_data("bot-token"),

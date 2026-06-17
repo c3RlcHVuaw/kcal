@@ -1324,6 +1324,30 @@ async def _funnel_metrics(session, start: datetime, end: datetime) -> dict[str, 
             QualityEvent.event_type == "webapp_paywall_open",
         ),
     )
+    webapp_subscription_view = await _scalar(
+        session,
+        select(func.count(func.distinct(QualityEvent.user_id))).where(
+            QualityEvent.created_at >= start,
+            QualityEvent.created_at <= end,
+            QualityEvent.event_type == "webapp_subscription_view",
+        ),
+    )
+    webapp_payment_start = await _scalar(
+        session,
+        select(func.count(func.distinct(QualityEvent.user_id))).where(
+            QualityEvent.created_at >= start,
+            QualityEvent.created_at <= end,
+            QualityEvent.event_type == "webapp_payment_start",
+        ),
+    )
+    webapp_food_saved = await _scalar(
+        session,
+        select(func.count(QualityEvent.id)).where(
+            QualityEvent.created_at >= start,
+            QualityEvent.created_at <= end,
+            QualityEvent.event_type == "webapp_food_saved",
+        ),
+    )
     webapp_ai_review = await _scalar(
         session,
         select(func.count(QualityEvent.id)).where(
@@ -1348,7 +1372,10 @@ async def _funnel_metrics(session, start: datetime, end: datetime) -> dict[str, 
         "ai_users": ai_users,
         "payers": payers,
         "webapp_first_food": webapp_first_food,
+        "webapp_food_saved": webapp_food_saved,
         "webapp_paywall": webapp_paywall,
+        "webapp_subscription_view": webapp_subscription_view,
+        "webapp_payment_start": webapp_payment_start,
         "webapp_ai_review": webapp_ai_review,
         "webapp_ai_reject": webapp_ai_reject,
     }
@@ -1366,7 +1393,13 @@ def _funnel_period_text(title: str, metrics: dict[str, int]) -> str:
             f"AI: {metrics['ai_users']} ({_percent(metrics['ai_users'], started)})",
             f"Оплата: {metrics['payers']} ({_percent(metrics['payers'], started)})",
             f"Mini App первая еда: {metrics.get('webapp_first_food', 0)}",
-            f"Mini App paywall: {metrics.get('webapp_paywall', 0)}",
+            f"Mini App сохранений еды: {metrics.get('webapp_food_saved', 0)}",
+            (
+                "Mini App оплата: "
+                f"paywall {metrics.get('webapp_paywall', 0)} -> "
+                f"подписка {metrics.get('webapp_subscription_view', 0)} -> "
+                f"старт {metrics.get('webapp_payment_start', 0)}"
+            ),
             (
                 "Mini App AI review: "
                 f"{metrics.get('webapp_ai_review', 0)} / не то "
@@ -1383,12 +1416,25 @@ def _percent(value: int, total: int) -> str:
 
 
 async def _payments_text() -> str:
+    now = datetime.now(UTC)
+    day_start = now - timedelta(days=1)
+    week_start = now - timedelta(days=7)
     async with SessionLocal() as session:
         recent = await session.execute(select(Payment).order_by(Payment.created_at.desc()).limit(8))
         by_status = await session.execute(
             select(Payment.status, func.count(Payment.id)).group_by(Payment.status).order_by(func.count(Payment.id).desc())
         )
-    lines = ["💰 Платежи", "", "По статусам:"]
+        day = await _payment_funnel_metrics(session, day_start)
+        week = await _payment_funnel_metrics(session, week_start)
+    lines = [
+        "💰 Платежи",
+        "",
+        _payment_funnel_text("24 часа", day),
+        "",
+        _payment_funnel_text("7 дней", week),
+        "",
+        "По статусам:",
+    ]
     for status, count in by_status:
         lines.append(f"{status}: {count}")
     lines.extend(["", "Последние:"])
@@ -1400,6 +1446,63 @@ async def _payments_text() -> str:
     else:
         lines.append("нет платежей")
     return "\n".join(lines)
+
+
+async def _payment_funnel_metrics(session, start: datetime) -> dict[str, int]:
+    created = await _scalar(
+        session,
+        select(func.count(Payment.id)).where(Payment.created_at >= start),
+    )
+    succeeded = await _scalar(
+        session,
+        select(func.count(Payment.id)).where(
+            Payment.created_at >= start,
+            Payment.status == "succeeded",
+        ),
+    )
+    failed = await _scalar(
+        session,
+        select(func.count(Payment.id)).where(
+            Payment.updated_at >= start,
+            Payment.status.in_(("canceled", "failed", "expired")),
+        ),
+    )
+    revenue_kopecks = await _scalar(
+        session,
+        select(func.coalesce(func.sum(Payment.amount_kopecks), 0)).where(
+            Payment.created_at >= start,
+            Payment.status == "succeeded",
+        ),
+    )
+    webapp_started = await _scalar(
+        session,
+        select(func.count(QualityEvent.id)).where(
+            QualityEvent.created_at >= start,
+            QualityEvent.event_type == "webapp_payment_start",
+        ),
+    )
+    return {
+        "created": created,
+        "succeeded": succeeded,
+        "failed": failed,
+        "revenue_kopecks": revenue_kopecks,
+        "webapp_started": webapp_started,
+    }
+
+
+def _payment_funnel_text(title: str, metrics: dict[str, int]) -> str:
+    created = metrics["created"]
+    succeeded = metrics["succeeded"]
+    return "\n".join(
+        [
+            title,
+            f"Mini App старт оплаты: {metrics['webapp_started']}",
+            f"Счета созданы: {created}",
+            f"Успешно: {succeeded} ({_percent(succeeded, created)})",
+            f"Ошибки/истекли: {metrics['failed']}",
+            f"Выручка: {metrics['revenue_kopecks'] / 100:.0f} ₽",
+        ]
+    )
 
 
 async def _promos_text() -> str:
@@ -1654,6 +1757,8 @@ def _config_text() -> str:
             f"PUBLIC_API_URL: {settings.public_api_url}",
             f"AI trial: {settings.ai_trial_request_limit}",
             f"AI basic/day: {settings.ai_basic_daily_request_limit}",
+            f"AI unlimited safety/day: {settings.ai_unlimited_safety_daily_request_limit}",
+            f"AI user alert/day: {settings.admin_ai_user_day_threshold}",
             f"OpenAI budget/month: ${settings.openai_monthly_budget_usd:.2f}",
             f"OpenAI alert remaining: ${settings.openai_remaining_alert_usd:.2f}",
             f"Alert interval: {settings.admin_alert_interval_seconds}s",

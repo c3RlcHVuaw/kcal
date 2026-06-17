@@ -68,6 +68,7 @@ from kcal_tracker.models import Payment, User
 from kcal_tracker.schemas import (
     FoodEntryCreate,
     FoodEstimate,
+    WebAppQualityEventCreate,
     WebAppWeeklyMission,
     WebAppWeeklyMissions,
 )
@@ -268,12 +269,29 @@ def test_admin_funnel_formats_conversion_rates() -> None:
             "active_3_days": 3,
             "ai_users": 4,
             "payers": 1,
+            "webapp_first_food": 2,
+            "webapp_food_saved": 5,
+            "webapp_paywall": 4,
+            "webapp_subscription_view": 3,
+            "webapp_payment_start": 2,
+            "webapp_ai_review": 3,
+            "webapp_ai_reject": 1,
         },
     )
 
     assert _percent(3, 10) == "30%"
     assert "3 активных дня: 3 (30%)" in text
-    assert "Оплата: 1 (10%)" in text
+    assert "Mini App оплата: paywall 4 -> подписка 3 -> старт 2" in text
+
+
+def test_webapp_quality_event_accepts_product_analytics_events() -> None:
+    payload = WebAppQualityEventCreate(
+        event_type="webapp_payment_start",
+        source="subscription",
+        details={"plan": "basic", "renewal": False},
+    )
+
+    assert payload.event_type == "webapp_payment_start"
 
 
 def test_admin_landing_formats_click_rate() -> None:

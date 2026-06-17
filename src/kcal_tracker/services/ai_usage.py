@@ -49,6 +49,8 @@ class AIUsageService:
 
     async def ensure_allowed(self, user: User, request_count: int = 1) -> None:
         limit = user_ai_daily_limit(user)
+        if limit is None and settings.ai_unlimited_safety_daily_request_limit > 0:
+            limit = settings.ai_unlimited_safety_daily_request_limit
         if limit is None:
             return
         if limit == 0:

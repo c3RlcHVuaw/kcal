@@ -12,6 +12,8 @@ from kcal_tracker.api.routes import (
     _remaining_ai_for_webapp,
 )
 from kcal_tracker.models import User
+from kcal_tracker.services import ai_usage
+from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.throttle import ThrottleLimitReached
 
 
@@ -100,6 +102,25 @@ def test_webapp_paid_ai_check_uses_plan_daily_limit(monkeypatch) -> None:
     assert usage.paid_checked is True
     assert usage.trial_checked is False
     assert asyncio.run(_remaining_ai_for_webapp(user, usage)) == 12
+
+
+def test_unlimited_ai_safety_limit_can_stop_expensive_user(monkeypatch) -> None:
+    user = User(id=1, telegram_id=1001)
+    service = AIUsageService.__new__(AIUsageService)
+
+    async def remaining_today(_user: User) -> int:
+        return 0
+
+    monkeypatch.setattr(ai_usage, "user_ai_daily_limit", lambda _user: None)
+    monkeypatch.setattr(ai_usage.settings, "ai_unlimited_safety_daily_request_limit", 120)
+    monkeypatch.setattr(service, "remaining_today", remaining_today)
+
+    try:
+        asyncio.run(service.ensure_allowed(user))
+    except AILimitReachedError:
+        pass
+    else:
+        raise AssertionError("Safety limit did not stop unlimited AI usage")
 
 
 def test_webapp_ai_check_maps_throttle_to_429(monkeypatch) -> None:

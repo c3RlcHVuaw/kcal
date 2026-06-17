@@ -31,10 +31,12 @@ async def admin_alert_loop(bot: Bot, admin_ids: set[int]) -> None:
         return
 
     last_sent_at: dict[str, float] = {}
+    active_keys: set[str] = set()
     await asyncio.sleep(15)
     while True:
         try:
             alerts = await collect_admin_alerts()
+            alert_keys = {alert.key for alert in alerts}
             now = time.time()
             for alert in alerts:
                 previous = last_sent_at.get(alert.key, 0)
@@ -42,6 +44,13 @@ async def admin_alert_loop(bot: Bot, admin_ids: set[int]) -> None:
                     continue
                 await _notify_admins(bot, admin_ids, alert.text)
                 last_sent_at[alert.key] = now
+            for recovered_key in sorted(active_keys - alert_keys):
+                await _notify_admins(
+                    bot,
+                    admin_ids,
+                    _recovery_text(recovered_key),
+                )
+            active_keys = alert_keys
         except Exception:
             logger.exception("Failed to collect admin alerts")
         await asyncio.sleep(settings.admin_alert_interval_seconds)
@@ -213,6 +222,15 @@ async def _business_alerts() -> list[AdminAlert]:
                 AIUsage.usage_date == now.date()
             ),
         )
+        top_ai_user = await session.execute(
+            select(User.telegram_id, User.username, func.sum(AIUsage.request_count))
+            .join(User, User.id == AIUsage.user_id)
+            .where(AIUsage.usage_date == now.date())
+            .group_by(User.id, User.telegram_id, User.username)
+            .order_by(func.sum(AIUsage.request_count).desc())
+            .limit(1)
+        )
+        top_ai_row = top_ai_user.first()
 
     alerts: list[AdminAlert] = []
     if pending >= settings.admin_pending_payments_alert_threshold:
@@ -249,6 +267,22 @@ async def _business_alerts() -> list[AdminAlert]:
                 _alert_text("AI сегодня не используют", "В БД 0 AI-запросов за текущую дату."),
             )
         )
+    if top_ai_row is not None:
+        telegram_id, username, request_count = top_ai_row
+        if int(request_count or 0) >= settings.admin_ai_user_day_threshold:
+            label = f"@{username}" if username else str(telegram_id)
+            alerts.append(
+                AdminAlert(
+                    f"ai_user_spike_{telegram_id}",
+                    _alert_text(
+                        "Один пользователь активно жжёт AI",
+                        (
+                            f"{label}: {int(request_count or 0)} AI-запросов сегодня. "
+                            f"Порог: {settings.admin_ai_user_day_threshold}."
+                        ),
+                    ),
+                )
+            )
     return alerts
 
 
@@ -347,6 +381,11 @@ async def _scalar(session, statement) -> int:
 
 def _alert_text(title: str, details: str) -> str:
     return f"🚨 {title}\n\n{details}\n\nПроверь админку: /server или /alerts."
+
+
+def _recovery_text(key: str) -> str:
+    title = key.replace("_", " ")
+    return f"✅ Алерт восстановился\n\n{title}\n\nСостояние больше не воспроизводится."
 
 
 def _memory_percent() -> float | None:
