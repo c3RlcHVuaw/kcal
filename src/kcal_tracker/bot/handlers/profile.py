@@ -201,6 +201,9 @@ async def onboarding_activity(callback: CallbackQuery, state: FSMContext) -> Non
         user.daily_kcal_target = calculate_daily_kcal_target(user)
         apply_default_macro_targets(user)
         user.onboarding_completed = True
+        user.reminders_enabled = True
+        user.meal_reminders_enabled = True
+        user.weight_reminders_enabled = True
         target = user.daily_kcal_target
         protein = user.protein_target_g
         fat = user.fat_target_g

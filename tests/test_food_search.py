@@ -5,7 +5,11 @@ from kcal_tracker.bot.handlers.food import (
     _is_confident_single_search_match,
 )
 from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate
-from kcal_tracker.services.brand_lookup import _best_brand_match, mark_unverified_packaged_estimate
+from kcal_tracker.services.brand_lookup import (
+    _best_brand_match,
+    _brand_lookup_queries,
+    mark_unverified_packaged_estimate,
+)
 from kcal_tracker.services.food_catalog import _can_learn, normalize_food_text, scale_estimate
 from kcal_tracker.services.food_search import estimate_common_food
 
@@ -45,7 +49,12 @@ def test_single_database_result_needs_confident_match() -> None:
 
 
 def test_brand_lookup_prefers_real_packaged_product_match() -> None:
-    ai_estimate = FoodEstimate(name="Bombbar протеиновый батончик фисташка", kcal=210)
+    ai_estimate = FoodEstimate(
+        name="протеиновый батончик фисташка",
+        kcal=210,
+        visible_brand="Bombbar",
+        visible_label_text="Bombbar фисташковая меренга 60 г",
+    )
     candidates = [
         FoodEstimate(name="обычный шоколадный батончик", kcal=520),
         FoodEstimate(name="Bombbar протеиновый батончик фисташковая меренга", kcal=300),
@@ -55,6 +64,21 @@ def test_brand_lookup_prefers_real_packaged_product_match() -> None:
 
     assert matched is not None
     assert matched.name == "Bombbar протеиновый батончик фисташковая меренга"
+
+
+def test_brand_lookup_queries_prefer_visible_label_text() -> None:
+    estimate = FoodEstimate(
+        name="упакованный протеиновый батончик",
+        kcal=210,
+        packaged=True,
+        visible_brand="Bombbar",
+        visible_label_text="Bombbar фисташковая меренга 60 г",
+    )
+
+    assert _brand_lookup_queries(estimate)[:2] == [
+        "Bombbar фисташковая меренга 60 г",
+        "Bombbar упакованный протеиновый батончик",
+    ]
 
 
 def test_packaged_ai_estimate_is_marked_unverified_without_database_match() -> None:

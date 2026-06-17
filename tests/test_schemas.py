@@ -8,11 +8,15 @@ from starlette.requests import Request
 from kcal_tracker.admin_bot.main import (
     _broadcast_segment_allowed,
     _broadcast_segment_keyboard,
+    _compact_event_details,
     _funnel_period_text,
     _landing_period_text,
+    _payment_line,
     _paywall_variant_lines,
     _paywall_variant_metrics,
     _percent,
+    _quality_event_line,
+    _user_quality_line,
 )
 from kcal_tracker.api import routes
 from kcal_tracker.api.routes import (
@@ -70,7 +74,7 @@ from kcal_tracker.bot.text_parsing import (
     parse_activity_kcal,
     parse_int_from_text,
 )
-from kcal_tracker.models import Payment, User
+from kcal_tracker.models import Payment, QualityEvent, User
 from kcal_tracker.schemas import (
     FoodEntryCreate,
     FoodEstimate,
@@ -107,6 +111,7 @@ from kcal_tracker.services.reminders import (
     _inactivity_reminder_due,
     _inactivity_reminder_text,
     evening_close_keyboard,
+    return_to_diary_keyboard,
 )
 from kcal_tracker.services.share_cards import _wrap_card_lines
 from kcal_tracker.services.subscriptions import (
@@ -307,6 +312,43 @@ def test_paywall_variant_metrics_group_events() -> None:
         "speed": {"open": 1, "subscribe": 1, "manual": 0},
     }
     assert _paywall_variant_lines(metrics)[1] == "· speed: open 1, купить 1 (100%), вручную 0"
+
+
+def test_admin_user_quality_line_summarizes_problem_signals() -> None:
+    text = _user_quality_line(
+        {
+            "webapp_ai_failed": 2,
+            "food_ai_failed": 1,
+            "webapp_ai_reject": 3,
+            "webapp_packaged_unverified": 4,
+            "webapp_paywall_open": 5,
+            "webapp_payment_start": 1,
+        }
+    )
+
+    assert text == "Качество 7д: AI fail 3, не то 3, упаковки 4, paywall 5 -> start 1"
+
+
+def test_admin_user_payment_and_event_lines_are_compact() -> None:
+    payment = Payment(
+        status="pending",
+        method="sbp",
+        amount_kopecks=29900,
+        payload="payload",
+        promo_code="START20",
+        created_at=datetime(2026, 6, 17, 8, 30, tzinfo=UTC),
+    )
+    event = QualityEvent(
+        event_type="webapp_packaged_unverified",
+        source="photo",
+        query="Bombbar фисташковая меренга",
+        details={"photos": 2, "count": 1, "paywall_variant": "speed"},
+        created_at=datetime(2026, 6, 17, 8, 31, tzinfo=UTC),
+    )
+
+    assert "pending sbp 299 ₽, promo START20" in _payment_line(payment)
+    assert _compact_event_details(event.details) == " (photos=2, count=1, paywall_variant=speed)"
+    assert "webapp_packaged_unverified/photo" in _quality_event_line(event)
 
 
 def test_webapp_quality_event_accepts_product_analytics_events() -> None:
@@ -1068,6 +1110,16 @@ def test_evening_close_keyboard_has_fast_day_actions() -> None:
     ]
 
     assert callbacks == ["nav:add-food", "water:add:250", "nav:today"]
+
+
+def test_return_to_diary_keyboard_has_retention_actions() -> None:
+    callbacks = [
+        button.callback_data
+        for row in return_to_diary_keyboard().inline_keyboard
+        for button in row
+    ]
+
+    assert callbacks == ["nav:add-food", "nav:today", "nav:reminders"]
 
 
 def test_parse_int_accepts_units() -> None:

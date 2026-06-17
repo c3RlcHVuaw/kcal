@@ -891,6 +891,7 @@ async def _user_text(session, user: User) -> str:
     summary = await DiaryService(session).today_summary(user)
     recent_entries = await _recent_entries(session, user, limit=5)
     recent_payments = await _recent_payments(session, user, limit=3)
+    recent_quality_events = await _recent_quality_events(session, user, limit=6)
     ai_today = await _scalar(
         session,
         select(func.coalesce(func.sum(AIUsage.request_count), 0)).where(
@@ -898,21 +899,30 @@ async def _user_text(session, user: User) -> str:
             AIUsage.usage_date == datetime.now(ZoneInfo(user.timezone)).date(),
         ),
     )
+    quality_counts = await _user_quality_counts(session, user, hours=7 * 24)
+    first_open = _first_event(recent_quality_events, "webapp_open")
+    last_paywall = _first_event(recent_quality_events, "webapp_paywall_open")
+    start_param = _event_detail(first_open, "start_param") or "-"
+    platform = _event_detail(first_open, "platform") or "-"
+    paywall_variant = _event_detail(last_paywall, "paywall_variant") or "-"
 
     lines = [
         "👤 Пользователь",
         "",
         f"ID: {user.telegram_id}",
         f"Username: @{user.username}" if user.username else "Username: -",
+        f"Создан: {user.created_at:%d.%m.%Y %H:%M UTC}",
         f"Onboarding: {'да' if user.onboarding_completed else 'нет'}",
         f"Premium: {'активен' if has_active_subscription(user) else 'нет'}",
         f"До: {user.subscription_expires_at:%d.%m.%Y %H:%M UTC}"
         if user.subscription_expires_at
         else "До: -",
         f"Цель: {user.daily_kcal_target} ккал",
+        f"Источник: start={start_param}, platform={platform}, paywall={paywall_variant}",
         "",
         f"Сегодня: {summary.kcal:.0f}/{summary.target_kcal} ккал, записей {len(summary.entries)}",
         f"AI сегодня: {ai_today}",
+        _user_quality_line(quality_counts),
         "",
         "Последняя еда:",
     ]
@@ -922,12 +932,14 @@ async def _user_text(session, user: User) -> str:
         lines.append("нет записей")
     lines.extend(["", "Платежи:"])
     if recent_payments:
-        lines.extend(
-            f"· {payment.status} {payment.method} {payment.created_at:%d.%m %H:%M}"
-            for payment in recent_payments
-        )
+        lines.extend(_payment_line(payment) for payment in recent_payments)
     else:
         lines.append("нет платежей")
+    lines.extend(["", "Последние события:"])
+    if recent_quality_events:
+        lines.extend(_quality_event_line(event) for event in recent_quality_events)
+    else:
+        lines.append("нет событий")
     return "\n".join(lines)
 
 
@@ -2067,6 +2079,94 @@ async def _recent_payments(session, user: User, *, limit: int) -> list[Payment]:
         .limit(limit)
     )
     return list(result.scalars())
+
+
+async def _recent_quality_events(session, user: User, *, limit: int) -> list[QualityEvent]:
+    result = await session.execute(
+        select(QualityEvent)
+        .where(QualityEvent.user_id == user.id)
+        .order_by(QualityEvent.created_at.desc())
+        .limit(limit)
+    )
+    return list(result.scalars())
+
+
+async def _user_quality_counts(session, user: User, *, hours: int) -> dict[str, int]:
+    since = datetime.now(UTC) - timedelta(hours=hours)
+    rows = await session.execute(
+        select(QualityEvent.event_type, func.count(QualityEvent.id))
+        .where(QualityEvent.user_id == user.id, QualityEvent.created_at >= since)
+        .group_by(QualityEvent.event_type)
+    )
+    return {str(event_type): int(count or 0) for event_type, count in rows}
+
+
+def _first_event(events: list[QualityEvent], event_type: str) -> QualityEvent | None:
+    for event in events:
+        if event.event_type == event_type:
+            return event
+    return None
+
+
+def _event_detail(event: QualityEvent | None, key: str) -> str | None:
+    if event is None or not isinstance(event.details, dict):
+        return None
+    value = event.details.get(key)
+    if value in (None, ""):
+        return None
+    return str(value)[:80]
+
+
+def _user_quality_line(counts: dict[str, int]) -> str:
+    ai_fail = counts.get("webapp_ai_failed", 0) + counts.get("food_ai_failed", 0)
+    not_it = counts.get("webapp_ai_reject", 0) + counts.get("food_not_it", 0)
+    packages = counts.get("webapp_packaged_unverified", 0)
+    paywall = counts.get("webapp_paywall_open", 0)
+    starts = counts.get("webapp_payment_start", 0)
+    return (
+        "Качество 7д: "
+        f"AI fail {ai_fail}, не то {not_it}, упаковки {packages}, "
+        f"paywall {paywall} -> start {starts}"
+    )
+
+
+def _payment_line(payment: Payment) -> str:
+    amount = "-"
+    if payment.amount_kopecks:
+        amount = f"{payment.amount_kopecks / 100:.0f} ₽"
+    elif payment.amount_stars:
+        amount = f"{payment.amount_stars} ⭐"
+    promo = f", promo {payment.promo_code}" if payment.promo_code else ""
+    error = f", err {payment.last_error[:80]}" if payment.last_error else ""
+    return (
+        f"· {payment.status} {payment.method} {amount}{promo} "
+        f"{payment.created_at:%d.%m %H:%M}{error}"
+    )
+
+
+def _quality_event_line(event: QualityEvent) -> str:
+    source = f"/{event.source}" if event.source else ""
+    query = f" · {event.query[:70]}" if event.query else ""
+    details = _compact_event_details(event.details)
+    return f"· {event.created_at:%d.%m %H:%M} {event.event_type}{source}{query}{details}"
+
+
+def _compact_event_details(details: dict | None) -> str:
+    if not isinstance(details, dict) or not details:
+        return ""
+    keys = (
+        "status",
+        "reason",
+        "photos",
+        "count",
+        "paywall_variant",
+        "plan",
+        "method",
+        "promo",
+        "start_param",
+    )
+    parts = [f"{key}={details[key]}" for key in keys if details.get(key) not in (None, "")]
+    return f" ({', '.join(parts[:4])})" if parts else ""
 
 
 async def _broadcast_recipients(session, segment: str) -> list[int]:

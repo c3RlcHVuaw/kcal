@@ -1,6 +1,7 @@
 const tg = window.Telegram?.WebApp;
 const initData = tg?.initData || "";
 const ONBOARDING_KEY = "kcal:onboarding:v2";
+const APP_CACHE_PREFIX = "kcal:cache:v1:";
 const TOUR_SAFE_GAP = 18;
 const DEFAULT_START_PROMO = "START20";
 const PAYWALL_VARIANTS = [
@@ -309,7 +310,7 @@ const onboardingSteps = [
   },
   {
     title: "Еда добавляется отсюда",
-    text: "Кнопка открывает фото, текст, штрихкод, поиск и ручной ввод. Если не хочется считать руками — начинай с фото.",
+    text: "Кнопка открывает фото, AI-описание, штрихкод, поиск и ручной ввод. Первый успех здесь: добавь один продукт и сразу увидишь день.",
     target: ".tab-bar [data-view='food']",
   },
   {
@@ -352,9 +353,18 @@ const onboardingSteps = [
     target: ".tab-bar [data-view='progress']",
   },
   {
-    title: "Всё остальное — в «Ещё»",
+    title: "Сделай первую запись",
+    text: "Лучший старт — занести один приём пищи любым способом. После сохранения дневник покажет остаток калорий и прогресс дня.",
+    target: ".add-mode-actions",
+    fallbackTarget: ".tab-bar [data-view='food']",
+    sheet: "food-add",
+    cta: "Добавить еду",
+  },
+  {
+    title: "Ещё — настройки и помощь",
     text: "Там подписка, лимиты AI, экспорт, поддержка, напоминания и повтор этого обучения.",
     target: ".tab-bar [data-view='more']",
+    cta: "Добавить еду",
   },
 ];
 
@@ -508,6 +518,7 @@ nodes.onboardingBack?.addEventListener("click", () => setOnboardingStep(state.on
 nodes.onboardingNext?.addEventListener("click", () => setOnboardingStep(state.onboardingStep + 1));
 nodes.onboardingStart?.addEventListener("click", () => {
   closeOnboarding({ remember: true });
+  openFoodAddSheet();
 });
 nodes.onboardingMenu?.addEventListener("click", (event) => {
   const item = event.target.closest("[data-onboarding-step]");
@@ -1076,6 +1087,7 @@ if (!initData) {
   renderEmptyApp();
   loadSubscriptionPlans();
 } else {
+  renderCachedApp();
   loadAll();
   recordWebappEvent("webapp_open", {
     source: "app",
@@ -1161,17 +1173,20 @@ async function loadAll() {
 
 async function loadToday() {
   state.today = await api("/webapp/me/today");
+  writeAppCache("today", state.today);
   renderToday(state.today);
   maybeOpenOnboarding(state.today);
 }
 
 async function loadWeek() {
   state.week = await api("/webapp/me/week");
+  writeAppCache("week", state.week);
   renderWeek(state.week);
 }
 
 async function loadBody() {
   state.body = await api("/webapp/me/body");
+  writeAppCache("body", state.body);
   renderBody(state.body);
 }
 
@@ -1216,10 +1231,34 @@ async function loadSubscriptionPlans() {
   }
   const data = await api("/webapp/me/subscription/plans");
   state.subscriptionPlans = data.plans || [];
+  writeAppCache("subscriptionPlans", state.subscriptionPlans);
   if (!state.subscriptionPlans.some((plan) => plan.code === state.selectedSubscriptionPlan)) {
     state.selectedSubscriptionPlan = state.subscriptionPlans[0]?.code || "basic";
   }
   renderSubscriptionPlans();
+}
+
+function renderCachedApp() {
+  const today = readAppCache("today", 4 * 60 * 60 * 1000);
+  if (today) {
+    state.today = today;
+    renderToday(today);
+  }
+  const week = readAppCache("week", 4 * 60 * 60 * 1000);
+  if (week) {
+    state.week = week;
+    renderWeek(week);
+  }
+  const body = readAppCache("body", 24 * 60 * 60 * 1000);
+  if (body) {
+    state.body = body;
+    renderBody(body);
+  }
+  const plans = readAppCache("subscriptionPlans", 24 * 60 * 60 * 1000);
+  if (plans) {
+    state.subscriptionPlans = plans;
+    renderSubscriptionPlans();
+  }
 }
 
 function renderToday(data) {
@@ -3052,6 +3091,7 @@ function renderOnboardingStep() {
   nodes.onboardingBack.disabled = state.onboardingStep === 0;
   nodes.onboardingNext.classList.toggle("hidden", state.onboardingStep === total - 1);
   nodes.onboardingStart.classList.toggle("hidden", state.onboardingStep !== total - 1);
+  if (nodes.onboardingStart) nodes.onboardingStart.textContent = step.cta || "Начать";
   nodes.onboardingMenu.innerHTML = onboardingSteps
     .map((item, index) => `
       <button type="button" data-onboarding-step="${index}" ${index === state.onboardingStep ? 'class="active"' : ""}>
@@ -3230,6 +3270,34 @@ function switchAddMode(mode) {
   requestAnimationFrame(() => {
     nodes.foodAddSheet.querySelector(".food-add-scroll")?.scrollTo({ top: 0 });
   });
+}
+
+function appCacheKey(key) {
+  const telegramId = tg?.initDataUnsafe?.user?.id || "anon";
+  return `${APP_CACHE_PREFIX}${telegramId}:${key}`;
+}
+
+function readAppCache(key, ttlMs) {
+  try {
+    const raw = window.localStorage?.getItem(appCacheKey(key));
+    if (!raw) return null;
+    const cached = JSON.parse(raw);
+    if (!cached || Date.now() - Number(cached.saved_at || 0) > ttlMs) return null;
+    return cached.value ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeAppCache(key, value) {
+  try {
+    window.localStorage?.setItem(appCacheKey(key), JSON.stringify({
+      saved_at: Date.now(),
+      value,
+    }));
+  } catch {
+    // Cache is optional in Telegram webviews.
+  }
 }
 
 async function api(path, options = {}) {

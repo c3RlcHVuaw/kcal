@@ -154,6 +154,7 @@ async def _send_due_reminders(bot: Bot) -> None:
                 await bot.send_message(
                     user.telegram_id,
                     _inactivity_reminder_text(latest_entry_at, user.created_at, user.timezone),
+                    reply_markup=return_to_diary_keyboard(),
                 )
                 user.last_inactivity_reminder_date = today
 
@@ -291,6 +292,18 @@ def evening_close_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="💧 Вода", callback_data="water:add:250"),
             ],
             [InlineKeyboardButton(text="📊 Открыть сегодня", callback_data="nav:today")],
+        ]
+    )
+
+
+def return_to_diary_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="➕ Записать еду", callback_data="nav:add-food"),
+                InlineKeyboardButton(text="📊 Сегодня", callback_data="nav:today"),
+            ],
+            [InlineKeyboardButton(text="⏰ Напоминания", callback_data="nav:reminders")],
         ]
     )
 

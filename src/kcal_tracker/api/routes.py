@@ -935,6 +935,9 @@ async def webapp_complete_onboarding(
     user.daily_kcal_target = calculate_daily_kcal_target(user)
     apply_default_macro_targets(user)
     user.onboarding_completed = True
+    user.reminders_enabled = True
+    user.meal_reminders_enabled = True
+    user.weight_reminders_enabled = True
     await session.commit()
     await session.refresh(user)
     return await webapp_today(identity, session)

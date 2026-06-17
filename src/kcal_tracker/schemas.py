@@ -20,6 +20,8 @@ class FoodEstimate(BaseModel):
     is_ai_suggestion: bool = False
     trust_score: float | None = Field(default=None, ge=0, le=1)
     packaged: bool | None = None
+    visible_brand: str | None = Field(default=None, max_length=80)
+    visible_label_text: str | None = Field(default=None, max_length=240)
     photo_thumb_data_url: str | None = Field(default=None, max_length=70000)
     photo_thumb_expires_at: datetime | None = None
 
