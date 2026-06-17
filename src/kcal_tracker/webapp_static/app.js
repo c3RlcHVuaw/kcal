@@ -3,6 +3,23 @@ const initData = tg?.initData || "";
 const ONBOARDING_KEY = "kcal:onboarding:v2";
 const TOUR_SAFE_GAP = 18;
 const DEFAULT_START_PROMO = "START20";
+const PAYWALL_VARIANTS = [
+  {
+    id: "features",
+    title: null,
+    subtitle: null,
+  },
+  {
+    id: "speed",
+    title: "Считай еду за секунды",
+    subtitle: "Premium убирает ручной поиск: фото, текст и уточнения превращаются в готовую запись быстрее, чем открывать таблицы калорий.",
+  },
+  {
+    id: "real-life",
+    title: "Для упаковок, кафе и доставки",
+    subtitle: "Premium помогает с едой, которую неудобно считать руками: упаковки, домашние блюда, кафе, доставка и поправки по порции.",
+  },
+];
 const FALLBACK_SUBSCRIPTION_PLANS = [
   {
     code: "basic",
@@ -114,6 +131,7 @@ const state = {
   onboardingAutoChecked: false,
   onboardingStep: 0,
   reviewFeedbackSent: null,
+  paywallVariant: null,
 };
 
 const nodes = {
@@ -2784,6 +2802,24 @@ function showPremiumUpsell(feature = "Premium", context = "default") {
   openAiLimitScreen(feature, context);
 }
 
+function paywallVariant() {
+  const key = "kcal:paywall-variant:v1";
+  const saved = window.localStorage?.getItem(key);
+  const existing = PAYWALL_VARIANTS.find((variant) => variant.id === saved);
+  if (existing) return existing;
+  const telegramId = Number(tg?.initDataUnsafe?.user?.id || 0);
+  const index = telegramId
+    ? Math.abs(telegramId) % PAYWALL_VARIANTS.length
+    : Math.floor(Math.random() * PAYWALL_VARIANTS.length);
+  const variant = PAYWALL_VARIANTS[index] || PAYWALL_VARIANTS[0];
+  try {
+    window.localStorage?.setItem(key, variant.id);
+  } catch {
+    // localStorage can be unavailable in restricted webviews.
+  }
+  return variant;
+}
+
 function openAiLimitScreen(feature = "AI", context = "default") {
   const screen = ensureAiLimitScreen();
   const title = screen.querySelector("[data-ai-limit-title]");
@@ -2794,13 +2830,15 @@ function openAiLimitScreen(feature = "AI", context = "default") {
   const usage = state.aiUsage;
   const remaining = Number(usage?.trial_remaining ?? usage?.remaining_today ?? 0);
   const copy = AI_LIMIT_CONTEXTS[context] || AI_LIMIT_CONTEXTS.default;
+  const variant = paywallVariant();
+  state.paywallVariant = variant.id;
 
-  title.textContent = remaining <= 0
+  title.textContent = variant.title || (remaining <= 0
     ? copy.title
-    : "Для этого действия нужна подписка";
-  subtitle.textContent = remaining <= 0
+    : "Для этого действия нужна подписка");
+  subtitle.textContent = variant.subtitle || (remaining <= 0
     ? copy.subtitle
-    : `${feature} доступен в подписке: можно разбирать еду текстом, фото и уточнениями без ручного поиска.`;
+    : `${feature} доступен в подписке: можно разбирать еду текстом, фото и уточнениями без ручного поиска.`);
   counter.textContent = usage?.is_trial
     ? `${formatAiUsageValue(usage)} пробных AI-запросов`
     : copy.badge;
@@ -2821,6 +2859,7 @@ function openAiLimitScreen(feature = "AI", context = "default") {
     details: {
       feature,
       context,
+      paywall_variant: variant.id,
       remaining_ai: remaining,
       has_subscription: state.hasActiveSubscription,
     },
@@ -2867,6 +2906,7 @@ function ensureAiLimitScreen() {
       recordWebappEvent("webapp_paywall_subscribe", {
         source: "ai_limit",
         details: {
+          paywall_variant: state.paywallVariant || paywallVariant().id,
           remaining_ai: Number(state.aiUsage?.trial_remaining ?? state.aiUsage?.remaining_today ?? 0),
           has_subscription: state.hasActiveSubscription,
         },
@@ -2878,6 +2918,7 @@ function ensureAiLimitScreen() {
       recordWebappEvent("webapp_paywall_manual", {
         source: "ai_limit",
         details: {
+          paywall_variant: state.paywallVariant || paywallVariant().id,
           remaining_ai: Number(state.aiUsage?.trial_remaining ?? state.aiUsage?.remaining_today ?? 0),
         },
       });

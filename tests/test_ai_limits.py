@@ -13,6 +13,7 @@ from kcal_tracker.api.routes import (
 )
 from kcal_tracker.models import User
 from kcal_tracker.services import ai_usage
+from kcal_tracker.services.ai_queue import _try_acquire_slot
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.throttle import ThrottleLimitReached
 
@@ -52,6 +53,19 @@ class FakeUsageService:
         self.trial_checked = True
 
 
+class FakeRedisSlots:
+    def __init__(self, occupied: set[str] | None = None) -> None:
+        self.occupied = occupied or set()
+        self.set_calls: list[tuple[str, str, int, bool]] = []
+
+    async def set(self, key: str, token: str, *, ex: int, nx: bool) -> bool:
+        self.set_calls.append((key, token, ex, nx))
+        if key in self.occupied:
+            return False
+        self.occupied.add(key)
+        return True
+
+
 def test_webapp_free_ai_summary_uses_trial_remaining() -> None:
     user = User(id=1, telegram_id=1001)
     usage = FakeUsageService(used_today=1, lifetime_used=2, remaining_today=29, remaining_trial=1)
@@ -63,6 +77,26 @@ def test_webapp_free_ai_summary_uses_trial_remaining() -> None:
     assert summary.trial_limit == 3
     assert summary.trial_remaining == 1
     assert summary.remaining_today == 1
+
+
+def test_ai_photo_queue_acquires_first_free_slot(monkeypatch) -> None:
+    redis = FakeRedisSlots(occupied={"ai:photo:slot:0"})
+    monkeypatch.setattr(routes.settings, "ai_photo_queue_concurrency", 2)
+    monkeypatch.setattr(routes.settings, "ai_photo_queue_slot_ttl_seconds", 30)
+
+    key = asyncio.run(_try_acquire_slot(redis, "token", "user-1"))
+
+    assert key == "ai:photo:slot:1"
+    assert redis.set_calls[-1] == ("ai:photo:slot:1", "token", 30, True)
+
+
+def test_ai_photo_queue_returns_none_when_full(monkeypatch) -> None:
+    redis = FakeRedisSlots(occupied={"ai:photo:slot:0", "ai:photo:slot:1"})
+    monkeypatch.setattr(routes.settings, "ai_photo_queue_concurrency", 2)
+
+    key = asyncio.run(_try_acquire_slot(redis, "token", "user-1"))
+
+    assert key is None
 
 
 def test_webapp_free_ai_check_uses_trial_limit(monkeypatch) -> None:

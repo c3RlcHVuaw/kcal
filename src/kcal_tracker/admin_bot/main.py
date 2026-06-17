@@ -65,6 +65,17 @@ QUALITY_SEARCH_EVENTS = (
     "webapp_barcode_failed",
 )
 WEBAPP_REVIEW_EVENTS = ("webapp_ai_accept", "webapp_ai_adjust", "webapp_ai_reject")
+PROBLEM_USER_EVENTS = (
+    "webapp_ai_failed",
+    "webapp_ai_reject",
+    "webapp_barcode_failed",
+    "webapp_packaged_unverified",
+    "webapp_paywall_open",
+    "webapp_payment_start",
+    "food_ai_failed",
+    "food_not_it",
+    "food_no_match",
+)
 
 
 class AdminFlow(StatesGroup):
@@ -161,6 +172,19 @@ async def ops_callback(callback: CallbackQuery) -> None:
 async def crm_callback(callback: CallbackQuery) -> None:
     await callback.message.edit_text("Пользователи, подписки и поддержка:", reply_markup=_crm_keyboard())
     await callback.answer()
+
+
+@router.message(Command("problems"))
+async def problems_command(message: Message) -> None:
+    text = await _problem_users_text()
+    await message.answer(text, reply_markup=_problem_users_keyboard())
+
+
+@router.callback_query(F.data == "admin:problems")
+async def problems_callback(callback: CallbackQuery) -> None:
+    text = await _problem_users_text()
+    await callback.message.edit_text(text, reply_markup=_problem_users_keyboard())
+    await callback.answer("Обновлено")
 
 
 @router.message(Command("today"))
@@ -1264,6 +1288,78 @@ def _quality_mode_title(mode: str) -> str:
     }.get(mode, "обзор")
 
 
+async def _problem_users_text() -> str:
+    since = datetime.now(UTC) - timedelta(hours=24)
+    async with SessionLocal() as session:
+        rows = await session.execute(
+            select(
+                User.telegram_id,
+                User.username,
+                QualityEvent.event_type,
+                func.count(QualityEvent.id),
+            )
+            .join(User, User.id == QualityEvent.user_id)
+            .where(
+                QualityEvent.created_at >= since,
+                QualityEvent.event_type.in_(PROBLEM_USER_EVENTS),
+            )
+            .group_by(User.id, User.telegram_id, User.username, QualityEvent.event_type)
+        )
+    by_user: dict[int, dict[str, Any]] = {}
+    for telegram_id, username, event_type, count in rows:
+        bucket = by_user.setdefault(
+            int(telegram_id),
+            {"username": username, "events": {}, "score": 0},
+        )
+        bucket["events"][event_type] = int(count or 0)
+        bucket["score"] += _problem_event_weight(str(event_type)) * int(count or 0)
+
+    ranked = sorted(
+        by_user.items(),
+        key=lambda item: (item[1]["score"], sum(item[1]["events"].values())),
+        reverse=True,
+    )[:10]
+    lines = [
+        "🧯 Проблемные пользователи",
+        "",
+        "За 24 часа: ошибки AI/поиска, неподтверждённые упаковки и просадки paywall.",
+        "",
+    ]
+    if not ranked:
+        lines.append("Пока чисто: проблемных сигналов нет.")
+        return "\n".join(lines)
+
+    for telegram_id, data in ranked:
+        username = data["username"]
+        label = f"@{username}" if username else str(telegram_id)
+        events = data["events"]
+        lines.append(
+            f"· {label} · score {data['score']}: "
+            f"AI fail {events.get('webapp_ai_failed', 0) + events.get('food_ai_failed', 0)}, "
+            f"не то {events.get('webapp_ai_reject', 0) + events.get('food_not_it', 0)}, "
+            f"упаковки {events.get('webapp_packaged_unverified', 0)}, "
+            f"paywall {events.get('webapp_paywall_open', 0)} -> старт {events.get('webapp_payment_start', 0)}"
+        )
+        lines.append(f"  /user {telegram_id}")
+    return "\n".join(lines)
+
+
+def _problem_event_weight(event_type: str) -> int:
+    if event_type in {"webapp_ai_failed", "food_ai_failed"}:
+        return 4
+    if event_type in {"webapp_ai_reject", "food_not_it"}:
+        return 4
+    if event_type == "webapp_packaged_unverified":
+        return 3
+    if event_type in {"webapp_barcode_failed", "food_no_match"}:
+        return 2
+    if event_type == "webapp_paywall_open":
+        return 1
+    if event_type == "webapp_payment_start":
+        return 1
+    return 1
+
+
 async def _funnel_text() -> str:
     tz = ZoneInfo(settings.default_timezone)
     today_start, today_end = _today_bounds(tz)
@@ -1379,6 +1475,15 @@ async def _funnel_metrics(session, start: datetime, end: datetime) -> dict[str, 
             QualityEvent.event_type == "webapp_ai_reject",
         ),
     )
+    paywall_variant_rows = await session.execute(
+        select(QualityEvent.event_type, QualityEvent.details).where(
+            QualityEvent.created_at >= start,
+            QualityEvent.created_at <= end,
+            QualityEvent.event_type.in_(
+                ("webapp_paywall_open", "webapp_paywall_subscribe", "webapp_paywall_manual")
+            ),
+        )
+    )
     return {
         "started": started,
         "onboarded": onboarded,
@@ -1393,35 +1498,64 @@ async def _funnel_metrics(session, start: datetime, end: datetime) -> dict[str, 
         "webapp_payment_start": webapp_payment_start,
         "webapp_ai_review": webapp_ai_review,
         "webapp_ai_reject": webapp_ai_reject,
+        "paywall_variants": _paywall_variant_metrics(paywall_variant_rows.all()),
     }
 
 
-def _funnel_period_text(title: str, metrics: dict[str, int]) -> str:
+def _funnel_period_text(title: str, metrics: dict[str, Any]) -> str:
     started = metrics["started"]
-    return "\n".join(
-        [
-            title,
-            f"/start: {started}",
-            f"Onboarding: {metrics['onboarded']} ({_percent(metrics['onboarded'], started)})",
-            f"Первая еда: {metrics['first_food']} ({_percent(metrics['first_food'], started)})",
-            f"3 активных дня: {metrics['active_3_days']} ({_percent(metrics['active_3_days'], started)})",
-            f"AI: {metrics['ai_users']} ({_percent(metrics['ai_users'], started)})",
-            f"Оплата: {metrics['payers']} ({_percent(metrics['payers'], started)})",
-            f"Mini App первая еда: {metrics.get('webapp_first_food', 0)}",
-            f"Mini App сохранений еды: {metrics.get('webapp_food_saved', 0)}",
-            (
-                "Mini App оплата: "
-                f"paywall {metrics.get('webapp_paywall', 0)} -> "
-                f"подписка {metrics.get('webapp_subscription_view', 0)} -> "
-                f"старт {metrics.get('webapp_payment_start', 0)}"
-            ),
-            (
-                "Mini App AI review: "
-                f"{metrics.get('webapp_ai_review', 0)} / не то "
-                f"{metrics.get('webapp_ai_reject', 0)}"
-            ),
-        ]
-    )
+    lines = [
+        title,
+        f"/start: {started}",
+        f"Onboarding: {metrics['onboarded']} ({_percent(metrics['onboarded'], started)})",
+        f"Первая еда: {metrics['first_food']} ({_percent(metrics['first_food'], started)})",
+        f"3 активных дня: {metrics['active_3_days']} ({_percent(metrics['active_3_days'], started)})",
+        f"AI: {metrics['ai_users']} ({_percent(metrics['ai_users'], started)})",
+        f"Оплата: {metrics['payers']} ({_percent(metrics['payers'], started)})",
+        f"Mini App первая еда: {metrics.get('webapp_first_food', 0)}",
+        f"Mini App сохранений еды: {metrics.get('webapp_food_saved', 0)}",
+        (
+            "Mini App оплата: "
+            f"paywall {metrics.get('webapp_paywall', 0)} -> "
+            f"подписка {metrics.get('webapp_subscription_view', 0)} -> "
+            f"старт {metrics.get('webapp_payment_start', 0)}"
+        ),
+        (
+            "Mini App AI review: "
+            f"{metrics.get('webapp_ai_review', 0)} / не то "
+            f"{metrics.get('webapp_ai_reject', 0)}"
+        ),
+    ]
+    variant_lines = _paywall_variant_lines(metrics.get("paywall_variants") or {})
+    if variant_lines:
+        lines.extend(["A/B paywall:", *variant_lines])
+    return "\n".join(lines)
+
+
+def _paywall_variant_metrics(rows: list[tuple[str, dict]]) -> dict[str, dict[str, int]]:
+    variants: dict[str, dict[str, int]] = {}
+    for event_type, details in rows:
+        variant = str((details or {}).get("paywall_variant") or "unknown")
+        bucket = variants.setdefault(variant, {"open": 0, "subscribe": 0, "manual": 0})
+        if event_type == "webapp_paywall_open":
+            bucket["open"] += 1
+        elif event_type == "webapp_paywall_subscribe":
+            bucket["subscribe"] += 1
+        elif event_type == "webapp_paywall_manual":
+            bucket["manual"] += 1
+    return variants
+
+
+def _paywall_variant_lines(variants: dict[str, dict[str, int]]) -> list[str]:
+    lines: list[str] = []
+    for variant, counts in sorted(variants.items()):
+        opened = counts.get("open", 0)
+        subscribe = counts.get("subscribe", 0)
+        manual = counts.get("manual", 0)
+        lines.append(
+            f"· {variant}: open {opened}, купить {subscribe} ({_percent(subscribe, opened)}), вручную {manual}"
+        )
+    return lines
 
 
 def _percent(value: int, total: int) -> str:
@@ -2084,7 +2218,7 @@ def _main_menu_text() -> str:
             "Выбери раздел кнопками ниже.",
             "",
             "Команды тоже работают:",
-            "/today, /digest, /launch, /server, /openai, /alerts, /quality, /funnel, /landing, /promos, /user, /grant",
+            "/today, /digest, /launch, /server, /openai, /alerts, /quality, /problems, /funnel, /landing, /promos, /user, /grant",
         ]
     )
 
@@ -2170,6 +2304,7 @@ def _crm_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="👤 Пользователь", callback_data="admin:user:ask"),
                 InlineKeyboardButton(text="💎 Premium", callback_data="admin:grant:ask"),
             ],
+            [InlineKeyboardButton(text="🧯 Проблемы", callback_data="admin:problems")],
             [
                 InlineKeyboardButton(text="🧭 Funnel", callback_data="admin:funnel"),
                 InlineKeyboardButton(text="📈 Growth", callback_data="admin:growth"),
@@ -2181,6 +2316,18 @@ def _crm_keyboard() -> InlineKeyboardMarkup:
             ],
             [InlineKeyboardButton(text="🎟 Promos", callback_data="admin:promos")],
             [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _problem_users_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:problems"),
+                InlineKeyboardButton(text="📉 Quality", callback_data="admin:quality"),
+            ],
+            [InlineKeyboardButton(text="👥 CRM", callback_data="admin:crm")],
         ]
     )
 

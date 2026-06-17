@@ -60,6 +60,7 @@ from kcal_tracker.schemas import (
     WeightGoalUpdate,
 )
 from kcal_tracker.services.ai_food import AIFoodService
+from kcal_tracker.services.ai_queue import AIPhotoQueueFullError, ai_photo_slot
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
 from kcal_tracker.services.brand_lookup import match_photo_estimates_to_brands
@@ -502,10 +503,26 @@ async def _webapp_parse_food_photos(
         raise HTTPException(status_code=402, detail="AI limit reached") from exc
 
     try:
-        estimates = await AIFoodService().recognize_photos(
-            image_payloads,
-            text_hint=text_hint,
+        async with ai_photo_slot(user.telegram_id):
+            estimates = await AIFoodService().recognize_photos(
+                image_payloads,
+                text_hint=text_hint,
+            )
+    except AIPhotoQueueFullError as exc:
+        await record_quality_event(
+            "webapp_ai_failed",
+            telegram_id=user.telegram_id,
+            username=user.username,
+            source="photo_queue",
+            query=text_hint,
+            details={"reason": "queue_full", "photos": len(image_payloads)},
+            notify_admin=False,
         )
+        raise HTTPException(
+            status_code=429,
+            detail="AI photo queue is busy",
+            headers={"Retry-After": str(int(settings.ai_photo_queue_wait_seconds) or 1)},
+        ) from exc
     except Exception as exc:
         logger.exception("Web app AI photo food parse failed")
         raise HTTPException(status_code=503, detail="AI photo parsing failed") from exc

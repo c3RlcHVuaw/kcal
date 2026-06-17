@@ -126,6 +126,9 @@ def test_landing_event_limits_are_configurable() -> None:
 def test_ai_safety_limits_are_configurable() -> None:
     settings = Settings(
         ai_unlimited_safety_daily_request_limit=120,
+        ai_photo_queue_concurrency=3,
+        ai_photo_queue_wait_seconds=7,
+        ai_photo_queue_slot_ttl_seconds=45,
         admin_ai_user_day_threshold=50,
         admin_landing_views_no_click_hour_threshold=30,
         admin_payment_starts_no_success_hour_threshold=4,
@@ -134,6 +137,9 @@ def test_ai_safety_limits_are_configurable() -> None:
     )
 
     assert settings.ai_unlimited_safety_daily_request_limit == 120
+    assert settings.ai_photo_queue_concurrency == 3
+    assert settings.ai_photo_queue_wait_seconds == 7
+    assert settings.ai_photo_queue_slot_ttl_seconds == 45
     assert settings.admin_ai_user_day_threshold == 50
     assert settings.admin_landing_views_no_click_hour_threshold == 30
     assert settings.admin_payment_starts_no_success_hour_threshold == 4

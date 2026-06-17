@@ -29,6 +29,7 @@ from kcal_tracker.database import SessionLocal
 from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate, FoodEstimateList
 from kcal_tracker.services.ai_audio import AIAudioService
 from kcal_tracker.services.ai_food import AIFoodService
+from kcal_tracker.services.ai_queue import AIPhotoQueueFullError, ai_photo_slot
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
 from kcal_tracker.services.brand_lookup import match_photo_estimates_to_brands
@@ -1489,7 +1490,21 @@ async def _recognize_food_photos(
     )
     try:
         images = [(image_bytes, "image/jpeg") for image_bytes in image_bytes_list[:6]]
-        estimates = await AIFoodService().recognize_photos(images, text_hint=text_hint)
+        async with ai_photo_slot(message.from_user.id):
+            estimates = await AIFoodService().recognize_photos(images, text_hint=text_hint)
+    except AIPhotoQueueFullError:
+        await _record_food_quality_event(
+            message,
+            "food_ai_failed",
+            source="photo_queue",
+            query=text_hint,
+            details={"reason": "queue_full", "photos": len(image_bytes_list)},
+        )
+        await message.answer(
+            "Фото сейчас в очереди: много AI-разборов одновременно. "
+            "Попробуй ещё раз через несколько секунд, я уже разгружаю поток."
+        )
+        return
     except Exception:
         logger.exception("AI photo recognition failed")
         await _record_food_quality_event(

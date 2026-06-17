@@ -10,6 +10,8 @@ from kcal_tracker.admin_bot.main import (
     _broadcast_segment_keyboard,
     _funnel_period_text,
     _landing_period_text,
+    _paywall_variant_lines,
+    _paywall_variant_metrics,
     _percent,
 )
 from kcal_tracker.api import routes
@@ -281,12 +283,30 @@ def test_admin_funnel_formats_conversion_rates() -> None:
             "webapp_payment_start": 2,
             "webapp_ai_review": 3,
             "webapp_ai_reject": 1,
+            "paywall_variants": {"speed": {"open": 10, "subscribe": 3, "manual": 2}},
         },
     )
 
     assert _percent(3, 10) == "30%"
     assert "3 активных дня: 3 (30%)" in text
     assert "Mini App оплата: paywall 4 -> подписка 3 -> старт 2" in text
+    assert "speed: open 10, купить 3 (30%), вручную 2" in text
+
+
+def test_paywall_variant_metrics_group_events() -> None:
+    metrics = _paywall_variant_metrics(
+        [
+            ("webapp_paywall_open", {"paywall_variant": "speed"}),
+            ("webapp_paywall_subscribe", {"paywall_variant": "speed"}),
+            ("webapp_paywall_manual", {"paywall_variant": "features"}),
+        ]
+    )
+
+    assert metrics == {
+        "features": {"open": 0, "subscribe": 0, "manual": 1},
+        "speed": {"open": 1, "subscribe": 1, "manual": 0},
+    }
+    assert _paywall_variant_lines(metrics)[1] == "· speed: open 1, купить 1 (100%), вручную 0"
 
 
 def test_webapp_quality_event_accepts_product_analytics_events() -> None:
