@@ -99,10 +99,12 @@ from kcal_tracker.services.nutrition import (
     high_calorie_add_warning,
     is_high_calorie_food,
     meal_suggestion_text,
+    personal_style_insight,
     remaining_advice,
     smart_day_coach,
     smart_problem_signals,
     suspicious_food_warning,
+    tomorrow_micro_plan,
     weekly_coach_note,
     weekly_score,
 )
@@ -571,6 +573,30 @@ def test_weekly_coach_note_mentions_average_delta() -> None:
     assert "AI-разбор недели" in note
     assert "перебор" in note
     assert weekly_score(analytics) >= 1
+
+
+def test_personal_style_and_tomorrow_plan_use_patterns() -> None:
+    analytics = SimpleNamespace(
+        average_kcal=2050,
+        target_kcal=2000,
+        days_in_target=3,
+        days=[
+            SimpleNamespace(entries_count=2, kcal=1900, protein=65, fat=70, carbs=240),
+            SimpleNamespace(entries_count=3, kcal=2100, protein=72, fat=80, carbs=260),
+            SimpleNamespace(entries_count=2, kcal=2050, protein=78, fat=70, carbs=250),
+        ],
+    )
+    patterns = NutritionPatterns(
+        tracked_days=5,
+        average_evening_kcal=520,
+        no_breakfast_days=3,
+        no_breakfast_over_target_days=2,
+        sweet_drink_days=0,
+        sweet_drink_average_delta=0,
+    )
+
+    assert "без завтрака" in personal_style_insight(analytics, patterns)
+    assert "белок" in tomorrow_micro_plan(analytics, patterns)
 
 
 def test_end_of_day_forecast_uses_usual_evening_kcal() -> None:

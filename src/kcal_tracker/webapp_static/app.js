@@ -133,6 +133,8 @@ const state = {
   onboardingStep: 0,
   reviewFeedbackSent: null,
   paywallVariant: null,
+  dayShareBlob: null,
+  dayShareUrl: null,
 };
 
 const nodes = {
@@ -154,6 +156,7 @@ const nodes = {
   firstDayText: document.querySelector("#first-day-text"),
   firstDayAction: document.querySelector("#first-day-action"),
   weeklyMissionsTrigger: document.querySelector("#weekly-missions-trigger"),
+  shareDay: document.querySelector("#share-day"),
   weeklyMissionsCount: document.querySelector("#weekly-missions-count"),
   weeklyMissionsSheet: document.querySelector("#weekly-missions-sheet"),
   weeklyMissionsClose: document.querySelector("#weekly-missions-close"),
@@ -234,6 +237,8 @@ const nodes = {
   weekConsistency: document.querySelector("#week-consistency"),
   weekChartNote: document.querySelector("#week-chart-note"),
   weekChart: document.querySelector("#week-chart"),
+  weekStyleInsight: document.querySelector("#week-style-insight"),
+  tomorrowMicroPlan: document.querySelector("#tomorrow-micro-plan"),
   goalForm: document.querySelector("#goal-form"),
   goalKind: document.querySelector("#goal-kind"),
   goalWeight: document.querySelector("#goal-weight"),
@@ -301,6 +306,11 @@ const nodes = {
   setupWeight: document.querySelector("#setup-weight"),
   setupActivity: document.querySelector("#setup-activity"),
   setupTargetWeight: document.querySelector("#setup-target-weight"),
+  dayShareSheet: document.querySelector("#day-share-sheet"),
+  dayShareClose: document.querySelector("#day-share-close"),
+  dayShareImage: document.querySelector("#day-share-image"),
+  dayShareNative: document.querySelector("#day-share-native"),
+  dayShareDownload: document.querySelector("#day-share-download"),
 };
 
 const onboardingSteps = [
@@ -436,12 +446,19 @@ document.querySelectorAll("[data-meal]").forEach((button) => {
 
 nodes.refresh.addEventListener("click", loadAll);
 document.querySelector("#refresh-hero")?.addEventListener("click", loadAll);
+nodes.shareDay?.addEventListener("click", openDayShareSheet);
 nodes.weeklyMissionsTrigger?.addEventListener("click", openWeeklyMissionsSheet);
 nodes.weeklyMissionsClose?.addEventListener("click", closeWeeklyMissionsSheet);
 nodes.weeklyMissionsSheet?.addEventListener("click", (event) => {
   if (event.target === nodes.weeklyMissionsSheet) closeWeeklyMissionsSheet();
 });
 nodes.weeklyMissionsClaim?.addEventListener("click", claimWeeklyMissionBonus);
+nodes.dayShareClose?.addEventListener("click", closeDayShareSheet);
+nodes.dayShareSheet?.addEventListener("click", (event) => {
+  if (event.target === nodes.dayShareSheet) closeDayShareSheet();
+});
+nodes.dayShareNative?.addEventListener("click", shareDayCard);
+nodes.dayShareDownload?.addEventListener("click", downloadDayCard);
 document.addEventListener("click", (event) => {
   const shortcut = event.target.closest("[data-view-shortcut]");
   if (shortcut) {
@@ -1333,6 +1350,185 @@ function renderKcalCompare(data) {
   nodes.kcalCompare.textContent = text;
 }
 
+async function openDayShareSheet() {
+  if (!state.today?.diary) {
+    toast("День ещё загружается");
+    return;
+  }
+  try {
+    const blob = await buildDayShareCard(state.today);
+    setDayShareBlob(blob);
+    nodes.dayShareImage.src = state.dayShareUrl;
+    nodes.dayShareSheet?.classList.remove("hidden");
+    lockPageScroll("day-share");
+    triggerHaptic("light");
+  } catch {
+    toast("Не получилось собрать карточку");
+  }
+}
+
+function closeDayShareSheet() {
+  nodes.dayShareSheet?.classList.add("hidden");
+  unlockPageScroll("day-share");
+}
+
+function setDayShareBlob(blob) {
+  if (state.dayShareUrl) URL.revokeObjectURL(state.dayShareUrl);
+  state.dayShareBlob = blob;
+  state.dayShareUrl = URL.createObjectURL(blob);
+}
+
+async function shareDayCard() {
+  if (!state.dayShareBlob) return downloadDayCard();
+  const file = new File([state.dayShareBlob], "kcal-day.png", { type: "image/png" });
+  const text = "Мой день в Kcal @trackerkcal_bot";
+  try {
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: "Kcal", text });
+      return;
+    }
+    if (navigator.share) {
+      await navigator.share({ title: "Kcal", text });
+      return;
+    }
+  } catch {
+    // User can still download the card.
+  }
+  downloadDayCard();
+}
+
+function downloadDayCard() {
+  if (!state.dayShareUrl) return;
+  const link = document.createElement("a");
+  link.href = state.dayShareUrl;
+  link.download = "kcal-day.png";
+  link.click();
+}
+
+function buildDayShareCard(data) {
+  return new Promise((resolve, reject) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1080;
+    canvas.height = 1350;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      reject(new Error("Canvas is unavailable"));
+      return;
+    }
+    drawDayShareCard(ctx, canvas.width, canvas.height, data);
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Canvas export failed"));
+    }, "image/png", 0.95);
+  });
+}
+
+function drawDayShareCard(ctx, width, height, data) {
+  const diary = data.diary || {};
+  const entries = [...(diary.entries || [])].sort((left, right) => Number(right.kcal || 0) - Number(left.kcal || 0));
+  const kcal = Math.round(Number(diary.kcal || 0));
+  const target = Math.max(Math.round(Number(diary.target_kcal || 0)), 1);
+  const left = target - kcal;
+  const progress = Math.max(0, Math.min(kcal / target, 1));
+  const date = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(new Date());
+
+  ctx.fillStyle = "#eef8f4";
+  ctx.fillRect(0, 0, width, height);
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#f8fffb");
+  gradient.addColorStop(0.52, "#eef6ff");
+  gradient.addColorStop(1, "#e8fff7");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  roundRect(ctx, 70, 70, width - 140, height - 140, 46, "#ffffff");
+  roundRect(ctx, 100, 100, width - 200, 118, 34, "#0ec9a3");
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 46px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillText("Kcal", 140, 176);
+  ctx.font = "600 28px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillText(date, width - 330, 176);
+
+  ctx.fillStyle = "#1d2430";
+  ctx.font = "800 70px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillText("Мой день", 120, 310);
+  ctx.font = "700 154px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillText(left >= 0 ? String(left) : `+${Math.abs(left)}`, 120, 480);
+  ctx.font = "800 42px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillStyle = "#7b8494";
+  ctx.fillText(left >= 0 ? "ккал осталось" : "ккал выше цели", 460, 458);
+
+  roundRect(ctx, 120, 535, width - 240, 22, 11, "#e8edf4");
+  roundRect(ctx, 120, 535, Math.max(28, (width - 240) * progress), 22, 11, "#10bfae");
+  ctx.fillStyle = "#1d2430";
+  ctx.font = "800 34px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillText(`${kcal} / ${target} ккал`, 120, 620);
+
+  const stats = [
+    ["Белки", `${Math.round(Number(diary.protein || 0))} г`],
+    ["Жиры", `${Math.round(Number(diary.fat || 0))} г`],
+    ["Углеводы", `${Math.round(Number(diary.carbs || 0))} г`],
+    ["Вода", `${Math.round(Number(data.water_ml || 0))} мл`],
+  ];
+  stats.forEach((item, index) => {
+    const x = 120 + (index % 2) * 430;
+    const y = 690 + Math.floor(index / 2) * 132;
+    roundRect(ctx, x, y, 390, 96, 26, "#f4f7fb");
+    ctx.fillStyle = "#7b8494";
+    ctx.font = "700 26px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillText(item[0], x + 30, y + 38);
+    ctx.fillStyle = "#1d2430";
+    ctx.font = "800 34px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+    ctx.fillText(item[1], x + 30, y + 76);
+  });
+
+  ctx.fillStyle = "#1d2430";
+  ctx.font = "800 38px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillText(entries.length ? "Главное за день" : "День только начинается", 120, 1010);
+  const foodLines = entries.slice(0, 3).map((entry) => `${entry.emoji || "•"} ${entry.name} · ${Math.round(entry.kcal)} ккал`);
+  if (!foodLines.length) foodLines.push("Запиши первый приём пищи — карточка станет живее.");
+  ctx.font = "650 29px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillStyle = "#566173";
+  foodLines.forEach((line, index) => {
+    drawCanvasText(ctx, line, 120, 1066 + index * 48, width - 240, 34);
+  });
+
+  ctx.fillStyle = "#0b8f7d";
+  ctx.font = "800 32px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillText("Сделано в @trackerkcal_bot", 120, 1240);
+  ctx.fillStyle = "#7b8494";
+  ctx.font = "600 24px system-ui, -apple-system, BlinkMacSystemFont, sans-serif";
+  ctx.fillText("Дневник питания в Telegram", 120, 1278);
+}
+
+function roundRect(ctx, x, y, width, height, radius, fill) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
+  ctx.fillStyle = fill;
+  ctx.fill();
+}
+
+function drawCanvasText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = String(text).split(" ");
+  let line = "";
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, x, y);
+      line = word;
+      y += lineHeight;
+    } else {
+      line = test;
+    }
+  }
+  if (line) ctx.fillText(line, x, y);
+}
+
 function renderSmartNudge(data) {
   if (!nodes.firstDayNudge) return;
   const entriesCount = Number(data?.diary?.entries?.length || 0);
@@ -1817,6 +2013,8 @@ function renderWeek(data) {
   setTextWithPulse(nodes.weekTracked, trackedText);
   setTextWithPulse(nodes.weekConsistency, trackedDays.length >= 6 ? "отличная регулярность" : trackedDays.length >= 4 ? "почти вся неделя" : "мало данных");
   setTextWithPulse(nodes.weekChartNote, `${trackedDays.length} ${pluralRu(trackedDays.length, "день", "дня", "дней")} с записями`);
+  setTextWithPulse(nodes.weekStyleInsight, data.personal_style_insight || "Пока стиль питания только собирается.");
+  setTextWithPulse(nodes.tomorrowMicroPlan, data.tomorrow_micro_plan || "Завтра начни с одной честной записи.");
   document.querySelector(".week-target-ring")?.style.setProperty("--week-progress", `${Math.min(percent, 100)}%`);
   document.querySelector(".progress-insight-card")?.classList.toggle("is-over", status.kind === "over");
   document.querySelector(".progress-insight-card")?.classList.toggle("is-under", status.kind === "under");

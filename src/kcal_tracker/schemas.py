@@ -246,6 +246,8 @@ class WeeklyAnalyticsRead(BaseModel):
     average_kcal: float
     target_kcal: int
     days_in_target: int
+    personal_style_insight: str | None = None
+    tomorrow_micro_plan: str | None = None
 
 
 class WebAppUser(BaseModel):

@@ -71,6 +71,7 @@ from kcal_tracker.services.food_catalog import FoodCatalogService, mark_ai_sugge
 from kcal_tracker.services.food_insights import enrich_food_payload
 from kcal_tracker.services.food_search import estimate_common_food
 from kcal_tracker.services.growth import GrowthService
+from kcal_tracker.services.nutrition import personal_style_insight, tomorrow_micro_plan
 from kcal_tracker.services.open_food_facts import OpenFoodFactsService, ProductNotFoundError
 from kcal_tracker.services.profile import (
     apply_default_macro_targets,
@@ -851,7 +852,9 @@ async def webapp_week(
     session: SessionDep,
 ) -> WeeklyAnalyticsRead:
     user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
-    analytics = await DiaryService(session).weekly_analytics(user)
+    diary = DiaryService(session)
+    analytics = await diary.weekly_analytics(user)
+    patterns = await diary.nutrition_patterns(user)
     return WeeklyAnalyticsRead(
         days=[
             AnalyticsDay(
@@ -867,6 +870,8 @@ async def webapp_week(
         average_kcal=analytics.average_kcal,
         target_kcal=analytics.target_kcal,
         days_in_target=analytics.days_in_target,
+        personal_style_insight=personal_style_insight(analytics, patterns),
+        tomorrow_micro_plan=tomorrow_micro_plan(analytics, patterns),
     )
 
 

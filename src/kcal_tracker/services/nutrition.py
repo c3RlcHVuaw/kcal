@@ -269,6 +269,54 @@ def weekly_coach_note(analytics: Any) -> str:
     return "AI-разбор недели: " + "; ".join(notes) + "."
 
 
+def personal_style_insight(analytics: Any, patterns: Any | None = None) -> str:
+    tracked_days = [day for day in analytics.days if day.entries_count]
+    if len(tracked_days) < 3:
+        return "Пока стиль питания только собирается. Нужно 3-4 дня записей, чтобы увидеть повторяющийся паттерн."
+
+    protein_days = sum(1 for day in tracked_days if day.protein >= 80)
+    low_days = sum(1 for day in tracked_days if day.kcal < analytics.target_kcal - 250)
+    high_days = sum(1 for day in tracked_days if day.kcal > analytics.target_kcal + 250)
+    no_breakfast = int(getattr(patterns, "no_breakfast_days", 0) or 0)
+    sweet_drink_days = int(getattr(patterns, "sweet_drink_days", 0) or 0)
+    evening_kcal = float(getattr(patterns, "average_evening_kcal", 0) or 0)
+
+    if no_breakfast >= 3:
+        return "Твой частый паттерн: день часто начинается без завтрака, а дальше легче перебрать калории вечером."
+    if sweet_drink_days >= 3:
+        return "Заметный паттерн: сладкие напитки регулярно добавляют калории почти незаметно."
+    if evening_kcal >= 650:
+        return "Похоже, основная плотность еды часто уходит на вечер. Днём лучше держать нормальный белковый приём."
+    if protein_days < max(2, len(tracked_days) // 2):
+        return "Твой главный повтор недели: белок часто недобирается. Самый лёгкий рычаг - добавить его до обеда."
+    if high_days >= 3:
+        return "Неделя часто становится плотнее цели. Поможет заранее оставить место под ужин, а не добирать случайно."
+    if low_days >= 3:
+        return "Ты часто остаёшься ниже цели. Важно не пропускать нормальный приём пищи, чтобы вечер не стал хаотичным."
+    return "Стиль недели выглядит ровно: записи есть, калории без резких качелей. Дальше можно тонко улучшать белок и воду."
+
+
+def tomorrow_micro_plan(analytics: Any, patterns: Any | None = None) -> str:
+    tracked_days = [day for day in analytics.days if day.entries_count]
+    if not tracked_days:
+        return "Завтра одна задача: записать первый реальный приём пищи, даже примерно."
+
+    latest = tracked_days[-1]
+    no_breakfast = int(getattr(patterns, "no_breakfast_days", 0) or 0)
+    sweet_drink_days = int(getattr(patterns, "sweet_drink_days", 0) or 0)
+    if latest.protein < 80:
+        return "Завтра пробуем один фокус: добрать белок до обеда."
+    if no_breakfast >= 3:
+        return "Завтра эксперимент: маленький завтрак или белковый перекус до 12:00."
+    if sweet_drink_days >= 3:
+        return "Завтра эксперимент: один сладкий напиток заменить водой или напитком без сахара."
+    if latest.kcal > analytics.target_kcal + 250:
+        return "Завтра фокус простой: сначала нормальный обед, потом решать про сладкое."
+    if latest.kcal < analytics.target_kcal - 350:
+        return "Завтра не проваливаем день: запланируй один плотный приём пищи заранее."
+    return "Завтра держим тот же ритм: еда в дневнике, белок в первой половине дня, без компенсаций."
+
+
 def end_of_day_forecast(summary: DiarySummary, patterns: Any | None = None) -> str | None:
     if not summary.entries:
         return None

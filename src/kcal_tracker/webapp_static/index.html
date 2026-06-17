@@ -7,7 +7,7 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/styles.css?v=photo-empty-compare-20260617" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=day-card-style-plan-20260617" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -31,6 +31,11 @@
       <symbol id="icon-refresh" viewBox="0 0 24 24">
         <path d="M20 12a8 8 0 1 1-2.35-5.65" />
         <path d="M20 4.75v5h-5" />
+      </symbol>
+      <symbol id="icon-share" viewBox="0 0 24 24">
+        <path d="M12 15.25V4.75" />
+        <path d="m8.25 8.5 3.75-3.75 3.75 3.75" />
+        <path d="M6.25 11.75v5.75a1.75 1.75 0 0 0 1.75 1.75h8a1.75 1.75 0 0 0 1.75-1.75v-5.75" />
       </symbol>
       <symbol id="icon-missions" viewBox="0 0 24 24">
         <path d="M6.5 19.25V5.5" />
@@ -88,6 +93,9 @@
               <h1>Сегодня</h1>
             </div>
             <div class="today-actions">
+              <button id="share-day" class="icon-button" type="button" aria-label="Поделиться днём">
+                <svg><use href="#icon-share"></use></svg>
+              </button>
               <button id="weekly-missions-trigger" class="mission-button hidden" type="button" aria-label="Открыть миссии недели">
                 <svg><use href="#icon-missions"></use></svg>
                 <span id="weekly-missions-count">0/2</span>
@@ -259,6 +267,16 @@
               <span>Заполнено</span>
               <strong id="week-tracked">0/7</strong>
               <small id="week-consistency">нет данных</small>
+            </article>
+          </div>
+          <div class="progress-coach-grid">
+            <article class="component-card progress-coach-card">
+              <span>Твой стиль</span>
+              <p id="week-style-insight">Нужно больше записей, чтобы увидеть паттерн.</p>
+            </article>
+            <article class="component-card progress-coach-card">
+              <span>Завтра</span>
+              <p id="tomorrow-micro-plan">Один маленький фокус появится после записей.</p>
             </article>
           </div>
         </section>
@@ -987,7 +1005,26 @@
       </div>
     </section>
 
+    <section id="day-share-sheet" class="sheet day-share-sheet hidden" aria-modal="true" role="dialog" aria-labelledby="day-share-title">
+      <div class="sheet-panel day-share-panel component-card">
+        <div class="sheet-title">
+          <div>
+            <h2 id="day-share-title">Фото дня</h2>
+            <p class="section-subtitle">Итог дня с упоминанием бота снизу</p>
+          </div>
+          <button id="day-share-close" class="icon-button" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <div class="day-share-preview">
+          <img id="day-share-image" alt="Карточка дня Kcal" />
+        </div>
+        <div class="day-share-actions">
+          <button id="day-share-native" class="primary-button" type="button">Поделиться</button>
+          <button id="day-share-download" class="secondary-button" type="button">Скачать</button>
+        </div>
+      </div>
+    </section>
+
     <div id="toast" class="toast hidden"></div>
-    <script src="/app/static/app.js?v=photo-empty-compare-20260617" type="module"></script>
+    <script src="/app/static/app.js?v=day-card-style-plan-20260617" type="module"></script>
   </body>
 </html>
