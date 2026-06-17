@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from kcal_tracker.config import settings
@@ -152,24 +153,31 @@ class SubscriptionService:
         user.subscription_plan = plan.code
         if promo is not None:
             promo.promo.used_count += 1
-        self.session.add(
-            Payment(
-                user_id=user.id,
-                promo_code_id=promo.promo.id if promo else None,
-                amount_stars=amount_stars,
-                original_amount_stars=plan.stars if promo else None,
-                promo_code=promo.code if promo else None,
-                promo_discount_percent=promo.discount_percent if promo else None,
-                currency="XTR",
-                method="stars",
-                status="succeeded",
-                payload=payload,
-                telegram_payment_charge_id=telegram_payment_charge_id,
-                provider_payment_charge_id=provider_payment_charge_id,
-                paid_at=now,
-            )
+        payment = Payment(
+            user_id=user.id,
+            promo_code_id=promo.promo.id if promo else None,
+            amount_stars=amount_stars,
+            original_amount_stars=plan.stars if promo else None,
+            promo_code=promo.code if promo else None,
+            promo_discount_percent=promo.discount_percent if promo else None,
+            currency="XTR",
+            method="stars",
+            status="succeeded",
+            payload=payload,
+            telegram_payment_charge_id=telegram_payment_charge_id,
+            provider_payment_charge_id=provider_payment_charge_id,
+            paid_at=now,
         )
-        await self.session.commit()
+        self.session.add(payment)
+        try:
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
+            existing = await self._payment_by_charge_id(
+                telegram_payment_charge_id,
+                provider_payment_charge_id,
+            )
+            return await self._subscription_until_for_duplicate_payment(existing)
         await self.session.refresh(user)
         return user.subscription_expires_at
 
@@ -325,6 +333,11 @@ class SubscriptionService:
         telegram_payment_charge_id: str,
         provider_payment_charge_id: str | None,
     ) -> datetime:
+        locked_payment = await self._payment_for_update(payment.id)
+        if locked_payment is None:
+            raise YooKassaPaymentError("Платёж не найден.")
+        payment = locked_payment
+
         existing = await self._payment_by_charge_id(
             telegram_payment_charge_id,
             provider_payment_charge_id,
@@ -355,7 +368,15 @@ class SubscriptionService:
         payment.provider_payment_charge_id = provider_payment_charge_id
         payment.paid_at = now
         payment.last_error = None
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except IntegrityError:
+            await self.session.rollback()
+            existing = await self._payment_by_charge_id(
+                telegram_payment_charge_id,
+                provider_payment_charge_id,
+            )
+            return await self._subscription_until_for_duplicate_payment(existing)
         await self.session.refresh(user)
         return user.subscription_expires_at
 
@@ -461,6 +482,11 @@ class SubscriptionService:
         return payment
 
     async def _activate_from_yookassa_payment(self, payment: Payment) -> datetime:
+        locked_payment = await self._payment_for_update(payment.id)
+        if locked_payment is None:
+            raise YooKassaPaymentError("Платёж не найден.")
+        payment = locked_payment
+
         if payment.paid_at is not None:
             result = await self.session.execute(select(User).where(User.id == payment.user_id))
             user = result.scalar_one()
@@ -477,11 +503,26 @@ class SubscriptionService:
             promo = await self.session.get(PromoCode, payment.promo_code_id)
             if promo is not None:
                 promo.used_count += 1
+        payment.status = "succeeded"
         payment.paid_at = now
         payment.last_error = None
         await self.session.commit()
         await self.session.refresh(user)
         return user.subscription_expires_at
+
+    async def _payment_for_update(self, payment_id: int) -> Payment | None:
+        result = await self.session.execute(
+            select(Payment).where(Payment.id == payment_id).with_for_update()
+        )
+        return result.scalar_one_or_none()
+
+    async def _subscription_until_for_duplicate_payment(self, payment: Payment | None) -> datetime:
+        if payment is None:
+            raise YooKassaPaymentError(DUPLICATE_PAYMENT_MESSAGE)
+        existing_user = await self.session.get(User, payment.user_id)
+        if existing_user is None or existing_user.subscription_expires_at is None:
+            raise YooKassaPaymentError(DUPLICATE_PAYMENT_MESSAGE)
+        return existing_user.subscription_expires_at
 
     async def _payment_by_charge_id(
         self,

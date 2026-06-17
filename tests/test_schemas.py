@@ -64,6 +64,7 @@ from kcal_tracker.bot.text_parsing import (
     parse_activity_kcal,
     parse_int_from_text,
 )
+from kcal_tracker.models import Payment, User
 from kcal_tracker.schemas import (
     FoodEntryCreate,
     FoodEstimate,
@@ -100,7 +101,12 @@ from kcal_tracker.services.reminders import (
     _inactivity_reminder_text,
 )
 from kcal_tracker.services.share_cards import _wrap_card_lines
-from kcal_tracker.services.subscriptions import _discounted_amount, normalize_promo_code
+from kcal_tracker.services.subscriptions import (
+    YOOKASSA_PAYLOAD,
+    SubscriptionService,
+    _discounted_amount,
+    normalize_promo_code,
+)
 from kcal_tracker.services.throttle import ThrottleLimitReached
 
 
@@ -120,6 +126,54 @@ def _request_with_body(body: bytes, headers: dict[str, str] | None = None) -> Re
         "client": ("127.0.0.1", 12345),
     }
     return Request(scope, receive)
+
+
+class _ScalarResult:
+    def __init__(self, value: object | None) -> None:
+        self.value = value
+
+    def scalar_one(self) -> object:
+        if self.value is None:
+            raise AssertionError("Expected a scalar value")
+        return self.value
+
+    def scalar_one_or_none(self) -> object | None:
+        return self.value
+
+
+class _PaymentSessionStub:
+    def __init__(
+        self,
+        *,
+        user: User,
+        payment: Payment | None = None,
+        execute_values: list[object] | None = None,
+    ) -> None:
+        self.user = user
+        self.execute_values = execute_values if execute_values is not None else []
+        if payment is not None:
+            self.execute_values.append(payment)
+        self.commits = 0
+        self.refreshes = 0
+
+    async def execute(self, _statement: object) -> _ScalarResult:
+        if self.execute_values:
+            return _ScalarResult(self.execute_values.pop(0))
+        return _ScalarResult(self.user)
+
+    async def get(self, model: type[object], _id: int) -> object | None:
+        if model is User:
+            return self.user
+        return None
+
+    async def commit(self) -> None:
+        self.commits += 1
+
+    async def refresh(self, _instance: object) -> None:
+        self.refreshes += 1
+
+    async def rollback(self) -> None:
+        pass
 
 
 def test_confidence_must_be_less_than_one() -> None:
@@ -1046,6 +1100,61 @@ def test_yookassa_payment_callback_defaults_to_auto_method() -> None:
     assert (basic_plan.code, basic_method, basic_promo) == ("basic", "auto", None)
     assert (legacy_plan.code, legacy_method, legacy_promo) == ("unlimited", "auto", None)
     assert (promo_plan.code, promo_method, promo) == ("basic", "sbp", "START20")
+
+
+def test_yookassa_invoice_activation_is_idempotent_when_payment_is_already_paid() -> None:
+    until = datetime.now(UTC) + timedelta(days=12)
+    user = User(id=1, telegram_id=123, subscription_expires_at=until)
+    payment = Payment(
+        id=10,
+        user_id=user.id,
+        amount_kopecks=19900,
+        currency="RUB",
+        method="sbp",
+        status="succeeded",
+        payload=f"{YOOKASSA_PAYLOAD}:basic",
+        telegram_payment_charge_id="tg-charge-1",
+        provider_payment_charge_id="provider-charge-1",
+        paid_at=datetime.now(UTC),
+    )
+    session = _PaymentSessionStub(user=user, execute_values=[payment, payment])
+    service = SubscriptionService(session)  # type: ignore[arg-type]
+
+    result = asyncio.run(
+        service.activate_from_yookassa_invoice_payment(
+            payment=payment,
+            telegram_payment_charge_id="tg-charge-1",
+            provider_payment_charge_id="provider-charge-1",
+        )
+    )
+
+    assert result == until
+    assert user.subscription_expires_at == until
+    assert session.commits == 0
+
+
+def test_yookassa_poll_activation_is_idempotent_when_payment_is_already_paid() -> None:
+    until = datetime.now(UTC) + timedelta(days=8)
+    user = User(id=1, telegram_id=123, subscription_expires_at=until)
+    payment = Payment(
+        id=11,
+        user_id=user.id,
+        amount_kopecks=19900,
+        currency="RUB",
+        method="auto",
+        status="succeeded",
+        payload=f"{YOOKASSA_PAYLOAD}:basic",
+        yookassa_payment_id="yk-payment-1",
+        paid_at=datetime.now(UTC),
+    )
+    session = _PaymentSessionStub(user=user, payment=payment)
+    service = SubscriptionService(session)  # type: ignore[arg-type]
+
+    result = asyncio.run(service._activate_from_yookassa_payment(payment))
+
+    assert result == until
+    assert user.subscription_expires_at == until
+    assert session.commits == 0
 
 
 def test_promo_code_helpers_normalize_and_discount() -> None:
