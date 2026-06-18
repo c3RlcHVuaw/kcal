@@ -30,6 +30,24 @@ def test_estimate_common_food_does_not_match_inside_words() -> None:
     assert estimate_common_food("сырники 150 г") is None
 
 
+def test_estimate_common_food_handles_pastila() -> None:
+    estimate = estimate_common_food("Пастила 50 г")
+
+    assert estimate is not None
+    assert estimate.name == "пастила"
+    assert estimate.weight_g == 50
+    assert estimate.kcal == 160
+
+
+def test_estimate_common_food_handles_bar_variants() -> None:
+    estimate = estimate_common_food("протеиновый батончик 60 г")
+
+    assert estimate is not None
+    assert estimate.name == "протеиновый батончик"
+    assert estimate.weight_g == 60
+    assert estimate.protein == 18
+
+
 def test_food_search_filters_irrelevant_database_results() -> None:
     estimates = [
         FoodEstimate(name="картофельное пюре", kcal=120, confidence=0.75),

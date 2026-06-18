@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import time
+from collections import Counter
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -394,18 +395,26 @@ async def _quality_alerts() -> list[AdminAlert]:
     hour_ago = now - timedelta(hours=1)
     async with SessionLocal() as session:
         rows = await session.execute(
-            select(QualityEvent.event_type, func.count(QualityEvent.id))
+            select(QualityEvent.event_type, QualityEvent.details)
             .where(QualityEvent.created_at >= hour_ago)
-            .group_by(QualityEvent.event_type)
         )
-    counts = {event_type: int(count or 0) for event_type, count in rows}
+    events = list(rows)
+    counts = Counter(event_type for event_type, _details in events)
     alerts: list[AdminAlert] = []
     not_it_count = counts.get("food_not_it", 0) + counts.get("webapp_ai_reject", 0)
     ai_failed_count = counts.get("food_ai_failed", 0) + counts.get("webapp_ai_failed", 0)
+    ai_unavailable_no_match_count = sum(
+        1
+        for event_type, details in events
+        if event_type == "food_no_match" and _quality_event_reason(details) == "ai_unavailable"
+    )
+    real_food_no_match_count = max(0, counts.get("food_no_match", 0) - ai_unavailable_no_match_count)
+    webapp_search_failed_count = counts.get("webapp_search_failed", 0)
+    webapp_barcode_failed_count = counts.get("webapp_barcode_failed", 0)
     no_match_count = (
-        counts.get("food_no_match", 0)
-        + counts.get("webapp_search_failed", 0)
-        + counts.get("webapp_barcode_failed", 0)
+        real_food_no_match_count
+        + webapp_search_failed_count
+        + webapp_barcode_failed_count
     )
     if not_it_count >= settings.admin_quality_not_it_hour_threshold:
         alerts.append(
@@ -428,16 +437,33 @@ async def _quality_alerts() -> list[AdminAlert]:
             )
         )
     if no_match_count >= settings.admin_quality_no_match_hour_threshold:
+        details = (
+            f"За последний час реальные failures: {no_match_count}. "
+            f"no_match: {real_food_no_match_count}, "
+            f"search: {webapp_search_failed_count}, barcode: {webapp_barcode_failed_count}."
+        )
+        if ai_unavailable_no_match_count:
+            details += (
+                f" AI-limit/paywall: {ai_unavailable_no_match_count} "
+                "не считаю как поломку поиска."
+            )
         alerts.append(
             AdminAlert(
                 "quality_no_match_spike",
                 _alert_text(
                     "Поиск часто ничего не находит",
-                    f"За последний час no_match/search/barcode failures: {no_match_count}.",
+                    details,
                 ),
             )
         )
     return alerts
+
+
+def _quality_event_reason(details: object) -> str | None:
+    if isinstance(details, dict):
+        value = details.get("reason")
+        return str(value) if value is not None else None
+    return None
 
 
 async def _openai_month_spent_usd() -> float | None:

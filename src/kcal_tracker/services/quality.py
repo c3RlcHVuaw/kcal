@@ -49,7 +49,7 @@ async def record_quality_event(
     except Exception:
         logger.warning("Failed to record quality event type=%s", event_type, exc_info=True)
 
-    if notify_admin or event_type in ADMIN_NOTIFY_EVENTS:
+    if notify_admin or _should_notify_admin(event_type, details or {}):
         await _notify_quality_event(
             event_type,
             telegram_id=telegram_id,
@@ -58,6 +58,12 @@ async def record_quality_event(
             query=query,
             details=details or {},
         )
+
+
+def _should_notify_admin(event_type: str, details: dict[str, Any]) -> bool:
+    if event_type == "food_no_match" and details.get("reason") == "ai_unavailable":
+        return False
+    return event_type in ADMIN_NOTIFY_EVENTS
 
 
 async def _notify_quality_event(

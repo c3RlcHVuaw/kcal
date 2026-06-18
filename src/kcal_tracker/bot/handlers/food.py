@@ -155,6 +155,7 @@ async def parse_manual_food(message: Message, state: FSMContext) -> None:
         return
 
     if not await _can_use_ai(message):
+        await state.update_data(search_query=query)
         await _record_food_quality_event(
             message,
             "food_no_match",
@@ -163,9 +164,9 @@ async def parse_manual_food(message: Message, state: FSMContext) -> None:
             details={"reason": "ai_unavailable"},
         )
         await message.answer(
-            "Не нашёл достаточно похожий продукт в базе. "
-            "Можно написать точнее, отправить штрихкод/фото или открыть Premium для AI-разбора.",
-            reply_markup=food_recovery_keyboard(allow_ai=False, allow_database=False),
+            "В базе не нашёл уверенный вариант, а AI-разбор сейчас недоступен. "
+            "Можно ввести продукт вручную с граммами или попробовать поиск по базе ещё раз.",
+            reply_markup=food_recovery_keyboard(allow_ai=False, allow_database=True),
         )
         return
 
