@@ -46,6 +46,7 @@ from kcal_tracker.services.media import (
 )
 from kcal_tracker.services.nutrition import high_calorie_add_warning, suspicious_food_warning
 from kcal_tracker.services.open_food_facts import OpenFoodFactsService, ProductNotFoundError
+from kcal_tracker.services.photo_quality import detect_photo_quality_issue
 from kcal_tracker.services.quality import record_quality_event
 from kcal_tracker.services.subscriptions import has_active_subscription
 from kcal_tracker.services.throttle import (
@@ -1486,6 +1487,23 @@ async def _recognize_food_photos(
     if not await _ensure_ai_available(message):
         return
 
+    quality_issue = _first_photo_quality_issue(image_bytes_list)
+    if quality_issue is not None:
+        await _record_food_quality_event(
+            message,
+            "food_ai_failed",
+            source="photo_quality",
+            query=text_hint,
+            details={"reason": quality_issue.reason, "photos": len(image_bytes_list)},
+        )
+        await message.answer(
+            f"{quality_issue.user_text}\n\n"
+            "Для упаковки лучше снять лицевую сторону или штрихкод. "
+            "Для блюда — тарелку сверху, без сильной тени.",
+            reply_markup=food_recovery_keyboard(allow_ai=False, allow_database=False),
+        )
+        return
+
     await message.answer(
         "Фото получил, распознаю еду и сверяю упаковки с базами. Обычно это занимает несколько секунд."
     )
@@ -1540,6 +1558,14 @@ async def _recognize_food_photos(
     async with SessionLocal() as session:
         estimates = await match_photo_estimates_to_brands(session, estimates)
     await _show_estimates_confirmation(message, state, estimates, "ai_photo")
+
+
+def _first_photo_quality_issue(image_bytes_list: list[bytes]):
+    for image_bytes in image_bytes_list[:6]:
+        issue = detect_photo_quality_issue(image_bytes)
+        if issue is not None:
+            return issue
+    return None
 
 
 async def _show_estimates_confirmation(

@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from io import BytesIO
+
+from PIL import Image
+
 from kcal_tracker.bot.handlers.food import (
     _filter_relevant_estimates,
     _is_confident_single_search_match,
@@ -12,6 +16,7 @@ from kcal_tracker.services.brand_lookup import (
 )
 from kcal_tracker.services.food_catalog import _can_learn, normalize_food_text, scale_estimate
 from kcal_tracker.services.food_search import estimate_common_food
+from kcal_tracker.services.photo_quality import detect_photo_quality_issue
 
 
 def test_estimate_common_food_handles_milkshake_ocr_text() -> None:
@@ -132,6 +137,24 @@ def test_unverified_packaged_estimate_does_not_use_technical_name() -> None:
     assert "бренд не читается" not in marked.name
 
 
+def test_photo_quality_detects_too_dark_photo() -> None:
+    issue = detect_photo_quality_issue(_jpeg_bytes((420, 420), color=8))
+
+    assert issue is not None
+    assert issue.reason == "too_dark"
+
+
+def test_photo_quality_accepts_clear_photo() -> None:
+    image = Image.new("RGB", (420, 420), color=240)
+    for x in range(120, 300):
+        for y in range(120, 300):
+            image.putpixel((x, y), (60, 140, 90))
+
+    issue = detect_photo_quality_issue(_image_bytes(image))
+
+    assert issue is None
+
+
 def test_catalog_normalize_handles_case_and_yo() -> None:
     assert normalize_food_text("  ЁГУРТ, KFC!  ") == "егурт kfc"
 
@@ -171,3 +194,13 @@ def test_catalog_learning_rejects_low_confidence_payload() -> None:
     )
 
     assert not _can_learn(payload)
+
+
+def _jpeg_bytes(size: tuple[int, int], *, color: int) -> bytes:
+    return _image_bytes(Image.new("RGB", size, color=color))
+
+
+def _image_bytes(image: Image.Image) -> bytes:
+    output = BytesIO()
+    image.save(output, format="JPEG", quality=95)
+    return output.getvalue()

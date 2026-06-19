@@ -21,6 +21,7 @@ from kcal_tracker.services.nutrition import (
     smart_morning_hint,
 )
 from kcal_tracker.services.subscriptions import has_active_subscription
+from kcal_tracker.services.throttle import reserve_auto_message
 
 logger = logging.getLogger(__name__)
 INACTIVITY_REMINDER_DAYS = 3
@@ -72,8 +73,10 @@ async def _send_due_reminders_to_user(bot: Bot, session, user: User) -> None:
     now = datetime.now(ZoneInfo(user.timezone))
     today = now.date()
     if _subscription_renewal_reminder_due(now, user):
-        await bot.send_message(
-            user.telegram_id,
+        await _send_guarded_reminder(
+            bot,
+            user,
+            "subscription_renewal",
             _subscription_renewal_reminder_text(user, now),
             reply_markup=subscription_cta_keyboard(),
         )
@@ -90,8 +93,10 @@ async def _send_due_reminders_to_user(bot: Bot, session, user: User) -> None:
             user.last_weight_reminder_date,
         )
     ):
-        await bot.send_message(
-            user.telegram_id,
+        await _send_guarded_reminder(
+            bot,
+            user,
+            "weight",
             "Доброе утро. Если взвесился, нажми «⚖️ Вес».",
         )
         await _mark_reminder_sent(session, user, "last_weight_reminder_date", today)
@@ -110,8 +115,10 @@ async def _send_due_reminders_to_user(bot: Bot, session, user: User) -> None:
             await _mark_reminder_sent(session, user, "last_breakfast_reminder_date", today)
         else:
             yesterday = await diary.summary_for_day_offset(user, days_ago=1)
-            await bot.send_message(
-                user.telegram_id,
+            await _send_guarded_reminder(
+                bot,
+                user,
+                "breakfast",
                 _breakfast_reminder_intro(today_summary)
                 + smart_morning_hint(yesterday),
             )
@@ -138,8 +145,10 @@ async def _send_due_reminders_to_user(bot: Bot, session, user: User) -> None:
             text = _lunch_reminder_intro(summary) + smart_lunch_hint(summary)
             if forecast:
                 text += "\n" + forecast
-            await bot.send_message(
-                user.telegram_id,
+            await _send_guarded_reminder(
+                bot,
+                user,
+                "lunch",
                 text,
             )
             await _mark_reminder_sent(session, user, "last_lunch_reminder_date", today)
@@ -156,8 +165,10 @@ async def _send_due_reminders_to_user(bot: Bot, session, user: User) -> None:
         if _has_meal_entry(summary.entries, user.timezone, "dinner"):
             await _mark_reminder_sent(session, user, "last_dinner_reminder_date", today)
         else:
-            await bot.send_message(
-                user.telegram_id,
+            await _send_guarded_reminder(
+                bot,
+                user,
+                "dinner",
                 _dinner_reminder_intro(summary) + smart_evening_hint(summary),
                 reply_markup=evening_close_keyboard(),
             )
@@ -170,8 +181,10 @@ async def _send_due_reminders_to_user(bot: Bot, session, user: User) -> None:
         user.created_at,
         user.last_inactivity_reminder_date,
     ):
-        await bot.send_message(
-            user.telegram_id,
+        await _send_guarded_reminder(
+            bot,
+            user,
+            "inactivity",
             _inactivity_reminder_text(latest_entry_at, user.created_at, user.timezone),
             reply_markup=return_to_diary_keyboard(),
         )
@@ -181,6 +194,21 @@ async def _send_due_reminders_to_user(bot: Bot, session, user: User) -> None:
 async def _mark_reminder_sent(session, user: User, field: str, today) -> None:
     setattr(user, field, today)
     await session.commit()
+
+
+async def _send_guarded_reminder(
+    bot: Bot,
+    user: User,
+    reminder_type: str,
+    text: str,
+    *,
+    reply_markup=None,
+) -> bool:
+    if not await reserve_auto_message(user.id, f"reminder:{reminder_type}"):
+        logger.info("Skipped duplicate reminder type=%s user_id=%s", reminder_type, user.id)
+        return False
+    await bot.send_message(user.telegram_id, text, reply_markup=reply_markup)
+    return True
 
 
 async def _disable_blocked_user_reminders(session, user_id: int) -> None:

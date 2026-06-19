@@ -59,3 +59,20 @@ async def ensure_barcode_rate_limit(user_key: str | int) -> None:
         limit=settings.barcode_burst_per_user_per_minute,
         window_seconds=60,
     )
+
+
+async def reserve_auto_message(
+    user_key: str | int,
+    message_type: str,
+    *,
+    window_seconds: int = 23 * 60 * 60,
+) -> bool:
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    key = f"auto-message:{message_type}:{user_key}"
+    try:
+        return bool(await redis.set(key, "1", ex=window_seconds, nx=True))
+    except Exception:
+        logger.warning("Auto-message guard failed key=%s", key, exc_info=True)
+        return True
+    finally:
+        await redis.aclose()

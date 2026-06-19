@@ -44,6 +44,7 @@ from kcal_tracker.services.ai_activity import AIActivityService
 from kcal_tracker.services.ai_food import AIFoodService
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.diary import DiaryService, estimate_from_entry
+from kcal_tracker.services.food_catalog import FoodCatalogService
 from kcal_tracker.services.food_insights import food_label
 from kcal_tracker.services.growth import GrowthService, WeeklyMissions, progress_share_url
 from kcal_tracker.services.nutrition import (
@@ -495,6 +496,7 @@ async def save_saved_entry_refinement(message: Message, state: FSMContext) -> No
             await state.clear()
             await message.answer("Не нашёл эту запись.")
             return
+        original_source = entry.source
         estimate = estimate_from_entry(entry)
 
     await message.answer("Пересчитываю сохранённую запись.")
@@ -519,6 +521,15 @@ async def save_saved_entry_refinement(message: Message, state: FSMContext) -> No
             entry_id,
             refined.foods[0],
         )
+        if updated is not None and original_source == "ai_photo":
+            corrected_estimate = estimate_from_entry(updated)
+            corrected_estimate.confidence = max(corrected_estimate.confidence or 0, 0.82)
+            corrected_estimate.is_ai_suggestion = True
+            await FoodCatalogService(session).learn_from_saved_entry(
+                user,
+                updated,
+                FoodEntryCreate(**corrected_estimate.model_dump(), source="manual"),
+            )
 
     await state.clear()
     if updated is None:
