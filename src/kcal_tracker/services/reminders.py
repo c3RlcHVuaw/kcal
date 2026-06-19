@@ -6,8 +6,9 @@ from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 from aiogram import Bot
+from aiogram.exceptions import TelegramForbiddenError
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, update
 
 from kcal_tracker.bot.keyboards import subscription_cta_keyboard
 from kcal_tracker.database import SessionLocal
@@ -50,11 +51,17 @@ async def _send_due_reminders(bot: Bot) -> None:
         )
         users = list(result.scalars())
         for user in users:
+            user_id = user.id
+            telegram_id = user.telegram_id
             try:
                 await _send_due_reminders_to_user(bot, session, user)
+            except TelegramForbiddenError:
+                await session.rollback()
+                await _disable_blocked_user_reminders(session, user_id)
+                logger.info("Disabled reminders for blocked user_id=%s telegram_id=%s", user_id, telegram_id)
             except Exception:
                 await session.rollback()
-                logger.warning("Failed to process reminders for user_id=%s", user.id, exc_info=True)
+                logger.warning("Failed to process reminders for user_id=%s", user_id, exc_info=True)
 
 
 async def _send_due_reminders_to_user(bot: Bot, session, user: User) -> None:
@@ -169,6 +176,26 @@ async def _send_due_reminders_to_user(bot: Bot, session, user: User) -> None:
 
 async def _mark_reminder_sent(session, user: User, field: str, today) -> None:
     setattr(user, field, today)
+    await session.commit()
+
+
+async def _disable_blocked_user_reminders(session, user_id: int) -> None:
+    today = datetime.now(UTC).date()
+    await session.execute(
+        update(User)
+        .where(User.id == user_id)
+        .values(
+            reminders_enabled=False,
+            meal_reminders_enabled=False,
+            weight_reminders_enabled=False,
+            last_breakfast_reminder_date=today,
+            last_lunch_reminder_date=today,
+            last_dinner_reminder_date=today,
+            last_weight_reminder_date=today,
+            last_inactivity_reminder_date=today,
+            last_subscription_reminder_date=today,
+        )
+    )
     await session.commit()
 
 
