@@ -42,16 +42,20 @@ async def reminder_loop(bot: Bot) -> None:
 async def _send_due_reminders(bot: Bot) -> None:
     async with SessionLocal() as session:
         result = await session.execute(
-            select(User).where(
+            select(User.id).where(
                 or_(
                     User.reminders_enabled.is_(True),
                     User.subscription_expires_at.is_not(None),
                 )
             )
         )
-        users = list(result.scalars())
-        for user in users:
-            user_id = user.id
+        user_ids = list(result.scalars())
+
+    for user_id in user_ids:
+        async with SessionLocal() as session:
+            user = await session.get(User, user_id)
+            if user is None:
+                continue
             telegram_id = user.telegram_id
             try:
                 await _send_due_reminders_to_user(bot, session, user)
