@@ -140,6 +140,7 @@ def _best_brand_match(estimate: FoodEstimate, candidates: list[FoodEstimate]) ->
 def mark_unverified_packaged_estimate(estimate: FoodEstimate) -> FoodEstimate:
     if not _looks_like_packaged_estimate(estimate):
         return estimate
+    estimate.name = _clean_unverified_packaged_name(estimate)
     estimate.confidence = min(estimate.confidence or 0.55, 0.55)
     estimate.source_label = UNVERIFIED_PACKAGED_LABEL
     estimate.is_ai_suggestion = True
@@ -147,6 +148,28 @@ def mark_unverified_packaged_estimate(estimate: FoodEstimate) -> FoodEstimate:
     if not estimate.advice or "точное совпадение упаковки" not in estimate.advice:
         estimate.advice = UNVERIFIED_PACKAGED_ADVICE
     return estimate
+
+
+def _clean_unverified_packaged_name(estimate: FoodEstimate) -> str:
+    name = " ".join((estimate.name or "").split())
+    normalized = name.lower().replace("ё", "е")
+    generic_markers = (
+        "упакованный продукт",
+        "бренд не читается",
+        "неизвестный продукт",
+        "неизвестная еда",
+        "еда",
+        "продукт",
+    )
+    if normalized and normalized not in generic_markers and not any(
+        marker in normalized for marker in generic_markers[:3]
+    ):
+        return name
+
+    visible_text = " ".join((estimate.visible_label_text or "").split())
+    if visible_text:
+        return visible_text[:80]
+    return "продукт на фото"
 
 
 def _brand_lookup_queries(estimate: FoodEstimate) -> list[str]:

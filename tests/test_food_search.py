@@ -117,6 +117,21 @@ def test_packaged_ai_estimate_is_marked_unverified_without_database_match() -> N
     assert "Проверь бренд" in marked.advice
 
 
+def test_unverified_packaged_estimate_does_not_use_technical_name() -> None:
+    estimate = FoodEstimate(
+        name="упакованный продукт, бренд не читается",
+        kcal=350,
+        confidence=0.42,
+        packaged=True,
+        visible_label_text="творожная запеканка",
+    )
+
+    marked = mark_unverified_packaged_estimate(estimate)
+
+    assert marked.name == "творожная запеканка"
+    assert "бренд не читается" not in marked.name
+
+
 def test_catalog_normalize_handles_case_and_yo() -> None:
     assert normalize_food_text("  ЁГУРТ, KFC!  ") == "егурт kfc"
 
