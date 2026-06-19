@@ -2,8 +2,36 @@ const tg = window.Telegram?.WebApp;
 const initData = tg?.initData || "";
 const ONBOARDING_KEY = "kcal:onboarding:v2";
 const APP_CACHE_PREFIX = "kcal:cache:v1:";
+const PREMIUM_THEME_KEY = "kcal:premium-theme:v1";
 const TOUR_SAFE_GAP = 18;
 const DEFAULT_START_PROMO = "START20";
+const PREMIUM_THEMES = [
+  {
+    id: "system",
+    title: "Kcal",
+    subtitle: "чистая база",
+  },
+  {
+    id: "aurora",
+    title: "Aurora",
+    subtitle: "зелень, лед и свет",
+  },
+  {
+    id: "noir",
+    title: "Noir",
+    subtitle: "тёмный премиум",
+  },
+  {
+    id: "berry",
+    title: "Berry",
+    subtitle: "ягоды и спорт",
+  },
+  {
+    id: "sunset",
+    title: "Sunset",
+    subtitle: "тёплый вечер",
+  },
+];
 const PAYWALL_VARIANTS = [
   {
     id: "features",
@@ -129,6 +157,7 @@ const state = {
   loadingAll: false,
   hasActiveSubscription: false,
   aiUsage: null,
+  appTheme: readStoredPremiumTheme(),
   onboardingAutoChecked: false,
   onboardingStep: 0,
   reviewFeedbackSent: null,
@@ -307,6 +336,8 @@ const nodes = {
   dayShareSheet: document.querySelector("#day-share-sheet"),
   dayShareClose: document.querySelector("#day-share-close"),
   dayShareCard: document.querySelector("#day-share-card"),
+  themeGrid: document.querySelector("#theme-grid"),
+  themeStatus: document.querySelector("#theme-status"),
 };
 
 const onboardingSteps = [
@@ -379,6 +410,7 @@ tg?.ready();
 tg?.expand();
 tg?.setHeaderColor?.("secondary_bg_color");
 applyThemeMode();
+applyPremiumTheme(state.appTheme);
 applyTelegramSafeArea();
 ["themeChanged", "viewportChanged", "safeAreaChanged", "contentSafeAreaChanged"].forEach((eventName) => {
   try {
@@ -494,6 +526,11 @@ document.addEventListener("click", (event) => {
   const reviewFeedback = event.target.closest("[data-review-feedback]");
   if (reviewFeedback) {
     handleReviewFeedback(reviewFeedback.dataset.reviewFeedback, reviewFeedback);
+    return;
+  }
+  const themeChoice = event.target.closest("[data-theme-choice]");
+  if (themeChoice) {
+    selectPremiumTheme(themeChoice.dataset.themeChoice);
     return;
   }
   const moreAction = event.target.closest("[data-more-action]");
@@ -1094,6 +1131,8 @@ nodes.entryEditForm.addEventListener("submit", async (event) => {
   }
 });
 
+renderThemePicker();
+
 if (!initData) {
   nodes.authWarning.classList.remove("hidden");
   renderEmptyApp();
@@ -1145,7 +1184,99 @@ function isDarkTheme() {
 function applyThemeMode() {
   const isDark = isDarkTheme();
   document.body.classList.toggle("theme-dark", isDark);
-  tg?.setBackgroundColor?.(isDark ? "#0d1117" : "#f3f6f8");
+  syncTelegramThemeColor();
+}
+
+function syncTelegramThemeColor() {
+  window.requestAnimationFrame(() => {
+    const styles = window.getComputedStyle(document.body);
+    const fallback = isDarkTheme() ? "#0d1117" : "#f3f6f8";
+    const color = styles.getPropertyValue("--tg-bg-color").trim() || styles.getPropertyValue("--bg").trim() || fallback;
+    tg?.setBackgroundColor?.(color);
+  });
+}
+
+function readStoredPremiumTheme() {
+  try {
+    const value = localStorage.getItem(PREMIUM_THEME_KEY);
+    return PREMIUM_THEMES.some((theme) => theme.id === value) ? value : "system";
+  } catch {
+    return "system";
+  }
+}
+
+function writeStoredPremiumTheme(themeId) {
+  try {
+    localStorage.setItem(PREMIUM_THEME_KEY, themeId);
+  } catch {
+    // Storage can be unavailable in restricted webviews.
+  }
+}
+
+function applyPremiumTheme(themeId) {
+  const nextTheme = PREMIUM_THEMES.some((theme) => theme.id === themeId) ? themeId : "system";
+  document.body.classList.forEach((className) => {
+    if (className.startsWith("premium-theme-")) {
+      document.body.classList.remove(className);
+    }
+  });
+  if (nextTheme !== "system") {
+    document.body.classList.add(`premium-theme-${nextTheme}`);
+  }
+  document.body.dataset.appTheme = nextTheme;
+  syncTelegramThemeColor();
+}
+
+function renderThemePicker() {
+  if (!nodes.themeGrid) return;
+  const activeTheme = state.hasActiveSubscription ? state.appTheme : "system";
+  nodes.themeGrid.innerHTML = PREMIUM_THEMES.map((theme) => {
+    const active = theme.id === activeTheme;
+    const locked = theme.id !== "system" && !state.hasActiveSubscription;
+    return `
+      <button
+        class="theme-choice ${active ? "active" : ""} ${locked ? "locked" : ""}"
+        type="button"
+        data-theme-choice="${escapeHtml(theme.id)}"
+        aria-pressed="${active ? "true" : "false"}"
+      >
+        <span class="theme-preview theme-preview-${escapeHtml(theme.id)}" aria-hidden="true">
+          <i></i><i></i><i></i>
+        </span>
+        <strong>${escapeHtml(theme.title)}</strong>
+        <em>${escapeHtml(locked ? "Premium" : theme.subtitle)}</em>
+      </button>
+    `;
+  }).join("");
+  if (nodes.themeStatus) {
+    nodes.themeStatus.textContent = state.hasActiveSubscription
+      ? "Выбери настроение интерфейса. Тема сохранится на этом устройстве."
+      : "Темы откроются после Premium. Сейчас можно посмотреть варианты.";
+  }
+}
+
+function selectPremiumTheme(themeId) {
+  const theme = PREMIUM_THEMES.find((item) => item.id === themeId);
+  if (!theme) return;
+  if (!state.hasActiveSubscription && theme.id !== "system") {
+    toast("Темы доступны в Premium");
+    openSubscriptionFlow({ highlight: true });
+    recordWebappEvent("webapp_theme_locked_click", {
+      source: "theme",
+      details: { theme: theme.id },
+    });
+    return;
+  }
+  state.appTheme = theme.id;
+  applyPremiumTheme(state.appTheme);
+  writeStoredPremiumTheme(state.appTheme);
+  renderThemePicker();
+  triggerSelectionHaptic();
+  toast(theme.id === "system" ? "Вернул стандартную тему" : `Тема ${theme.title} включена`);
+  recordWebappEvent("webapp_theme_select", {
+    source: "theme",
+    details: { theme: theme.id },
+  });
 }
 
 function triggerHaptic(style = "light") {
@@ -1281,6 +1412,12 @@ function renderToday(data) {
   state.aiUsage = data.ai_usage;
   document.body.classList.toggle("is-free-user", !state.hasActiveSubscription);
   document.body.classList.toggle("is-premium-user", state.hasActiveSubscription);
+  if (!state.hasActiveSubscription && state.appTheme !== "system") {
+    state.appTheme = "system";
+    applyPremiumTheme(state.appTheme);
+    writeStoredPremiumTheme(state.appTheme);
+  }
+  renderThemePicker();
   renderSubscriptionCopy();
   renderSubscriptionStatus();
   renderAiBadges();
