@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 from aiogram import BaseMiddleware, Bot, Dispatcher, F, Router
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command, CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -80,6 +81,17 @@ PROBLEM_USER_EVENTS = (
     "food_not_it",
     "food_no_match",
 )
+
+
+async def _answer_callback(callback: CallbackQuery, *args: Any, **kwargs: Any) -> None:
+    try:
+        await callback.answer(*args, **kwargs)
+    except TelegramBadRequest as exc:
+        message = str(exc)
+        if "query is too old" in message or "query ID is invalid" in message:
+            logger.info("Skipped stale admin callback answer: %s", message)
+            return
+        raise
 
 
 class AdminFlow(StatesGroup):
@@ -163,19 +175,19 @@ async def id_command(message: Message) -> None:
 async def menu_callback(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await callback.message.edit_text(_main_menu_text(), reply_markup=_main_menu_keyboard())
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.callback_query(F.data == "admin:ops")
 async def ops_callback(callback: CallbackQuery) -> None:
     await callback.message.edit_text("Операции и мониторинг:", reply_markup=_ops_keyboard())
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.callback_query(F.data == "admin:crm")
 async def crm_callback(callback: CallbackQuery) -> None:
     await callback.message.edit_text("Пользователи, подписки и поддержка:", reply_markup=_crm_keyboard())
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.message(Command("problems"))
@@ -188,7 +200,7 @@ async def problems_command(message: Message) -> None:
 async def problems_callback(callback: CallbackQuery) -> None:
     text = await _problem_users_text()
     await callback.message.edit_text(text, reply_markup=_problem_users_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("today"))
@@ -201,7 +213,7 @@ async def today_command(message: Message) -> None:
 async def today_callback(callback: CallbackQuery) -> None:
     text = await _today_text()
     await callback.message.edit_text(text, reply_markup=_today_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("digest"))
@@ -336,7 +348,7 @@ async def ai_command(message: Message) -> None:
 async def ai_callback(callback: CallbackQuery) -> None:
     text = await _ai_text()
     await callback.message.edit_text(text, reply_markup=_ai_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("server"))
@@ -349,7 +361,7 @@ async def server_command(message: Message) -> None:
 async def server_callback(callback: CallbackQuery) -> None:
     text = await _server_text()
     await callback.message.edit_text(text, reply_markup=_server_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("openai"))
@@ -368,7 +380,7 @@ async def openai_command(message: Message) -> None:
 async def openai_callback(callback: CallbackQuery) -> None:
     text = await _openai_text()
     await callback.message.edit_text(text, reply_markup=_openai_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.callback_query(F.data == "admin:openai:set-balance")
@@ -380,7 +392,7 @@ async def ask_openai_balance(callback: CallbackQuery, state: FSMContext) -> None
         "9.33",
         reply_markup=_cancel_keyboard(),
     )
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.callback_query(F.data.startswith("admin:openai:adjust:"))
@@ -389,12 +401,12 @@ async def adjust_openai_balance(callback: CallbackQuery) -> None:
     try:
         delta = float(raw)
     except ValueError:
-        await callback.answer("Некорректная сумма", show_alert=True)
+        await _answer_callback(callback, "Некорректная сумма", show_alert=True)
         return
     async with SessionLocal() as session:
         await OpenAIBalanceService(session).adjust_balance(delta)
     await callback.message.edit_text(await _openai_text(), reply_markup=_openai_keyboard())
-    await callback.answer(f"Баланс изменён на ${delta:.2f}")
+    await _answer_callback(callback, f"Баланс изменён на ${delta:.2f}")
 
 
 @router.message(Command("alerts"))
@@ -407,7 +419,7 @@ async def alerts_command(message: Message) -> None:
 async def alerts_callback(callback: CallbackQuery) -> None:
     text = await _alerts_text()
     await callback.message.edit_text(text, reply_markup=_alerts_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("quality"))
@@ -420,7 +432,7 @@ async def quality_command(message: Message) -> None:
 async def quality_callback(callback: CallbackQuery) -> None:
     text = await _quality_text()
     await callback.message.edit_text(text, reply_markup=_quality_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.callback_query(F.data.startswith("admin:quality:"))
@@ -428,7 +440,7 @@ async def quality_filtered_callback(callback: CallbackQuery) -> None:
     mode = callback.data.rsplit(":", 1)[1]
     text = await _quality_text(mode=mode)
     await callback.message.edit_text(text, reply_markup=_quality_keyboard(mode=mode))
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("products"))
@@ -447,19 +459,19 @@ async def product_queue_command(message: Message) -> None:
 async def product_queue_callback(callback: CallbackQuery) -> None:
     text, event_ids = await _product_queue_text()
     await callback.message.edit_text(text, reply_markup=_product_queue_keyboard(event_ids))
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.callback_query(F.data.startswith("admin:pq:add:"))
 async def product_queue_add_callback(callback: CallbackQuery) -> None:
     event_id = _parse_callback_id(callback.data)
     if event_id is None:
-        await callback.answer("Не понял событие.", show_alert=True)
+        await _answer_callback(callback, "Не понял событие.", show_alert=True)
         return
     async with SessionLocal() as session:
         event = await session.get(QualityEvent, event_id)
     if event is None:
-        await callback.answer("Событие уже не найдено.", show_alert=True)
+        await _answer_callback(callback, "Событие уже не найдено.", show_alert=True)
         return
     command = _product_add_command_for_event(event)
     if command is None:
@@ -473,19 +485,19 @@ async def product_queue_add_callback(callback: CallbackQuery) -> None:
             f"<code>{html.escape(command)}</code>",
             parse_mode="HTML",
         )
-    await callback.answer("Шаблон готов")
+    await _answer_callback(callback, "Шаблон готов")
 
 
 @router.callback_query(F.data.startswith("admin:pq:ignore:"))
 async def product_queue_ignore_callback(callback: CallbackQuery) -> None:
     event_id = _parse_callback_id(callback.data)
     if event_id is None:
-        await callback.answer("Не понял событие.", show_alert=True)
+        await _answer_callback(callback, "Не понял событие.", show_alert=True)
         return
     async with SessionLocal() as session:
         event = await session.get(QualityEvent, event_id)
         if event is None:
-            await callback.answer("Событие уже не найдено.", show_alert=True)
+            await _answer_callback(callback, "Событие уже не найдено.", show_alert=True)
             return
         details = dict(event.details or {})
         details["product_queue_status"] = "ignored"
@@ -494,7 +506,7 @@ async def product_queue_ignore_callback(callback: CallbackQuery) -> None:
         await session.commit()
     text, event_ids = await _product_queue_text()
     await callback.message.edit_text(text, reply_markup=_product_queue_keyboard(event_ids))
-    await callback.answer("Убрано из очереди")
+    await _answer_callback(callback, "Убрано из очереди")
 
 
 @router.message(Command("product_add"))
@@ -558,7 +570,7 @@ async def product_add_command(message: Message) -> None:
 async def products_callback(callback: CallbackQuery) -> None:
     text = await _products_text()
     await callback.message.edit_text(text, reply_markup=_products_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("funnel"))
@@ -571,7 +583,7 @@ async def funnel_command(message: Message) -> None:
 async def funnel_callback(callback: CallbackQuery) -> None:
     text = await _funnel_text()
     await callback.message.edit_text(text, reply_markup=_funnel_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("payments"))
@@ -584,7 +596,7 @@ async def payments_command(message: Message) -> None:
 async def payments_callback(callback: CallbackQuery) -> None:
     text = await _payments_text()
     await callback.message.edit_text(text, reply_markup=_payments_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("launch"))
@@ -597,7 +609,7 @@ async def launch_command(message: Message) -> None:
 async def launch_callback(callback: CallbackQuery) -> None:
     text = await _launch_text()
     await callback.message.edit_text(text, reply_markup=_launch_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("promos"))
@@ -610,7 +622,7 @@ async def promos_command(message: Message) -> None:
 async def promos_callback(callback: CallbackQuery) -> None:
     text = await _promos_text()
     await callback.message.edit_text(text, reply_markup=_promos_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.callback_query(F.data == "admin:promos:create")
@@ -630,7 +642,7 @@ async def ask_promo_create(callback: CallbackQuery, state: FSMContext) -> None:
         ),
         reply_markup=_cancel_keyboard(),
     )
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.message(Command("promo"))
@@ -672,11 +684,11 @@ async def promo_disable_callback(callback: CallbackQuery) -> None:
     async with SessionLocal() as session:
         promo = await SubscriptionService(session).disable_promo(promo_id)
     if promo is None:
-        await callback.answer("Промокод не найден.", show_alert=True)
+        await _answer_callback(callback, "Промокод не найден.", show_alert=True)
         return
     text = await _promos_text()
     await callback.message.edit_text(text, reply_markup=_promos_keyboard())
-    await callback.answer(f"{promo.code} отключён")
+    await _answer_callback(callback, f"{promo.code} отключён")
 
 
 @router.message(Command("growth"))
@@ -689,7 +701,7 @@ async def growth_command(message: Message) -> None:
 async def growth_callback(callback: CallbackQuery) -> None:
     text = await _growth_text()
     await callback.message.edit_text(text, reply_markup=_growth_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("landing"))
@@ -702,7 +714,7 @@ async def landing_command(message: Message) -> None:
 async def landing_callback(callback: CallbackQuery) -> None:
     text = await _landing_text()
     await callback.message.edit_text(text, reply_markup=_landing_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("config"))
@@ -713,7 +725,7 @@ async def config_command(message: Message) -> None:
 @router.callback_query(F.data == "admin:config")
 async def config_callback(callback: CallbackQuery) -> None:
     await callback.message.edit_text(_config_text(), reply_markup=_config_keyboard())
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 async def _ai_text() -> str:
@@ -754,7 +766,7 @@ async def ask_user_lookup(callback: CallbackQuery, state: FSMContext) -> None:
         "Введи Telegram ID или @username пользователя.",
         reply_markup=_cancel_keyboard(),
     )
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.message(Command("user"))
@@ -794,11 +806,11 @@ async def refresh_user_callback(callback: CallbackQuery) -> None:
         user = await _find_user(session, target)
         if user is None:
             await callback.message.edit_text("Пользователь не найден.", reply_markup=_main_menu_keyboard())
-            await callback.answer()
+            await _answer_callback(callback)
             return
         text = await _user_text(session, user)
     await callback.message.edit_text(text, reply_markup=_user_keyboard(user.telegram_id))
-    await callback.answer("Обновлено")
+    await _answer_callback(callback, "Обновлено")
 
 
 @router.message(Command("grant"))
@@ -828,7 +840,7 @@ async def ask_grant_target(callback: CallbackQuery, state: FSMContext) -> None:
         "Кому выдать Premium? Введи Telegram ID или @username.",
         reply_markup=_cancel_keyboard(),
     )
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.callback_query(F.data.startswith("admin:grant:target:"))
@@ -840,7 +852,7 @@ async def ask_grant_days_for_user(callback: CallbackQuery, state: FSMContext) ->
         f"На сколько дней выдать Premium пользователю {target}?",
         reply_markup=_grant_days_keyboard(int(target)),
     )
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.message(AdminFlow.waiting_grant_target, F.text)
@@ -866,7 +878,7 @@ async def grant_days_callback(callback: CallbackQuery, state: FSMContext) -> Non
     text, user_id = await _grant_premium(target, days)
     await state.clear()
     await callback.message.edit_text(text, reply_markup=_user_keyboard(user_id) if user_id else _main_menu_keyboard())
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.message(AdminFlow.waiting_grant_days, F.text)
@@ -902,14 +914,14 @@ async def broadcast_callback(callback: CallbackQuery, state: FSMContext) -> None
         "Выбери сегмент и отправь текст рассылки.",
         reply_markup=_broadcast_segment_keyboard("active_7"),
     )
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.callback_query(F.data.startswith("admin:broadcast:segment:"))
 async def broadcast_segment_callback(callback: CallbackQuery, state: FSMContext) -> None:
     segment = callback.data.rsplit(":", 1)[1]
     if not _broadcast_segment_allowed(segment):
-        await callback.answer(
+        await _answer_callback(callback, 
             "Сегмент «все пользователи» выключен в конфиге.",
             show_alert=True,
         )
@@ -920,7 +932,7 @@ async def broadcast_segment_callback(callback: CallbackQuery, state: FSMContext)
         f"Сегмент: {_broadcast_segment_title(segment)}.\nОтправь текст рассылки.",
         reply_markup=_broadcast_segment_keyboard(segment),
     )
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.message(AdminFlow.waiting_broadcast_text, F.text)
@@ -955,10 +967,10 @@ async def broadcast_send_callback(callback: CallbackQuery, state: FSMContext) ->
     segment = str(data.get("broadcast_segment") or "active_7")
     text = str(data.get("broadcast_text") or "").strip()
     if not text:
-        await callback.answer("Нет текста рассылки.", show_alert=True)
+        await _answer_callback(callback, "Нет текста рассылки.", show_alert=True)
         return
     if not _broadcast_segment_allowed(segment):
-        await callback.answer(
+        await _answer_callback(callback, 
             "Сегмент «все пользователи» выключен в конфиге.",
             show_alert=True,
         )
@@ -971,7 +983,7 @@ async def broadcast_send_callback(callback: CallbackQuery, state: FSMContext) ->
         f"Рассылка завершена: {sent}/{len(recipients)} отправлено.",
         reply_markup=_main_menu_keyboard(),
     )
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.callback_query(F.data.startswith("admin:support:reply:"))
@@ -983,7 +995,7 @@ async def support_reply_callback(callback: CallbackQuery, state: FSMContext) -> 
         f"Ответ пользователю {user_id}. Отправь текст одним сообщением.",
         reply_markup=_cancel_keyboard(),
     )
-    await callback.answer()
+    await _answer_callback(callback)
 
 
 @router.message(AdminFlow.waiting_support_reply, F.text)
@@ -1013,7 +1025,7 @@ async def openai_balance_from_state(message: Message, state: FSMContext) -> None
 async def cancel_callback(callback: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await callback.message.edit_text(_main_menu_text(), reply_markup=_main_menu_keyboard())
-    await callback.answer("Отменено")
+    await _answer_callback(callback, "Отменено")
 
 
 @router.message(F.text)
