@@ -33,6 +33,8 @@ from kcal_tracker.database import SessionLocal
 from kcal_tracker.logging import configure_logging
 from kcal_tracker.models import (
     AIUsage,
+    FoodCatalogAlias,
+    FoodCatalogItem,
     FoodEntry,
     LandingEvent,
     Payment,
@@ -44,6 +46,7 @@ from kcal_tracker.models import (
 )
 from kcal_tracker.services.admin_alerts import admin_alert_loop
 from kcal_tracker.services.diary import DiaryService
+from kcal_tracker.services.food_catalog import normalize_food_text
 from kcal_tracker.services.openai_balance import OpenAIBalanceService
 from kcal_tracker.services.subscriptions import (
     SubscriptionService,
@@ -424,6 +427,76 @@ async def quality_filtered_callback(callback: CallbackQuery) -> None:
     mode = callback.data.rsplit(":", 1)[1]
     text = await _quality_text(mode=mode)
     await callback.message.edit_text(text, reply_markup=_quality_keyboard(mode=mode))
+    await callback.answer("Обновлено")
+
+
+@router.message(Command("products"))
+async def products_command(message: Message) -> None:
+    text = await _products_text()
+    await message.answer(text, reply_markup=_products_keyboard())
+
+
+@router.message(Command("product_add"))
+async def product_add_command(message: Message) -> None:
+    payload = _parse_product_add_payload(message.text or "")
+    if payload is None:
+        await message.answer(
+            "Формат: /product_add название;ккал;б;ж;у;граммы;алиас1, алиас2\n"
+            "Пример: /product_add творожная запеканка;220;14;9;18;100;запеканка творог"
+        )
+        return
+    name, kcal, protein, fat, carbs, weight_g, aliases = payload
+    normalized = normalize_food_text(name)
+    async with SessionLocal() as session:
+        existing = await session.scalar(
+            select(FoodCatalogItem).where(
+                FoodCatalogItem.user_id.is_(None),
+                FoodCatalogItem.normalized_name == normalized,
+            )
+        )
+        if existing is None:
+            item = FoodCatalogItem(
+                user_id=None,
+                food_name=name,
+                normalized_name=normalized,
+                kcal=kcal,
+                protein=protein,
+                fat=fat,
+                carbs=carbs,
+                weight_g=weight_g,
+                emoji=None,
+                advice="Добавлено админом как эталонный продукт.",
+                source="admin",
+                confidence=0.92,
+                trust_score=0.93,
+                usage_count=0,
+                confirmed_count=1,
+            )
+            session.add(item)
+            await session.flush()
+        else:
+            item = existing
+            item.food_name = name
+            item.kcal = kcal
+            item.protein = protein
+            item.fat = fat
+            item.carbs = carbs
+            item.weight_g = weight_g
+            item.source = "admin"
+            item.confidence = 0.92
+            item.trust_score = max(item.trust_score, 0.93)
+            item.confirmed_count += 1
+        for alias in [name, *aliases]:
+            alias_normalized = normalize_food_text(alias)
+            await _ensure_catalog_alias(session, item, alias, alias_normalized)
+        await session.commit()
+    await message.answer(f"Добавил в базу: {name} — {kcal:.0f} ккал / {weight_g:.0f} г")
+
+
+@router.callback_query(F.data == "admin:products")
+async def products_callback(callback: CallbackQuery) -> None:
+    text = await _products_text()
+    await callback.message.edit_text(text, reply_markup=_products_keyboard())
     await callback.answer("Обновлено")
 
 
@@ -1277,6 +1350,129 @@ async def _quality_text(mode: str = "overview") -> str:
         source = f" / {event.source}" if event.source else ""
         lines.append(f"· {event.event_type}{source}: {query or 'без текста'}")
     return "\n".join(lines)
+
+
+async def _products_text() -> str:
+    since = datetime.now(UTC) - timedelta(days=7)
+    product_events = (
+        "webapp_packaged_unverified",
+        "food_correction_learned",
+        "food_ai_failed",
+        "food_no_match",
+    )
+    async with SessionLocal() as session:
+        total_catalog = await _scalar(session, select(func.count(FoodCatalogItem.id)))
+        global_catalog = await _scalar(
+            session,
+            select(func.count(FoodCatalogItem.id)).where(FoodCatalogItem.user_id.is_(None)),
+        )
+        personal_catalog = max(0, total_catalog - global_catalog)
+        learned_week = await _scalar(
+            session,
+            select(func.count(FoodCatalogItem.id)).where(
+                FoodCatalogItem.created_at >= since,
+                FoodCatalogItem.source == "ai_learned",
+            ),
+        )
+        event_counts = await session.execute(
+            select(QualityEvent.event_type, func.count(QualityEvent.id))
+            .where(QualityEvent.created_at >= since, QualityEvent.event_type.in_(product_events))
+            .group_by(QualityEvent.event_type)
+        )
+        recent = await session.execute(
+            select(QualityEvent)
+            .where(QualityEvent.created_at >= since, QualityEvent.event_type.in_(product_events))
+            .order_by(QualityEvent.created_at.desc())
+            .limit(12)
+        )
+        top_queries = await session.execute(
+            select(QualityEvent.query, func.count(QualityEvent.id))
+            .where(
+                QualityEvent.created_at >= since,
+                QualityEvent.event_type.in_(("food_no_match", "webapp_packaged_unverified")),
+                QualityEvent.query.is_not(None),
+            )
+            .group_by(QualityEvent.query)
+            .order_by(func.count(QualityEvent.id).desc())
+            .limit(8)
+        )
+
+    counts = {event_type: int(count or 0) for event_type, count in event_counts}
+    lines = [
+        "🧃 Продукты и база",
+        "",
+        f"Всего в базе: {total_catalog}",
+        f"Глобальные: {global_catalog}, персональные: {personal_catalog}",
+        f"Выучено за 7 дней: {learned_week}",
+        "",
+        "Очередь качества за 7 дней:",
+        f"· упаковки без базы: {counts.get('webapp_packaged_unverified', 0)}",
+        f"· исправления выучены: {counts.get('food_correction_learned', 0)}",
+        f"· AI/photo failures: {counts.get('food_ai_failed', 0)}",
+        f"· no match: {counts.get('food_no_match', 0)}",
+        "",
+        "Топ для пополнения:",
+    ]
+    query_rows = [(query, count) for query, count in top_queries if query]
+    if query_rows:
+        for query, count in query_rows:
+            label = " ".join(str(query).split())
+            lines.append(f"· {label[:54]}: {count}")
+    else:
+        lines.append("нет")
+
+    lines.extend(["", "Последние сигналы:"])
+    events = list(recent.scalars())
+    if not events:
+        lines.append("нет")
+    else:
+        lines.extend(_quality_event_line(event) for event in events)
+    return "\n".join(lines)
+
+
+def _parse_product_add_payload(text: str) -> tuple[str, float, float, float, float, float, list[str]] | None:
+    raw = text.split(maxsplit=1)
+    if len(raw) < 2:
+        return None
+    parts = [part.strip() for part in raw[1].split(";")]
+    if len(parts) < 6:
+        return None
+    try:
+        name = parts[0][:255]
+        kcal = float(parts[1].replace(",", "."))
+        protein = float(parts[2].replace(",", "."))
+        fat = float(parts[3].replace(",", "."))
+        carbs = float(parts[4].replace(",", "."))
+        weight_g = float(parts[5].replace(",", "."))
+    except ValueError:
+        return None
+    if not name or kcal <= 0 or weight_g <= 0:
+        return None
+    aliases = []
+    if len(parts) >= 7:
+        aliases = [alias.strip()[:255] for alias in parts[6].split(",") if alias.strip()]
+    return name, kcal, protein, fat, carbs, weight_g, aliases
+
+
+async def _ensure_catalog_alias(session, item: FoodCatalogItem, alias: str, normalized: str) -> None:
+    if len(normalized) < 2:
+        return
+    exists = await session.scalar(
+        select(func.count(FoodCatalogAlias.id)).where(
+            FoodCatalogAlias.item_id == item.id,
+            FoodCatalogAlias.normalized_alias == normalized,
+        )
+    )
+    if exists:
+        return
+    session.add(
+        FoodCatalogAlias(
+            item_id=item.id,
+            alias=alias.strip()[:255],
+            normalized_alias=normalized,
+            source="admin",
+        )
+    )
 
 
 def _quality_event_filter(mode: str) -> list:
@@ -2318,7 +2514,7 @@ def _main_menu_text() -> str:
             "Выбери раздел кнопками ниже.",
             "",
             "Команды тоже работают:",
-            "/today, /digest, /launch, /server, /openai, /alerts, /quality, /problems, /funnel, /landing, /promos, /user, /grant",
+            "/today, /digest, /launch, /server, /openai, /alerts, /quality, /products, /product_add, /problems, /funnel, /landing, /promos, /user, /grant",
         ]
     )
 
@@ -2336,6 +2532,7 @@ def _main_menu_keyboard() -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(text="📉 Quality", callback_data="admin:quality"),
+                InlineKeyboardButton(text="🧃 Products", callback_data="admin:products"),
             ],
             [
                 InlineKeyboardButton(text="👥 CRM", callback_data="admin:crm"),
@@ -2489,6 +2686,21 @@ def _quality_keyboard(mode: str = "overview") -> InlineKeyboardMarkup:
             ],
             [InlineKeyboardButton(text="📱 Mini App", callback_data="admin:quality:webapp")],
             [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+def _products_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:products"),
+                InlineKeyboardButton(text="📉 Quality", callback_data="admin:quality"),
+            ],
+            [
+                InlineKeyboardButton(text="🧯 Проблемы", callback_data="admin:problems"),
+                InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu"),
+            ],
         ]
     )
 

@@ -1510,7 +1510,9 @@ async def _recognize_food_photos(
     try:
         images = [(image_bytes, "image/jpeg") for image_bytes in image_bytes_list[:6]]
         async with ai_photo_slot(message.from_user.id):
-            estimates = await AIFoodService().recognize_photos(images, text_hint=text_hint)
+            ai_service = AIFoodService()
+            estimates = await ai_service.recognize_photos(images, text_hint=text_hint)
+            ai_cache_hit = ai_service.last_cache_hit
     except AIPhotoQueueFullError:
         await _record_food_quality_event(
             message,
@@ -1540,7 +1542,8 @@ async def _recognize_food_photos(
         )
         return
 
-    await _record_ai_request(message, "photo")
+    if not ai_cache_hit:
+        await _record_ai_request(message, "photo")
     if not estimates.foods or (estimates.foods[0].confidence or 0) < 0.35:
         await _record_food_quality_event(
             message,

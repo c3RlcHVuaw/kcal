@@ -314,7 +314,27 @@ class FoodCatalogService:
                 FoodCatalogItem.normalized_name == normalized,
             )
         )
-        return result.scalar_one_or_none()
+        exact = result.scalar_one_or_none()
+        if exact is not None:
+            return exact
+
+        tokens = normalized.split()
+        if not tokens:
+            return None
+        candidates = await self.session.execute(
+            select(FoodCatalogItem).where(
+                FoodCatalogItem.user_id == user.id,
+                or_(*[FoodCatalogItem.normalized_name.ilike(f"%{token}%") for token in tokens[:4]]),
+            )
+        )
+        best: FoodCatalogItem | None = None
+        best_score = 0.0
+        for item in candidates.scalars():
+            score = _dedup_similarity(normalized, item.normalized_name)
+            if score > best_score:
+                best = item
+                best_score = score
+        return best if best is not None and best_score >= 0.86 else None
 
     async def _ensure_alias(self, item: FoodCatalogItem, alias: str, source: str) -> None:
         normalized = normalize_food_text(alias)
@@ -486,9 +506,24 @@ def _score_text_match(query: str, candidate: str, item: FoodCatalogItem) -> floa
     return score
 
 
+def _dedup_similarity(left: str, right: str) -> float:
+    if left == right:
+        return 1.0
+    left_tokens = set(left.split())
+    right_tokens = set(right.split())
+    if not left_tokens or not right_tokens:
+        return 0.0
+    overlap = len(left_tokens & right_tokens)
+    token_score = (2 * overlap) / (len(left_tokens) + len(right_tokens))
+    substring_score = 0.88 if left in right or right in left else 0.0
+    return max(token_score, substring_score)
+
+
 def _source_label(item: FoodCatalogItem) -> str:
     if item.user_id is not None:
         return "История"
+    if item.source == "admin":
+        return "Проверено"
     if item.source == "curated":
         return "Фастфуд"
     if item.source == "ai_learned":

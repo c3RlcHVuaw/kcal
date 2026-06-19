@@ -59,6 +59,7 @@ from kcal_tracker.services.nutrition import (
     weekly_coach_note,
     weekly_score,
 )
+from kcal_tracker.services.quality import record_quality_event
 from kcal_tracker.services.share_cards import daily_progress_card, weekly_progress_card
 from kcal_tracker.services.subscriptions import has_active_subscription
 from kcal_tracker.services.users import UserService
@@ -529,6 +530,14 @@ async def save_saved_entry_refinement(message: Message, state: FSMContext) -> No
                 user,
                 updated,
                 FoodEntryCreate(**corrected_estimate.model_dump(), source="manual"),
+            )
+            await record_quality_event(
+                "food_correction_learned",
+                telegram_id=message.from_user.id,
+                username=message.from_user.username,
+                source="saved_entry_refine",
+                query=corrected_estimate.name,
+                details={"entry_id": entry_id, "source": original_source},
             )
 
     await state.clear()

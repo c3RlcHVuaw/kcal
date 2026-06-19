@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 
 from openai import AsyncOpenAI
+from redis.asyncio import Redis
 
 from kcal_tracker.config import settings
 from kcal_tracker.schemas import FoodEstimate, FoodEstimateList
@@ -39,6 +41,9 @@ FOOD_RECOGNITION_PROMPT = """Распознай только еду, котор�
 - Если на фото один упакованный продукт или один предмет еды, верни ровно одну позицию.
 - Если продукт в упаковке с читаемым названием, используй видимое название/тип продукта, а не придумывай соседние блюда.
 - Для упаковки отдельно заполни visible_brand и visible_label_text только по реально читаемому тексту.
+- Если на этикетке читаются калории, белки, жиры, углеводы на 100 г или на порцию,
+  используй именно эти числа для kcal/protein/fat/carbs. Если виден вес упаковки или пользователь указал граммы,
+  пересчитай КБЖУ на эту порцию. В advice коротко укажи, что расчёт сделан по этикетке.
 - Если бренд или название упаковки не читаются уверенно, не выдумывай бренд, но поле name всё равно должно
   описывать видимую еду по фото: "творожная запеканка", "пирог", "батончик", "йогурт", "печенье".
   Никогда не пиши в name технические статусы вроде "упакованный продукт", "бренд не читается",
@@ -160,6 +165,7 @@ class AIFoodService:
         self.client = (
             AsyncOpenAI(api_key=settings.openai_api_key) if settings.openai_api_key else None
         )
+        self.last_cache_hit = False
 
     async def recognize_photo(
         self,
@@ -174,8 +180,15 @@ class AIFoodService:
         images: list[tuple[bytes, str]],
         text_hint: str | None = None,
     ) -> FoodEstimateList:
+        self.last_cache_hit = False
         if self.client is None:
             return FoodEstimateList(foods=[])
+
+        cache_key = _photo_cache_key(images, text_hint)
+        cached = await _get_cached_food_estimates(cache_key)
+        if cached is not None:
+            self.last_cache_hit = True
+            return cached
 
         content = [
             {
@@ -204,10 +217,12 @@ class AIFoodService:
             temperature=0.2,
             timeout=20,
         )
-        return self._parse_foods(
+        result = self._parse_foods(
             response.choices[0].message.content,
             strict_visible_single=len(images) == 1 and not normalize_photo_text_hint(text_hint),
         )
+        await _set_cached_food_estimates(cache_key, result)
+        return result
 
     async def parse_text(self, text: str) -> FoodEstimateList:
         if self.client is None:
@@ -281,6 +296,10 @@ class AIFoodService:
             confidence = item.get("confidence")
             if confidence is not None:
                 confidence = min(float(confidence), 0.99)
+            packaged = item.get("packaged")
+            visible_label_text = item.get("visible_label_text")
+            source_label = "Этикетка" if packaged and visible_label_text else "AI"
+            trust_score = min(confidence or 0.55, 0.82 if source_label == "Этикетка" else 0.68)
             foods.append(
                 enrich_food_payload(
                     FoodEstimate(
@@ -293,9 +312,12 @@ class AIFoodService:
                         confidence=confidence,
                         emoji=item.get("emoji"),
                         advice=item.get("advice"),
-                        packaged=item.get("packaged"),
+                        source_label=source_label,
+                        is_ai_suggestion=True,
+                        trust_score=trust_score,
+                        packaged=packaged,
                         visible_brand=item.get("visible_brand"),
-                        visible_label_text=item.get("visible_label_text"),
+                        visible_label_text=visible_label_text,
                     )
                 )
             )
@@ -364,3 +386,35 @@ def limit_visible_photo_foods(foods: list[FoodEstimate]) -> list[FoodEstimate]:
     if (top.kcal or 0) >= max((second.kcal or 0) * 1.8, 180):
         return [top]
     return ranked[:2]
+
+
+def _photo_cache_key(images: list[tuple[bytes, str]], text_hint: str | None) -> str:
+    digest = hashlib.sha256()
+    digest.update((normalize_photo_text_hint(text_hint) or "").encode("utf-8"))
+    for image_bytes, mime_type in images[:6]:
+        digest.update(mime_type.encode("ascii", errors="ignore"))
+        digest.update(hashlib.sha256(image_bytes).digest())
+    return f"ai-photo-cache:{digest.hexdigest()}"
+
+
+async def _get_cached_food_estimates(cache_key: str) -> FoodEstimateList | None:
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        raw = await redis.get(cache_key)
+        if not raw:
+            return None
+        return FoodEstimateList.model_validate_json(raw)
+    except Exception:
+        return None
+    finally:
+        await redis.aclose()
+
+
+async def _set_cached_food_estimates(cache_key: str, estimates: FoodEstimateList) -> None:
+    redis = Redis.from_url(settings.redis_url, decode_responses=True)
+    try:
+        await redis.set(cache_key, estimates.model_dump_json(), ex=24 * 60 * 60)
+    except Exception:
+        return
+    finally:
+        await redis.aclose()
