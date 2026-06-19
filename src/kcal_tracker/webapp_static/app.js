@@ -701,7 +701,11 @@ async function parseFoodPhoto() {
       recordWebappEvent("webapp_packaged_unverified", {
         source: "photo",
         query: hint,
-        details: { photos: files.length, count: unverifiedPackagedCount },
+        details: {
+          photos: files.length,
+          count: unverifiedPackagedCount,
+          foods: compactQualityFoods(result.foods || []),
+        },
       });
     }
     toast(hasBrandMatch ? "Нашёл продукт в базе брендов" : files.length > 1 ? "Фото распознаны" : "Фото распознано");
@@ -956,7 +960,11 @@ async function saveParsedFoods() {
     recordWebappEvent("webapp_food_saved", {
       source: state.parsedFoodSource,
       query: foods.map((food) => food.name).filter(Boolean).join(", ").slice(0, 240),
-      details: { foods_count: foods.length, meal_type: state.selectedMeal },
+      details: {
+        foods_count: foods.length,
+        meal_type: state.selectedMeal,
+        foods: compactQualityFoods(foods),
+      },
     });
     if (wasFirstFood) {
       recordWebappEvent("webapp_first_food_saved", {
@@ -2682,6 +2690,7 @@ function handleReviewFeedback(kind, button) {
     details: {
       foods_count: state.parsedFoods.length,
       min_confidence: minConfidence(state.parsedFoods),
+      foods: compactQualityFoods(state.parsedFoods),
     },
   });
 
@@ -3772,6 +3781,21 @@ function normalizeParsedFood(food) {
     photo_thumb_data_url: isActivePhotoThumb(food) ? food.photo_thumb_data_url : null,
     photo_thumb_expires_at: isActivePhotoThumb(food) ? food.photo_thumb_expires_at : null,
   };
+}
+
+function compactQualityFoods(foods) {
+  return foods.slice(0, 5).map((food) => ({
+    name: String(food.name || "").trim().slice(0, 120),
+    kcal: numberOrNull(food.kcal),
+    protein: numberOrNull(food.protein),
+    fat: numberOrNull(food.fat),
+    carbs: numberOrNull(food.carbs),
+    weight_g: numberOrNull(food.weight_g),
+    confidence: numberOrNull(food.confidence),
+    source_label: food.source_label || null,
+    packaged: food.packaged === true,
+    catalog_id: Number.isFinite(Number(food.catalog_id)) ? Number(food.catalog_id) : null,
+  }));
 }
 
 function numberOrNull(value) {

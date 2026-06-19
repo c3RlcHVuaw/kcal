@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -102,7 +103,7 @@ class WebAppQualityEventCreate(BaseModel):
     )
     source: str | None = Field(default=None, max_length=64)
     query: str | None = Field(default=None, max_length=512)
-    details: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+    details: dict[str, Any] = Field(default_factory=dict)
 
 
 class LandingEventCreate(BaseModel):

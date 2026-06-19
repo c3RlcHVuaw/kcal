@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import html
 import logging
 import os
 import shutil
@@ -434,6 +435,66 @@ async def quality_filtered_callback(callback: CallbackQuery) -> None:
 async def products_command(message: Message) -> None:
     text = await _products_text()
     await message.answer(text, reply_markup=_products_keyboard())
+
+
+@router.message(Command("product_queue"))
+async def product_queue_command(message: Message) -> None:
+    text, event_ids = await _product_queue_text()
+    await message.answer(text, reply_markup=_product_queue_keyboard(event_ids))
+
+
+@router.callback_query(F.data == "admin:product_queue")
+async def product_queue_callback(callback: CallbackQuery) -> None:
+    text, event_ids = await _product_queue_text()
+    await callback.message.edit_text(text, reply_markup=_product_queue_keyboard(event_ids))
+    await callback.answer("Обновлено")
+
+
+@router.callback_query(F.data.startswith("admin:pq:add:"))
+async def product_queue_add_callback(callback: CallbackQuery) -> None:
+    event_id = _parse_callback_id(callback.data)
+    if event_id is None:
+        await callback.answer("Не понял событие.", show_alert=True)
+        return
+    async with SessionLocal() as session:
+        event = await session.get(QualityEvent, event_id)
+    if event is None:
+        await callback.answer("Событие уже не найдено.", show_alert=True)
+        return
+    command = _product_add_command_for_event(event)
+    if command is None:
+        await callback.message.answer(
+            "По этому событию нет готовых КБЖУ. Открой детали и добавь руками:\n"
+            f"/product_add {event.query or 'название'};ккал;б;ж;у;100;алиас"
+        )
+    else:
+        await callback.message.answer(
+            "Готовый шаблон для базы. Проверь цифры перед отправкой:\n\n"
+            f"<code>{html.escape(command)}</code>",
+            parse_mode="HTML",
+        )
+    await callback.answer("Шаблон готов")
+
+
+@router.callback_query(F.data.startswith("admin:pq:ignore:"))
+async def product_queue_ignore_callback(callback: CallbackQuery) -> None:
+    event_id = _parse_callback_id(callback.data)
+    if event_id is None:
+        await callback.answer("Не понял событие.", show_alert=True)
+        return
+    async with SessionLocal() as session:
+        event = await session.get(QualityEvent, event_id)
+        if event is None:
+            await callback.answer("Событие уже не найдено.", show_alert=True)
+            return
+        details = dict(event.details or {})
+        details["product_queue_status"] = "ignored"
+        details["product_queue_ignored_at"] = datetime.now(UTC).isoformat()
+        event.details = details
+        await session.commit()
+    text, event_ids = await _product_queue_text()
+    await callback.message.edit_text(text, reply_markup=_product_queue_keyboard(event_ids))
+    await callback.answer("Убрано из очереди")
 
 
 @router.message(Command("product_add"))
@@ -1428,6 +1489,166 @@ async def _products_text() -> str:
     else:
         lines.extend(_quality_event_line(event) for event in events)
     return "\n".join(lines)
+
+
+async def _product_queue_text() -> tuple[str, list[int]]:
+    since = datetime.now(UTC) - timedelta(days=14)
+    event_types = _product_queue_event_types()
+    async with SessionLocal() as session:
+        result = await session.execute(
+            select(QualityEvent)
+            .where(QualityEvent.created_at >= since, QualityEvent.event_type.in_(event_types))
+            .order_by(QualityEvent.created_at.desc())
+            .limit(80)
+        )
+    candidates = [
+        event
+        for event in result.scalars()
+        if not isinstance(event.details, dict)
+        or event.details.get("product_queue_status") != "ignored"
+    ]
+    candidates.sort(key=lambda event: (_product_queue_weight(event), event.created_at), reverse=True)
+    events = candidates[:8]
+
+    lines = [
+        "🧯 Очередь продуктов",
+        "",
+        "Сюда попадают упаковки без базы, no_match, reject и исправления. "
+        "Цель — быстро превратить ошибки в продукты/алиасы.",
+        "",
+    ]
+    if not events:
+        lines.append("Очередь пустая.")
+        return "\n".join(lines), []
+
+    for index, event in enumerate(events, start=1):
+        lines.extend(_product_queue_event_block(index, event))
+    lines.extend(
+        [
+            "",
+            "Как работать:",
+            "1. Нажми «В базу» и проверь шаблон /product_add.",
+            "2. Если мусор — «Игнор».",
+        ]
+    )
+    return "\n".join(lines), [int(event.id) for event in events]
+
+
+def _product_queue_event_block(index: int, event: QualityEvent) -> list[str]:
+    user = f"u{event.user_id}" if event.user_id else "anon"
+    query = " ".join(str(event.query or "").split())
+    query = query[:70] if query else "без запроса"
+    foods = _event_foods(event)
+    first_food = foods[0] if foods else None
+    food_line = ""
+    if first_food:
+        food_line = (
+            f" → {_food_value(first_food, 'name', 'продукт')[:46]} · "
+            f"{_num_value(first_food, 'kcal')} ккал / {_num_value(first_food, 'weight_g')} г"
+        )
+    details = _compact_event_details(event.details)
+    command = _product_add_command_for_event(event)
+    ready = "готов к /product_add" if command else "нужны КБЖУ"
+    return [
+        f"{index}. #{event.id} {event.created_at:%d.%m %H:%M} · {event.event_type}/{event.source or '-'} · {user}",
+        f"   {query}{food_line}",
+        f"   {ready}{details}",
+    ]
+
+
+def _product_queue_weight(event: QualityEvent) -> int:
+    if event.event_type in {"webapp_packaged_unverified", "webapp_ai_reject", "food_not_it"}:
+        return 40
+    if event.event_type == "food_correction_learned":
+        return 35
+    if event.event_type in {"food_no_match", "webapp_search_failed", "webapp_barcode_failed"}:
+        return 28
+    if event.event_type in {"food_ai_failed", "webapp_ai_failed"}:
+        return 16
+    return 8
+
+
+def _product_queue_event_types() -> tuple[str, ...]:
+    return (
+        "webapp_packaged_unverified",
+        "webapp_ai_reject",
+        "webapp_ai_adjust",
+        "food_correction_learned",
+        "food_no_match",
+        "webapp_search_failed",
+        "webapp_barcode_failed",
+        "food_ai_failed",
+        "webapp_ai_failed",
+        "food_not_it",
+    )
+
+
+def _event_foods(event: QualityEvent) -> list[dict]:
+    details = event.details if isinstance(event.details, dict) else {}
+    foods = details.get("foods")
+    if isinstance(foods, list):
+        return [food for food in foods if isinstance(food, dict)]
+    return []
+
+
+def _product_add_command_for_event(event: QualityEvent) -> str | None:
+    food = _event_foods(event)[0] if _event_foods(event) else None
+    if food is None:
+        return None
+    name = _food_value(food, "name", event.query or "").strip()
+    kcal = _num_value(food, "kcal")
+    protein = _num_value(food, "protein")
+    fat = _num_value(food, "fat")
+    carbs = _num_value(food, "carbs")
+    weight_g = _num_value(food, "weight_g")
+    if not name or kcal <= 0 or weight_g <= 0:
+        return None
+    aliases = _product_aliases_for_event(event, name)
+    return (
+        f"/product_add {name[:120]};{_fmt_num(kcal)};{_fmt_num(protein)};"
+        f"{_fmt_num(fat)};{_fmt_num(carbs)};{_fmt_num(weight_g)};{aliases}"
+    )
+
+
+def _product_aliases_for_event(event: QualityEvent, name: str) -> str:
+    aliases = []
+    query = " ".join(str(event.query or "").split())
+    if query and normalize_food_text(query) != normalize_food_text(name):
+        aliases.append(query[:80])
+    aliases.extend(alias for alias in normalize_food_text(name).split()[:3] if len(alias) >= 3)
+    deduped = []
+    seen = set()
+    for alias in aliases:
+        normalized = normalize_food_text(alias)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(alias)
+    return ", ".join(deduped[:5])
+
+
+def _food_value(food: dict, key: str, default: str) -> str:
+    value = food.get(key)
+    return str(value).strip() if value not in (None, "") else default
+
+
+def _num_value(food: dict, key: str) -> float:
+    try:
+        number = float(food.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
+    return round(number, 1) if number > 0 else 0
+
+
+def _fmt_num(value: float) -> str:
+    return f"{round(value, 1):g}".replace(".", ",")
+
+
+def _parse_callback_id(data: str | None) -> int | None:
+    try:
+        return int(str(data or "").rsplit(":", 1)[1])
+    except (TypeError, ValueError, IndexError):
+        return None
 
 
 def _parse_product_add_payload(text: str) -> tuple[str, float, float, float, float, float, list[str]] | None:
@@ -2514,7 +2735,7 @@ def _main_menu_text() -> str:
             "Выбери раздел кнопками ниже.",
             "",
             "Команды тоже работают:",
-            "/today, /digest, /launch, /server, /openai, /alerts, /quality, /products, /product_add, /problems, /funnel, /landing, /promos, /user, /grant",
+            "/today, /digest, /launch, /server, /openai, /alerts, /quality, /products, /product_queue, /product_add, /problems, /funnel, /landing, /promos, /user, /grant",
         ]
     )
 
@@ -2698,11 +2919,32 @@ def _products_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="📉 Quality", callback_data="admin:quality"),
             ],
             [
-                InlineKeyboardButton(text="🧯 Проблемы", callback_data="admin:problems"),
+                InlineKeyboardButton(text="🧯 Очередь", callback_data="admin:product_queue"),
+                InlineKeyboardButton(text="⚠️ Проблемы", callback_data="admin:problems"),
+            ],
+            [
                 InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu"),
             ],
         ]
     )
+
+
+def _product_queue_keyboard(event_ids: list[int]) -> InlineKeyboardMarkup:
+    rows = [[InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:product_queue")]]
+    for event_id in event_ids[:4]:
+        rows.append(
+            [
+                InlineKeyboardButton(text=f"#{event_id} в базу", callback_data=f"admin:pq:add:{event_id}"),
+                InlineKeyboardButton(text="Игнор", callback_data=f"admin:pq:ignore:{event_id}"),
+            ]
+        )
+    rows.append(
+        [
+            InlineKeyboardButton(text="🧃 Products", callback_data="admin:products"),
+            InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu"),
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _funnel_keyboard() -> InlineKeyboardMarkup:

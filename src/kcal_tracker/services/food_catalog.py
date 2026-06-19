@@ -231,7 +231,30 @@ class FoodCatalogService:
             item.confirmed_count += 1
 
         await self._ensure_alias(item, payload.name, "ai")
+        for alias in _payload_aliases(payload):
+            await self._ensure_alias(item, alias, "ai_context")
         await self._maybe_promote_to_global(normalized)
+        await self.session.commit()
+
+    async def add_alias_for_food_name(self, user: User, food_name: str, alias: str) -> None:
+        normalized_name = normalize_food_text(food_name)
+        normalized_alias = normalize_food_text(alias)
+        if len(normalized_name) < 3 or len(normalized_alias) < 2:
+            return
+        if normalized_name == normalized_alias:
+            return
+        item = await self._find_personal_item(user, normalized_name)
+        if item is None:
+            item = await self.session.scalar(
+                select(FoodCatalogItem).where(
+                    FoodCatalogItem.user_id.is_(None),
+                    FoodCatalogItem.normalized_name == normalized_name,
+                )
+            )
+        if item is None:
+            return
+        await self._ensure_alias(item, alias, "user_query")
+        item.trust_score = min(0.94, item.trust_score + 0.01)
         await self.session.commit()
 
     async def record_use(self, catalog_id: int, *, confirmed: bool = True) -> None:
@@ -529,6 +552,31 @@ def _source_label(item: FoodCatalogItem) -> str:
     if item.source == "ai_learned":
         return "База"
     return "База"
+
+
+def _payload_aliases(payload: FoodEntryCreate) -> list[str]:
+    aliases: list[str] = []
+    for value in (payload.visible_brand, payload.visible_label_text):
+        if not value:
+            continue
+        text = " ".join(str(value).split())
+        if 2 <= len(text) <= 80:
+            aliases.append(text)
+        normalized = normalize_food_text(text)
+        tokens = [token for token in normalized.split() if len(token) >= 3 and not token.isdigit()]
+        if 1 <= len(tokens) <= 5:
+            aliases.append(" ".join(tokens))
+        elif len(tokens) > 5:
+            aliases.append(" ".join(tokens[:5]))
+    deduped: list[str] = []
+    seen = set()
+    for alias in aliases:
+        normalized = normalize_food_text(alias)
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        deduped.append(alias[:255])
+    return deduped[:5]
 
 
 def _can_learn(payload: FoodEntryCreate) -> bool:

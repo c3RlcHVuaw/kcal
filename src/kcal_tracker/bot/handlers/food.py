@@ -136,10 +136,6 @@ async def parse_manual_food(message: Message, state: FSMContext) -> None:
         await _show_confirmation(message, state, quick_estimate, "food_search", query=query)
         return
 
-    if _should_use_ai_first(query) and await _can_use_ai(message):
-        if await _try_ai_text_parse(message, state, query, source="manual"):
-            return
-
     free_estimates = await _free_food_estimates(
         query,
         telegram_id=message.from_user.id,
@@ -1191,6 +1187,8 @@ async def _add_confirmed_food(
         duplicate = entry is not None
         if entry is None:
             entry = await diary.add_entry(user, payload)
+        if query and not duplicate:
+            await FoodCatalogService(session).add_alias_for_food_name(user, entry.food_name, query)
         summary = await diary.today_summary(user)
         water_ml = await WellnessService(session).today_water_ml(user)
 
