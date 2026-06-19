@@ -50,115 +50,126 @@ async def _send_due_reminders(bot: Bot) -> None:
         )
         users = list(result.scalars())
         for user in users:
-            now = datetime.now(ZoneInfo(user.timezone))
-            today = now.date()
-            if _subscription_renewal_reminder_due(now, user):
-                await bot.send_message(
-                    user.telegram_id,
-                    _subscription_renewal_reminder_text(user, now),
-                    reply_markup=subscription_cta_keyboard(),
-                )
-                user.last_subscription_reminder_date = today
+            try:
+                await _send_due_reminders_to_user(bot, session, user)
+            except Exception:
+                await session.rollback()
+                logger.warning("Failed to process reminders for user_id=%s", user.id, exc_info=True)
 
-            if not user.reminders_enabled:
-                continue
 
-            if (
-                user.weight_reminders_enabled
-                and _is_due(
-                    now,
-                    user.weight_reminder_time or "09:00",
-                    user.last_weight_reminder_date,
-                )
-            ):
-                await bot.send_message(
-                    user.telegram_id,
-                    "Доброе утро. Если взвесился, нажми «⚖️ Вес».",
-                )
-                user.last_weight_reminder_date = today
+async def _send_due_reminders_to_user(bot: Bot, session, user: User) -> None:
+    now = datetime.now(ZoneInfo(user.timezone))
+    today = now.date()
+    if _subscription_renewal_reminder_due(now, user):
+        await bot.send_message(
+            user.telegram_id,
+            _subscription_renewal_reminder_text(user, now),
+            reply_markup=subscription_cta_keyboard(),
+        )
+        await _mark_reminder_sent(session, user, "last_subscription_reminder_date", today)
 
-            diary = DiaryService(session)
-            if (
-                user.meal_reminders_enabled
-                and _is_due(
-                    now,
-                    user.breakfast_reminder_time or "10:00",
-                    user.last_breakfast_reminder_date,
-                )
-            ):
-                today_summary = await diary.today_summary(user)
-                if _has_meal_entry(today_summary.entries, user.timezone, "breakfast"):
-                    user.last_breakfast_reminder_date = today
-                else:
-                    yesterday = await diary.summary_for_day_offset(user, days_ago=1)
-                    await bot.send_message(
-                        user.telegram_id,
-                        _breakfast_reminder_intro(today_summary)
-                        + smart_morning_hint(yesterday),
-                    )
-                    user.last_breakfast_reminder_date = today
+    if not user.reminders_enabled:
+        return
 
-            if (
-                user.meal_reminders_enabled
-                and _is_due(
-                    now,
-                    user.lunch_reminder_time or "14:00",
-                    user.last_lunch_reminder_date,
-                )
-            ):
-                summary = await diary.today_summary(user)
-                if _has_meal_entry(summary.entries, user.timezone, "lunch"):
-                    user.last_lunch_reminder_date = today
-                else:
-                    patterns = (
-                        await diary.nutrition_patterns(user)
-                        if has_active_subscription(user)
-                        else None
-                    )
-                    forecast = end_of_day_forecast(summary, patterns)
-                    text = _lunch_reminder_intro(summary) + smart_lunch_hint(summary)
-                    if forecast:
-                        text += "\n" + forecast
-                    await bot.send_message(
-                        user.telegram_id,
-                        text,
-                    )
-                    user.last_lunch_reminder_date = today
+    if (
+        user.weight_reminders_enabled
+        and _is_due(
+            now,
+            user.weight_reminder_time or "09:00",
+            user.last_weight_reminder_date,
+        )
+    ):
+        await bot.send_message(
+            user.telegram_id,
+            "Доброе утро. Если взвесился, нажми «⚖️ Вес».",
+        )
+        await _mark_reminder_sent(session, user, "last_weight_reminder_date", today)
 
-            if (
-                user.meal_reminders_enabled
-                and _is_due(
-                    now,
-                    user.dinner_reminder_time or "20:30",
-                    user.last_dinner_reminder_date,
-                )
-            ):
-                summary = await diary.today_summary(user)
-                if _has_meal_entry(summary.entries, user.timezone, "dinner"):
-                    user.last_dinner_reminder_date = today
-                else:
-                    await bot.send_message(
-                        user.telegram_id,
-                        _dinner_reminder_intro(summary) + smart_evening_hint(summary),
-                        reply_markup=evening_close_keyboard(),
-                    )
-                    user.last_dinner_reminder_date = today
+    diary = DiaryService(session)
+    if (
+        user.meal_reminders_enabled
+        and _is_due(
+            now,
+            user.breakfast_reminder_time or "10:00",
+            user.last_breakfast_reminder_date,
+        )
+    ):
+        today_summary = await diary.today_summary(user)
+        if _has_meal_entry(today_summary.entries, user.timezone, "breakfast"):
+            await _mark_reminder_sent(session, user, "last_breakfast_reminder_date", today)
+        else:
+            yesterday = await diary.summary_for_day_offset(user, days_ago=1)
+            await bot.send_message(
+                user.telegram_id,
+                _breakfast_reminder_intro(today_summary)
+                + smart_morning_hint(yesterday),
+            )
+            await _mark_reminder_sent(session, user, "last_breakfast_reminder_date", today)
 
-            latest_entry_at = await _latest_food_entry_at(session, user)
-            if _inactivity_reminder_due(
-                now,
-                latest_entry_at,
-                user.created_at,
-                user.last_inactivity_reminder_date,
-            ):
-                await bot.send_message(
-                    user.telegram_id,
-                    _inactivity_reminder_text(latest_entry_at, user.created_at, user.timezone),
-                    reply_markup=return_to_diary_keyboard(),
-                )
-                user.last_inactivity_reminder_date = today
+    if (
+        user.meal_reminders_enabled
+        and _is_due(
+            now,
+            user.lunch_reminder_time or "14:00",
+            user.last_lunch_reminder_date,
+        )
+    ):
+        summary = await diary.today_summary(user)
+        if _has_meal_entry(summary.entries, user.timezone, "lunch"):
+            await _mark_reminder_sent(session, user, "last_lunch_reminder_date", today)
+        else:
+            patterns = (
+                await diary.nutrition_patterns(user)
+                if has_active_subscription(user)
+                else None
+            )
+            forecast = end_of_day_forecast(summary, patterns)
+            text = _lunch_reminder_intro(summary) + smart_lunch_hint(summary)
+            if forecast:
+                text += "\n" + forecast
+            await bot.send_message(
+                user.telegram_id,
+                text,
+            )
+            await _mark_reminder_sent(session, user, "last_lunch_reminder_date", today)
 
-        await session.commit()
+    if (
+        user.meal_reminders_enabled
+        and _is_due(
+            now,
+            user.dinner_reminder_time or "20:30",
+            user.last_dinner_reminder_date,
+        )
+    ):
+        summary = await diary.today_summary(user)
+        if _has_meal_entry(summary.entries, user.timezone, "dinner"):
+            await _mark_reminder_sent(session, user, "last_dinner_reminder_date", today)
+        else:
+            await bot.send_message(
+                user.telegram_id,
+                _dinner_reminder_intro(summary) + smart_evening_hint(summary),
+                reply_markup=evening_close_keyboard(),
+            )
+            await _mark_reminder_sent(session, user, "last_dinner_reminder_date", today)
+
+    latest_entry_at = await _latest_food_entry_at(session, user)
+    if _inactivity_reminder_due(
+        now,
+        latest_entry_at,
+        user.created_at,
+        user.last_inactivity_reminder_date,
+    ):
+        await bot.send_message(
+            user.telegram_id,
+            _inactivity_reminder_text(latest_entry_at, user.created_at, user.timezone),
+            reply_markup=return_to_diary_keyboard(),
+        )
+        await _mark_reminder_sent(session, user, "last_inactivity_reminder_date", today)
+
+
+async def _mark_reminder_sent(session, user: User, field: str, today) -> None:
+    setattr(user, field, today)
+    await session.commit()
 
 
 def _is_due(now: datetime, scheduled: str, last_sent_date) -> bool:
