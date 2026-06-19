@@ -3,6 +3,7 @@ const initData = tg?.initData || "";
 const ONBOARDING_KEY = "kcal:onboarding:v2";
 const APP_CACHE_PREFIX = "kcal:cache:v1:";
 const PREMIUM_THEME_KEY = "kcal:premium-theme:v1";
+const PREMIUM_THEME_PREVIEW_MS = 6500;
 const TOUR_SAFE_GAP = 18;
 const DEFAULT_START_PROMO = "START20";
 const PREMIUM_THEMES = [
@@ -158,6 +159,7 @@ const state = {
   hasActiveSubscription: false,
   aiUsage: null,
   appTheme: readStoredPremiumTheme(),
+  themePreviewTimer: null,
   onboardingAutoChecked: false,
   onboardingStep: 0,
   reviewFeedbackSent: null,
@@ -1215,6 +1217,7 @@ function writeStoredPremiumTheme(themeId) {
 
 function applyPremiumTheme(themeId) {
   const nextTheme = PREMIUM_THEMES.some((theme) => theme.id === themeId) ? themeId : "system";
+  document.body.classList.remove("theme-previewing");
   document.body.classList.forEach((className) => {
     if (className.startsWith("premium-theme-")) {
       document.body.classList.remove(className);
@@ -1229,7 +1232,7 @@ function applyPremiumTheme(themeId) {
 
 function renderThemePicker() {
   if (!nodes.themeGrid) return;
-  const activeTheme = state.hasActiveSubscription ? state.appTheme : "system";
+  const activeTheme = state.hasActiveSubscription ? state.appTheme : document.body.dataset.appTheme || "system";
   nodes.themeGrid.innerHTML = PREMIUM_THEMES.map((theme) => {
     const active = theme.id === activeTheme;
     const locked = theme.id !== "system" && !state.hasActiveSubscription;
@@ -1251,7 +1254,7 @@ function renderThemePicker() {
   if (nodes.themeStatus) {
     nodes.themeStatus.textContent = state.hasActiveSubscription
       ? "Выбери настроение интерфейса. Тема сохранится на этом устройстве."
-      : "Темы откроются после Premium. Сейчас можно посмотреть варианты.";
+      : "Нажми тему, чтобы увидеть preview. Постоянно сохраняется в Premium.";
   }
 }
 
@@ -1259,14 +1262,14 @@ function selectPremiumTheme(themeId) {
   const theme = PREMIUM_THEMES.find((item) => item.id === themeId);
   if (!theme) return;
   if (!state.hasActiveSubscription && theme.id !== "system") {
-    toast("Темы доступны в Premium");
-    openSubscriptionFlow({ highlight: true });
+    previewLockedTheme(theme);
     recordWebappEvent("webapp_theme_locked_click", {
       source: "theme",
       details: { theme: theme.id },
     });
     return;
   }
+  window.clearTimeout(state.themePreviewTimer);
   state.appTheme = theme.id;
   applyPremiumTheme(state.appTheme);
   writeStoredPremiumTheme(state.appTheme);
@@ -1277,6 +1280,21 @@ function selectPremiumTheme(themeId) {
     source: "theme",
     details: { theme: theme.id },
   });
+}
+
+function previewLockedTheme(theme) {
+  window.clearTimeout(state.themePreviewTimer);
+  applyPremiumTheme(theme.id);
+  document.body.classList.add("theme-previewing");
+  renderThemePicker();
+  triggerSelectionHaptic();
+  toast(`Preview: ${theme.title}. Сохранение в Premium`);
+  state.themePreviewTimer = window.setTimeout(() => {
+    applyPremiumTheme("system");
+    document.body.classList.remove("theme-previewing");
+    renderThemePicker();
+  }, PREMIUM_THEME_PREVIEW_MS);
+  window.setTimeout(() => openSubscriptionFlow({ highlight: true }), 720);
 }
 
 function triggerHaptic(style = "light") {

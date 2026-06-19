@@ -42,6 +42,26 @@
   --bg-wash-a: rgba(71, 192, 139, 0.18);
   --bg-wash-b: rgba(99, 128, 214, 0.14);
   --bg-wash-c: rgba(241, 184, 75, 0.1);
+  --bg-pattern: linear-gradient(180deg, transparent, transparent);
+  --calorie-card-bg:
+    radial-gradient(circle at 12% 4%, rgba(71, 192, 139, 0.24), transparent 30%),
+    radial-gradient(circle at 98% 4%, rgba(99, 128, 214, 0.16), transparent 28%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.56), rgba(255, 255, 255, 0.18)),
+    var(--surface);
+  --premium-card-bg:
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 36%),
+    var(--panel-gradient),
+    var(--surface);
+  --primary-button-bg:
+    radial-gradient(circle at 30% 0%, rgba(255, 255, 255, 0.34), transparent 32%),
+    linear-gradient(135deg, var(--accent), var(--accent-strong));
+  --tab-bar-bg:
+    linear-gradient(135deg, color-mix(in srgb, var(--glass-strong) 76%, transparent), color-mix(in srgb, var(--glass) 88%, transparent));
+  --tab-active-bg: color-mix(in srgb, var(--accent) 14%, var(--surface-solid));
+  --tab-food-bg: linear-gradient(135deg, var(--accent), var(--activity));
+  --theme-choice-bg:
+    var(--control-gradient),
+    var(--surface);
   --motion-fast: 140ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-soft: 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
   --motion-spring: 420ms cubic-bezier(0.16, 1.08, 0.32, 1);
@@ -101,6 +121,15 @@ body.theme-dark {
   --bg-wash-a: rgba(94, 212, 209, 0.11);
   --bg-wash-b: rgba(95, 135, 231, 0.12);
   --bg-wash-c: rgba(241, 184, 75, 0.08);
+  --calorie-card-bg:
+    radial-gradient(circle at 10% 0%, rgba(94, 212, 209, 0.15), transparent 34%),
+    radial-gradient(circle at 100% 2%, rgba(95, 135, 231, 0.12), transparent 30%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.025)),
+    var(--surface);
+  --premium-card-bg:
+    radial-gradient(circle at 10% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 36%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025)),
+    var(--surface);
 }
 
 body.premium-theme-aurora {
@@ -127,6 +156,23 @@ body.premium-theme-aurora {
   --bg-wash-a: rgba(23, 201, 159, 0.26);
   --bg-wash-b: rgba(90, 145, 255, 0.16);
   --bg-wash-c: rgba(255, 194, 91, 0.16);
+  --bg-pattern:
+    linear-gradient(115deg, rgba(255, 255, 255, 0.42) 0 9%, transparent 9% 18%, rgba(255, 255, 255, 0.18) 18% 19%, transparent 19% 100%);
+  --calorie-card-bg:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(232, 251, 246, 0.48)),
+    linear-gradient(120deg, rgba(23, 201, 159, 0.34), transparent 46%),
+    linear-gradient(300deg, rgba(90, 145, 255, 0.22), transparent 48%),
+    #f8fffd;
+  --premium-card-bg:
+    linear-gradient(135deg, rgba(23, 201, 159, 0.2), rgba(90, 145, 255, 0.12)),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.42));
+  --primary-button-bg: linear-gradient(135deg, #11d7a5, #05a9dc);
+  --tab-bar-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(230, 249, 250, 0.72));
+  --tab-active-bg: linear-gradient(135deg, rgba(23, 201, 159, 0.2), rgba(90, 145, 255, 0.14));
+  --tab-food-bg: linear-gradient(135deg, #17c99f, #05a9dc);
+  --theme-choice-bg:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(232, 251, 246, 0.52)),
+    #ffffff;
   --panel-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.18));
   --control-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.25));
 }
@@ -155,6 +201,23 @@ body.premium-theme-noir {
   --bg-wash-a: rgba(29, 224, 178, 0.12);
   --bg-wash-b: rgba(117, 167, 255, 0.12);
   --bg-wash-c: rgba(245, 189, 77, 0.08);
+  --bg-pattern:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.035) 0 1px, transparent 1px 18px),
+    linear-gradient(45deg, rgba(29, 224, 178, 0.055), transparent 46%);
+  --calorie-card-bg:
+    linear-gradient(145deg, rgba(20, 29, 38, 0.98), rgba(8, 11, 16, 0.96)),
+    linear-gradient(110deg, rgba(29, 224, 178, 0.22), transparent 48%),
+    linear-gradient(300deg, rgba(245, 189, 77, 0.12), transparent 42%);
+  --premium-card-bg:
+    linear-gradient(145deg, rgba(30, 38, 50, 0.96), rgba(9, 12, 18, 0.95)),
+    linear-gradient(120deg, rgba(29, 224, 178, 0.16), transparent 52%);
+  --primary-button-bg: linear-gradient(135deg, #1de0b2, #75a7ff);
+  --tab-bar-bg: linear-gradient(135deg, rgba(23, 30, 40, 0.96), rgba(8, 11, 16, 0.94));
+  --tab-active-bg: linear-gradient(135deg, rgba(29, 224, 178, 0.18), rgba(117, 167, 255, 0.12));
+  --tab-food-bg: linear-gradient(135deg, #1de0b2, #24c7d5);
+  --theme-choice-bg:
+    linear-gradient(145deg, rgba(33, 42, 55, 0.96), rgba(12, 16, 23, 0.96)),
+    #101820;
   --panel-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025));
   --control-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.035));
 }
@@ -183,6 +246,22 @@ body.premium-theme-berry {
   --bg-wash-a: rgba(226, 106, 168, 0.2);
   --bg-wash-b: rgba(108, 141, 255, 0.14);
   --bg-wash-c: rgba(22, 198, 161, 0.16);
+  --bg-pattern:
+    linear-gradient(125deg, rgba(226, 106, 168, 0.06) 0 12%, transparent 12% 22%, rgba(108, 141, 255, 0.05) 22% 34%, transparent 34% 100%);
+  --calorie-card-bg:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(255, 241, 249, 0.5)),
+    linear-gradient(120deg, rgba(226, 106, 168, 0.3), transparent 48%),
+    linear-gradient(300deg, rgba(22, 198, 161, 0.18), transparent 46%);
+  --premium-card-bg:
+    linear-gradient(135deg, rgba(226, 106, 168, 0.2), rgba(108, 141, 255, 0.12)),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(255, 245, 251, 0.46));
+  --primary-button-bg: linear-gradient(135deg, #e85f9f, #16c6a1);
+  --tab-bar-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(253, 235, 247, 0.72));
+  --tab-active-bg: linear-gradient(135deg, rgba(226, 106, 168, 0.18), rgba(108, 141, 255, 0.13));
+  --tab-food-bg: linear-gradient(135deg, #e26aa8, #16c6a1);
+  --theme-choice-bg:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(255, 238, 248, 0.54)),
+    #ffffff;
   --panel-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.2));
   --control-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.24));
 }
@@ -211,6 +290,22 @@ body.premium-theme-sunset {
   --bg-wash-a: rgba(245, 174, 61, 0.2);
   --bg-wash-b: rgba(209, 108, 145, 0.15);
   --bg-wash-c: rgba(16, 191, 165, 0.15);
+  --bg-pattern:
+    linear-gradient(140deg, rgba(245, 174, 61, 0.08) 0 16%, transparent 16% 30%, rgba(16, 191, 165, 0.05) 30% 46%, transparent 46% 100%);
+  --calorie-card-bg:
+    linear-gradient(145deg, rgba(255, 253, 248, 0.9), rgba(253, 239, 219, 0.52)),
+    linear-gradient(120deg, rgba(245, 174, 61, 0.32), transparent 48%),
+    linear-gradient(300deg, rgba(16, 191, 165, 0.18), transparent 46%);
+  --premium-card-bg:
+    linear-gradient(135deg, rgba(245, 174, 61, 0.22), rgba(16, 191, 165, 0.11)),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.86), rgba(255, 247, 235, 0.5));
+  --primary-button-bg: linear-gradient(135deg, #f0a73b, #10bfa5);
+  --tab-bar-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(250, 239, 222, 0.76));
+  --tab-active-bg: linear-gradient(135deg, rgba(245, 174, 61, 0.2), rgba(16, 191, 165, 0.12));
+  --tab-food-bg: linear-gradient(135deg, #f5ae3d, #10bfa5);
+  --theme-choice-bg:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(255, 244, 226, 0.54)),
+    #ffffff;
   --panel-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.58), rgba(255, 255, 255, 0.2));
   --control-gradient: linear-gradient(145deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.24));
 }
@@ -222,6 +317,7 @@ body.premium-theme-sunset {
 body {
   margin: 0;
   background:
+    var(--bg-pattern),
     radial-gradient(circle at 10% -8%, var(--bg-wash-a), transparent 30%),
     radial-gradient(circle at 102% 6%, var(--bg-wash-b), transparent 28%),
     radial-gradient(circle at 48% 108%, var(--bg-wash-c), transparent 32%),
@@ -7602,4 +7698,118 @@ h3,
 .week-legend,
 .onboarding-head span {
   font-weight: 500;
+}
+
+/* Premium themes v2: late overrides so skins noticeably change the app. */
+body[class*="premium-theme-"] .component-card,
+body[class*="premium-theme-"] .summary-panel,
+body[class*="premium-theme-"] .form-panel,
+body[class*="premium-theme-"] .details-card,
+body[class*="premium-theme-"] .grouped-list,
+body[class*="premium-theme-"] .action-list,
+body[class*="premium-theme-"] .metric-grid article,
+body[class*="premium-theme-"] .metric-grid button,
+body[class*="premium-theme-"] .week-chart,
+body[class*="premium-theme-"] .weight-chart {
+  background:
+    var(--panel-gradient),
+    color-mix(in srgb, var(--surface) 92%, var(--bg));
+}
+
+body[class*="premium-theme-"] .calorie-card {
+  background: var(--calorie-card-bg);
+  box-shadow:
+    0 24px 54px color-mix(in srgb, var(--accent) 14%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.56),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.12);
+}
+
+body[class*="premium-theme-"] .calorie-main strong {
+  color: var(--text);
+  text-shadow: 0 1px 0 color-mix(in srgb, var(--surface-solid) 42%, transparent);
+}
+
+body[class*="premium-theme-"] .more-hero,
+body[class*="premium-theme-"] .more-premium-card,
+body[class*="premium-theme-"] .subscription-status-card {
+  background: var(--premium-card-bg);
+}
+
+body[class*="premium-theme-"] .primary-button,
+body[class*="premium-theme-"] #food-add-sheet .primary-button,
+body[class*="premium-theme-"] .sheet-actions .primary-button {
+  background: var(--primary-button-bg);
+  box-shadow:
+    0 14px 30px color-mix(in srgb, var(--accent) 28%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+body[class*="premium-theme-"] .tab-bar {
+  background: var(--tab-bar-bg);
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--glass-line));
+}
+
+body[class*="premium-theme-"] .tab-bar button.active {
+  background: var(--tab-active-bg);
+  color: var(--text);
+}
+
+body[class*="premium-theme-"] .tab-bar [data-view="food"],
+body[class*="premium-theme-"] .tab-bar [data-view="food"].active {
+  background: var(--tab-food-bg);
+  color: #061318;
+  box-shadow:
+    0 13px 28px color-mix(in srgb, var(--accent) 34%, transparent),
+    0 0 0 7px color-mix(in srgb, var(--bg) 84%, transparent);
+}
+
+body[class*="premium-theme-"] .theme-choice {
+  background: var(--theme-choice-bg);
+}
+
+body[class*="premium-theme-"] .food-add-overview {
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, transparent), color-mix(in srgb, var(--protein) 10%, transparent)),
+    color-mix(in srgb, var(--surface-solid) 84%, transparent);
+}
+
+body[class*="premium-theme-"] .add-mode-actions button {
+  background:
+    radial-gradient(circle at 50% 10%, color-mix(in srgb, var(--action-tint) 26%, transparent), transparent 46%),
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-solid) 92%, var(--action-tint-soft)), color-mix(in srgb, var(--surface) 94%, var(--bg)));
+}
+
+body.premium-theme-noir .primary-button,
+body.premium-theme-noir #food-add-sheet .primary-button,
+body.premium-theme-noir .sheet-actions .primary-button,
+body.premium-theme-noir .tab-bar [data-view="food"],
+body.premium-theme-noir .tab-bar [data-view="food"].active {
+  color: #04100f;
+}
+
+body.premium-theme-noir .calorie-card,
+body.premium-theme-noir .more-hero,
+body.premium-theme-noir .more-premium-card,
+body.premium-theme-noir .subscription-status-card {
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 26px 58px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(29, 224, 178, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+body.theme-previewing .theme-choice.active {
+  animation: themePreviewPulse 900ms var(--motion-spring) both;
+}
+
+@keyframes themePreviewPulse {
+  0% {
+    transform: scale(0.985);
+  }
+  55% {
+    transform: scale(1.018);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
