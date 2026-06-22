@@ -1708,6 +1708,14 @@ function renderSmartNudge(data) {
 
 function handleSmartNudgeAction() {
   const action = nodes.firstDayAction?.dataset.nudgeAction || "add-food";
+  recordWebappEvent("webapp_smart_nudge_click", {
+    source: "today",
+    details: {
+      action,
+      entries_count: Number(state.today?.diary?.entries?.length || 0),
+      onboarding_completed: Boolean(state.today?.onboarding_completed),
+    },
+  });
   if (action === "add-food") {
     openFoodAddSheet();
     return;
@@ -3390,6 +3398,14 @@ async function completeProfileOnboarding(event) {
     state.today = today;
     renderToday(today);
     closeProfileOnboarding();
+    recordWebappEvent("webapp_onboarding_complete", {
+      source: "profile_onboarding",
+      details: {
+        goal: payload.goal,
+        activity: payload.activity,
+        has_target_weight: Boolean(payload.target_weight_kg),
+      },
+    });
     await Promise.allSettled([loadWeek(), loadBody()]);
     toast("Профиль настроен");
     window.setTimeout(() => openOnboarding({ force: true }), 320);
@@ -3412,6 +3428,13 @@ function openOnboarding({ force = false, startStep = 0 } = {}) {
   window.addEventListener("resize", updateOnboardingTarget, { passive: true });
   window.addEventListener("orientationchange", updateOnboardingTarget, { passive: true });
   window.setTimeout(updateOnboardingTarget, 60);
+  recordWebappEvent("webapp_onboarding_tour_open", {
+    source: force ? "forced" : "auto",
+    details: {
+      start_step: state.onboardingStep,
+      total_steps: onboardingSteps.length,
+    },
+  });
   triggerHaptic("light");
 }
 
