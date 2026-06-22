@@ -10,4 +10,5 @@ def test_webapp_onboarding_and_nudge_events_are_tracked() -> None:
 
     assert "webapp_onboarding_complete" in app_js
     assert "webapp_onboarding_tour_open" in app_js
+    assert "webapp_onboarding_start_food" in app_js
     assert "webapp_smart_nudge_click" in app_js

@@ -400,17 +400,16 @@ const onboardingSteps = [
     target: ".tab-bar [data-view='progress']",
   },
   {
+    title: "Ещё — настройки и помощь",
+    text: "Там подписка, лимиты AI, экспорт, поддержка, напоминания и повтор этого обучения.",
+    target: ".tab-bar [data-view='more']",
+  },
+  {
     title: "Сделай первую запись",
     text: "Лучший старт — занести один приём пищи любым способом. После сохранения дневник покажет остаток калорий и прогресс дня.",
     target: ".add-mode-actions",
     fallbackTarget: ".tab-bar [data-view='food']",
     sheet: "food-add",
-    cta: "Добавить еду",
-  },
-  {
-    title: "Ещё — настройки и помощь",
-    text: "Там подписка, лимиты AI, экспорт, поддержка, напоминания и повтор этого обучения.",
-    target: ".tab-bar [data-view='more']",
     cta: "Добавить еду",
   },
 ];
@@ -575,6 +574,13 @@ nodes.onboardingSkip?.addEventListener("click", () => closeOnboarding({ remember
 nodes.onboardingBack?.addEventListener("click", () => setOnboardingStep(state.onboardingStep - 1));
 nodes.onboardingNext?.addEventListener("click", () => setOnboardingStep(state.onboardingStep + 1));
 nodes.onboardingStart?.addEventListener("click", () => {
+  recordWebappEvent("webapp_onboarding_start_food", {
+    source: "tour",
+    details: {
+      final_step: state.onboardingStep,
+      total_steps: onboardingSteps.length,
+    },
+  });
   closeOnboarding({ remember: true });
   openFoodAddSheet();
 });
