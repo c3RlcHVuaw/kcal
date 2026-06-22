@@ -10,11 +10,14 @@ from kcal_tracker.models import LandingEvent, Payment, QualityEvent, User
 
 AI_ACCEPT_EVENTS = {
     "webapp_ai_accept",
+    "webapp_ai_saved_unedited",
     "webapp_ai_saved",
     "food_ai_accept",
     "food_ai_saved",
 }
 AI_EDIT_EVENTS = {
+    "webapp_ai_adjust",
+    "webapp_ai_saved_edited",
     "webapp_ai_edit",
     "webapp_ai_edited",
     "food_ai_edit",

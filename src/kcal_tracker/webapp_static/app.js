@@ -163,6 +163,7 @@ const state = {
   onboardingAutoChecked: false,
   onboardingStep: 0,
   reviewFeedbackSent: null,
+  parsedFoodsInitialSnapshot: "",
   paywallVariant: null,
 };
 
@@ -919,6 +920,7 @@ function setParsedFoods(result) {
   state.parsedFoodSource = result.source;
   state.expandedParsedFood = null;
   state.reviewFeedbackSent = null;
+  state.parsedFoodsInitialSnapshot = parsedFoodsSnapshot(state.parsedFoods);
   document.querySelectorAll("[data-review-feedback]").forEach((button) => button.classList.remove("active"));
   renderParsedFoods(result);
   openFoodReviewScreen();
@@ -966,6 +968,7 @@ async function saveParsedFoods() {
         foods: compactQualityFoods(foods),
       },
     });
+    recordAiSavedEvent(foods);
     if (wasFirstFood) {
       recordWebappEvent("webapp_first_food_saved", {
         source: state.parsedFoodSource,
@@ -977,6 +980,41 @@ async function saveParsedFoods() {
   } finally {
     restoreButton(nodes.saveParsedFood);
   }
+}
+
+function recordAiSavedEvent(foods) {
+  if (!isAiAssistedSource(state.parsedFoodSource)) return;
+  const edited = state.reviewFeedbackSent === "adjust" || parsedFoodsSnapshot(foods) !== state.parsedFoodsInitialSnapshot;
+  recordWebappEvent(edited ? "webapp_ai_saved_edited" : "webapp_ai_saved_unedited", {
+    source: state.parsedFoodSource,
+    query: foods.map((food) => food.name).filter(Boolean).join(", ").slice(0, 240),
+    details: {
+      foods_count: foods.length,
+      meal_type: state.selectedMeal,
+      review_feedback: state.reviewFeedbackSent,
+      foods: compactQualityFoods(foods),
+    },
+  });
+}
+
+function isAiAssistedSource(source) {
+  return source === "ai" || source === "photo";
+}
+
+function parsedFoodsSnapshot(foods) {
+  return JSON.stringify(foods.map((food) => ({
+    name: food.name || "",
+    kcal: roundedSnapshotNumber(food.kcal),
+    protein: roundedSnapshotNumber(food.protein),
+    fat: roundedSnapshotNumber(food.fat),
+    carbs: roundedSnapshotNumber(food.carbs),
+    weight_g: roundedSnapshotNumber(food.weight_g),
+  })));
+}
+
+function roundedSnapshotNumber(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return null;
+  return Math.round(Number(value) * 10) / 10;
 }
 
 nodes.weightButton.addEventListener("click", async () => {

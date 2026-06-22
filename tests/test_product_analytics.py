@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from kcal_tracker.services.product_analytics import AIQualityMetrics, FunnelMetrics
+from kcal_tracker.services.product_analytics import (
+    AI_ACCEPT_EVENTS,
+    AI_EDIT_EVENTS,
+    AIQualityMetrics,
+    FunnelMetrics,
+)
 
 
 def test_ai_quality_metrics_rates_use_reviewed_events() -> None:
@@ -36,3 +41,9 @@ def test_funnel_metrics_rates() -> None:
     assert metrics.onboarding_rate == 0.75
     assert metrics.paywall_to_payment_start_rate == 0.4
     assert metrics.payment_success_rate == 0.75
+
+
+def test_ai_quality_event_contract_includes_webapp_save_outcomes() -> None:
+    assert "webapp_ai_saved_unedited" in AI_ACCEPT_EVENTS
+    assert "webapp_ai_adjust" in AI_EDIT_EVENTS
+    assert "webapp_ai_saved_edited" in AI_EDIT_EVENTS
