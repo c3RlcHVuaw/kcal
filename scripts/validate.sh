@@ -30,6 +30,12 @@ fi
 "$python_bin" -m compileall src tests migrations
 "$python_bin" -m ruff check src migrations tests
 "$python_bin" -m pytest -q
+if command -v node >/dev/null 2>&1; then
+  node --check src/kcal_tracker/webapp_static/app_core.js
+  node --check src/kcal_tracker/webapp_static/app.js
+else
+  echo "node was not found; skipping webapp JavaScript syntax checks." >&2
+fi
 if command -v docker >/dev/null 2>&1; then
   docker compose config
 else

@@ -123,6 +123,7 @@ alembic upgrade head
 
 Если Docker не установлен, скрипт выполнит Python-проверки и пропустит
 `docker compose config`; в CI эта проверка выполняется с доступным Docker.
+Если установлен Node.js, скрипт также проверит синтаксис Mini App JavaScript.
 
 Если на хосте нет Python 3.12 и dev-инструментов, можно проверить внутри Docker:
 
