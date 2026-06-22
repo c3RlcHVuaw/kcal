@@ -2,13 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import hashlib
 import io
-import json
 import logging
 import re
 import secrets
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any
 
@@ -17,6 +14,17 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from PIL import Image, ImageOps
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from kcal_tracker.api.apple_health import (
+    apple_health_payload_summary as _apple_health_payload_summary,
+)
+from kcal_tracker.api.apple_health import (
+    ensure_apple_health_import_allowed as _ensure_apple_health_import_allowed,
+)
+from kcal_tracker.api.apple_health import (
+    normalize_apple_health_payload as _normalize_apple_health_payload,
+)
+from kcal_tracker.api.apple_health import read_apple_health_payload as _read_apple_health_payload
+from kcal_tracker.api.apple_health import steps_to_kcal as _steps_to_kcal
 from kcal_tracker.api.health import check_database as _check_database
 from kcal_tracker.api.health import check_redis as _check_redis
 from kcal_tracker.api.landing_events import hash_landing_ip as _hash_landing_ip
@@ -93,7 +101,6 @@ from kcal_tracker.services.throttle import (
     ThrottleLimitReached,
     ensure_ai_rate_limit,
     ensure_barcode_rate_limit,
-    ensure_rate_limit,
 )
 from kcal_tracker.services.users import UserService
 from kcal_tracker.services.webapp_auth import (
@@ -1214,206 +1221,6 @@ def _favorite_read(favorite) -> WebAppFavoriteFood:
     )
 
 
-async def _read_apple_health_payload(request: Request) -> dict[str, Any]:
-    content_length = request.headers.get("content-length")
-    if content_length:
-        try:
-            if int(content_length) > settings.apple_health_payload_max_bytes:
-                raise HTTPException(status_code=413, detail={"message": "Request body is too large"})
-        except ValueError:
-            pass
-
-    body = await request.body()
-    if not body:
-        raise HTTPException(status_code=400, detail={"message": "Empty request body"})
-    if len(body) > settings.apple_health_payload_max_bytes:
-        raise HTTPException(status_code=413, detail={"message": "Request body is too large"})
-    try:
-        payload = json.loads(body)
-    except json.JSONDecodeError as exc:
-        raise HTTPException(
-            status_code=400,
-            detail={"message": "Invalid JSON body", "error": str(exc)},
-        ) from exc
-    if not isinstance(payload, dict):
-        raise HTTPException(
-            status_code=400,
-            detail={"message": "JSON body must be an object"},
-        )
-    return payload
-
-
-async def _ensure_apple_health_import_allowed(token: str, request: Request) -> None:
-    client_host = request.client.host if request.client else "unknown"
-    token_hash = hashlib.sha256(token.encode()).hexdigest()[:24]
-    try:
-        await ensure_rate_limit(
-            f"apple-health:ip:{client_host}",
-            limit=settings.apple_health_import_rate_limit_per_minute,
-            window_seconds=60,
-        )
-        await ensure_rate_limit(
-            f"apple-health:token:{token_hash}",
-            limit=settings.apple_health_import_rate_limit_per_minute,
-            window_seconds=60,
-        )
-    except ThrottleLimitReached as exc:
-        raise HTTPException(
-            status_code=429,
-            detail="Too many Apple Health imports",
-            headers={"Retry-After": str(exc.retry_after_seconds)},
-        ) from exc
-
-
-def _normalize_apple_health_payload(
-    payload: dict[str, Any],
-) -> tuple[AppleHealthPayload, dict[str, str]]:
-    errors: dict[str, str] = {}
-    weight_kg = _extract_float_field(payload, "weight_kg", 30, 250, errors)
-    steps_float = _extract_float_field(payload, "steps", 0, 100000, errors, sum_samples=True)
-    active_kcal = _extract_float_field(
-        payload,
-        "active_kcal",
-        0,
-        5000,
-        errors,
-        sum_samples=True,
-    )
-    note = payload.get("note")
-    if note is not None and not isinstance(note, str):
-        note = str(note)
-    if isinstance(note, str):
-        note = note[:255]
-    steps = int(round(steps_float)) if steps_float is not None else None
-    return AppleHealthPayload(weight_kg, steps, active_kcal, note), errors
-
-
-def _apple_health_payload_summary(payload: dict[str, Any]) -> dict[str, Any]:
-    known_fields = ("weight_kg", "steps", "active_kcal", "note")
-    present_fields = [field for field in known_fields if field in payload]
-    return {
-        "fields": present_fields,
-        "extra_field_count": max(len(payload) - len(present_fields), 0),
-    }
-
-
-def _extract_float_field(
-    payload: dict[str, Any],
-    field: str,
-    minimum: float,
-    maximum: float,
-    errors: dict[str, str],
-    *,
-    sum_samples: bool = False,
-) -> float | None:
-    if field not in payload:
-        return None
-    if sum_samples:
-        value = _extract_numeric_total(payload[field])
-    else:
-        value = _extract_numeric_value(payload[field])
-    if value is None:
-        errors[field] = "Could not extract numeric value"
-        return None
-    if not minimum <= value <= maximum:
-        errors[field] = f"Value must be between {minimum:g} and {maximum:g}"
-        return None
-    return value
-
-
-def _extract_numeric_value(input_value: Any) -> float | None:
-    if isinstance(input_value, bool):
-        return None
-    if isinstance(input_value, int | float):
-        return float(input_value)
-    if isinstance(input_value, str):
-        return _number_from_string(input_value)
-    if isinstance(input_value, list):
-        for item in input_value:
-            value = _extract_numeric_value(item)
-            if value is not None:
-                return value
-        return None
-    if isinstance(input_value, dict):
-        priority_keys = (
-            "quantity",
-            "sumQuantity",
-            "total",
-            "totalQuantity",
-            "doubleValue",
-            "floatValue",
-            "intValue",
-            "numericValue",
-            "value",
-            "sample",
-            "samples",
-            "result",
-            "results",
-        )
-        for key in priority_keys:
-            if key in input_value:
-                value = _extract_numeric_value(input_value[key])
-                if value is not None:
-                    return value
-        for key, nested_value in input_value.items():
-            if key in priority_keys:
-                continue
-            value = _extract_numeric_value(nested_value)
-            if value is not None:
-                return value
-    return None
-
-
-def _extract_numeric_total(input_value: Any) -> float | None:
-    if isinstance(input_value, str):
-        return _number_total_from_string(input_value)
-    if isinstance(input_value, list):
-        values = [_extract_numeric_value(item) for item in input_value]
-        numeric_values = [value for value in values if value is not None]
-        return sum(numeric_values) if numeric_values else None
-    if isinstance(input_value, dict):
-        for key in ("samples", "result", "results"):
-            nested = input_value.get(key)
-            if isinstance(nested, list):
-                return _extract_numeric_total(nested)
-        return _extract_numeric_value(input_value)
-    return _extract_numeric_value(input_value)
-
-
-def _number_total_from_string(value: str) -> float | None:
-    stripped = value.strip().replace(",", ".")
-    if not stripped:
-        return None
-    matches = re.findall(r"-?\d+(?:\.\d+)?", stripped)
-    if not matches:
-        return None
-    return sum(float(match) for match in matches)
-
-
-def _single_number_from_string(value: str) -> float | None:
-    stripped = value.strip().replace(",", ".")
-    if not stripped:
-        return None
-    matches = re.findall(r"-?\d+(?:\.\d+)?", stripped)
-    if len(matches) != 1:
-        return None
-    return float(matches[0])
-
-
-def _number_from_string(value: str) -> float | None:
-    stripped = value.strip().replace(",", ".")
-    try:
-        return float(stripped)
-    except ValueError:
-        match = re.search(r"-?\d+(?:\.\d+)?", stripped)
-        if match is None:
-            return None
-        try:
-            return float(match.group())
-        except ValueError:
-            return None
-
-
 async def _read_webapp_image_upload(image: UploadFile) -> tuple[bytes, str]:
     content_type = image.content_type or "image/jpeg"
     if not content_type.startswith("image/"):
@@ -1520,23 +1327,3 @@ def _limit_text(value: str | None, max_length: int) -> str | None:
     if not value:
         return None
     return value[:max_length]
-
-
-@dataclass(frozen=True)
-class AppleHealthPayload:
-    weight_kg: float | None
-    steps: int | None
-    active_kcal: float | None
-    note: str | None
-
-    @property
-    def has_values(self) -> bool:
-        return (
-            self.weight_kg is not None
-            or self.steps is not None
-            or self.active_kcal is not None
-        )
-
-
-def _steps_to_kcal(steps: int) -> float:
-    return round(steps * 0.04, 1)

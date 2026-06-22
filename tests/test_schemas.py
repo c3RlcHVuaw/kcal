@@ -18,15 +18,15 @@ from kcal_tracker.admin_bot.main import (
     _quality_event_line,
     _user_quality_line,
 )
-from kcal_tracker.api import routes
-from kcal_tracker.api.routes import (
-    _apple_health_payload_summary,
-    _ensure_apple_health_import_allowed,
-    _extract_numeric_total,
-    _extract_numeric_value,
-    _normalize_apple_health_payload,
-    _read_apple_health_payload,
-    _steps_to_kcal,
+from kcal_tracker.api import apple_health, routes
+from kcal_tracker.api.apple_health import (
+    apple_health_payload_summary,
+    ensure_apple_health_import_allowed,
+    extract_numeric_total,
+    extract_numeric_value,
+    normalize_apple_health_payload,
+    read_apple_health_payload,
+    steps_to_kcal,
 )
 from kcal_tracker.bot.handlers.diary import (
     ADVANCED_PATTERNS_UPSELL,
@@ -243,7 +243,7 @@ def test_webapp_today_accepts_yesterday_diary() -> None:
 
 
 def test_apple_health_log_summary_does_not_include_raw_values() -> None:
-    summary = _apple_health_payload_summary(
+    summary = apple_health_payload_summary(
         {
             "weight_kg": 82.4,
             "steps": [{"value": 1200}, {"value": 800}],
@@ -266,7 +266,7 @@ def test_apple_health_payload_rejects_oversized_body(monkeypatch) -> None:
     request = _request_with_body(b'{"steps": 1000}', headers={"content-length": "15"})
 
     try:
-        asyncio.run(_read_apple_health_payload(request))
+        asyncio.run(read_apple_health_payload(request))
     except HTTPException as exc:
         assert exc.status_code == 413
     else:
@@ -277,11 +277,11 @@ def test_apple_health_import_throttle_maps_to_429(monkeypatch) -> None:
     async def blocked_rate_limit(key: str, *, limit: int, window_seconds: int) -> None:
         raise ThrottleLimitReached(23)
 
-    monkeypatch.setattr(routes, "ensure_rate_limit", blocked_rate_limit)
+    monkeypatch.setattr(apple_health, "ensure_rate_limit", blocked_rate_limit)
     request = _request_with_body(b"{}")
 
     try:
-        asyncio.run(_ensure_apple_health_import_allowed("token", request))
+        asyncio.run(ensure_apple_health_import_allowed("token", request))
     except HTTPException as exc:
         assert exc.status_code == 429
         assert exc.headers == {"Retry-After": "23"}
@@ -1380,28 +1380,28 @@ def test_payment_next_steps_explain_pending_flow() -> None:
 
 
 def test_steps_to_kcal_estimate_is_conservative() -> None:
-    assert _steps_to_kcal(10000) == 400
+    assert steps_to_kcal(10000) == 400
 
 
 def test_apple_health_extracts_shortcuts_numeric_shapes() -> None:
-    assert _extract_numeric_value(8200) == 8200
-    assert _extract_numeric_value("8200") == 8200
-    assert _extract_numeric_value({"value": 8200}) == 8200
-    assert _extract_numeric_value({"quantity": {"doubleValue": 8200}}) == 8200
-    assert _extract_numeric_value({"sample": {"quantity": {"doubleValue": "8200"}}}) == 8200
-    assert _extract_numeric_value({"value": 4, "quantity": {"doubleValue": 70}}) == 70
-    assert _extract_numeric_value({"healthKit": {"energy": {"doubleValue": 70}}}) == 70
+    assert extract_numeric_value(8200) == 8200
+    assert extract_numeric_value("8200") == 8200
+    assert extract_numeric_value({"value": 8200}) == 8200
+    assert extract_numeric_value({"quantity": {"doubleValue": 8200}}) == 8200
+    assert extract_numeric_value({"sample": {"quantity": {"doubleValue": "8200"}}}) == 8200
+    assert extract_numeric_value({"value": 4, "quantity": {"doubleValue": 70}}) == 70
+    assert extract_numeric_value({"healthKit": {"energy": {"doubleValue": 70}}}) == 70
 
 
 def test_apple_health_sums_shortcuts_sample_lists_for_activity() -> None:
-    assert _extract_numeric_total(
+    assert extract_numeric_total(
         [
             {"quantity": {"doubleValue": 4.455}},
             {"quantity": {"doubleValue": "12.5"}},
             {"value": 1.0},
         ]
     ) == 17.955
-    payload, errors = _normalize_apple_health_payload(
+    payload, errors = normalize_apple_health_payload(
         {
             "active_kcal": {
                 "samples": [
@@ -1416,7 +1416,7 @@ def test_apple_health_sums_shortcuts_sample_lists_for_activity() -> None:
 
 
 def test_apple_health_sums_shortcuts_newline_strings_for_activity() -> None:
-    payload, errors = _normalize_apple_health_payload(
+    payload, errors = normalize_apple_health_payload(
         {
             "steps": "72\n101\n10",
             "active_kcal": "4.455\n1.653\n131.892",
@@ -1429,7 +1429,7 @@ def test_apple_health_sums_shortcuts_newline_strings_for_activity() -> None:
 
 
 def test_apple_health_normalizes_payload_and_ignores_unknown_fields() -> None:
-    payload, errors = _normalize_apple_health_payload(
+    payload, errors = normalize_apple_health_payload(
         {
             "weight_kg": {"value": "74.5", "unit": "kg"},
             "steps": {"quantity": {"doubleValue": 8200}},
@@ -1445,7 +1445,7 @@ def test_apple_health_normalizes_payload_and_ignores_unknown_fields() -> None:
 
 
 def test_apple_health_normalization_keeps_valid_fields_when_one_is_invalid() -> None:
-    payload, errors = _normalize_apple_health_payload(
+    payload, errors = normalize_apple_health_payload(
         {
             "weight_kg": {"value": 74.5},
             "steps": {"value": "not a number"},
