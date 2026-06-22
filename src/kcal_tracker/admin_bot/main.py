@@ -29,6 +29,7 @@ from aiogram.types import (
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
+from kcal_tracker.admin_bot.product import product_analytics_text
 from kcal_tracker.bot.keyboards import InlineKeyboardButton
 from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
@@ -50,7 +51,6 @@ from kcal_tracker.services.admin_alerts import admin_alert_loop
 from kcal_tracker.services.diary import DiaryService
 from kcal_tracker.services.food_catalog import normalize_food_text
 from kcal_tracker.services.openai_balance import OpenAIBalanceService
-from kcal_tracker.services.product_analytics import FunnelMetrics, ProductAnalyticsService
 from kcal_tracker.services.subscriptions import (
     SubscriptionService,
     has_active_subscription,
@@ -446,13 +446,13 @@ async def quality_filtered_callback(callback: CallbackQuery) -> None:
 
 @router.message(Command("product"))
 async def product_command(message: Message) -> None:
-    text = await _product_analytics_text()
+    text = await product_analytics_text()
     await message.answer(text, reply_markup=_product_analytics_keyboard())
 
 
 @router.callback_query(F.data == "admin:product")
 async def product_callback(callback: CallbackQuery) -> None:
-    text = await _product_analytics_text()
+    text = await product_analytics_text()
     await callback.message.edit_text(text, reply_markup=_product_analytics_keyboard())
     await _answer_callback(callback, "Обновлено")
 
@@ -1837,68 +1837,6 @@ async def _funnel_text() -> str:
     )
 
 
-async def _product_analytics_text() -> str:
-    tz = ZoneInfo(settings.default_timezone)
-    today_start, today_end = _today_bounds(tz)
-    week_start = today_start - timedelta(days=6)
-    month_start = today_start - timedelta(days=29)
-    async with SessionLocal() as session:
-        analytics = ProductAnalyticsService(session)
-        today_quality = await analytics.ai_quality(today_start, today_end)
-        week_quality = await analytics.ai_quality(week_start, today_end)
-        month_quality = await analytics.ai_quality(month_start, today_end)
-        today_funnel = await analytics.funnel(today_start, today_end)
-        week_funnel = await analytics.funnel(week_start, today_end)
-        month_funnel = await analytics.funnel(month_start, today_end)
-    return "\n".join(
-        [
-            "📈 Product analytics",
-            "",
-            _product_period_text("Сегодня", today_quality, today_funnel),
-            "",
-            _product_period_text("7 дней", week_quality, week_funnel),
-            "",
-            _product_period_text("30 дней", month_quality, month_funnel),
-        ]
-    )
-
-
-def _product_period_text(title: str, quality, funnel: FunnelMetrics) -> str:
-    return "\n".join(
-        [
-            title,
-            (
-                "AI quality: "
-                f"ok {quality.accepted}, edit {quality.edited}, "
-                f"reject {quality.rejected}, fail {quality.failed}"
-            ),
-            (
-                "AI rates: "
-                f"accept {_optional_percent(quality.acceptance_rate)}, "
-                f"edit {_optional_percent(quality.edit_rate)}, "
-                f"fail {_optional_percent(quality.failure_rate)}"
-            ),
-            (
-                "Landing: "
-                f"views {funnel.landing_views}, clicks {funnel.bot_clicks} "
-                f"({_optional_percent(funnel.landing_to_bot_rate)})"
-            ),
-            (
-                "Onboarding: "
-                f"{funnel.onboarded_users}/{funnel.new_users} "
-                f"({_optional_percent(funnel.onboarding_rate)})"
-            ),
-            (
-                "Paywall: "
-                f"{funnel.payment_starts}/{funnel.paywall_opens} starts "
-                f"({_optional_percent(funnel.paywall_to_payment_start_rate)}), "
-                f"{funnel.successful_payments} paid "
-                f"({_optional_percent(funnel.payment_success_rate)})"
-            ),
-        ]
-    )
-
-
 async def _funnel_metrics(session, start: datetime, end: datetime) -> dict[str, int]:
     cohort_filter = (User.created_at >= start, User.created_at <= end)
     started = await _scalar(session, select(func.count(User.id)).where(*cohort_filter))
@@ -2079,12 +2017,6 @@ def _percent(value: int, total: int) -> str:
     if total <= 0:
         return "0%"
     return f"{value / total:.0%}"
-
-
-def _optional_percent(value: float | None) -> str:
-    if value is None:
-        return "—"
-    return f"{value:.0%}"
 
 
 async def _payments_text() -> str:
