@@ -12,6 +12,7 @@ class Settings(BaseSettings):
 
     app_env: str = "local"
     log_level: str = "INFO"
+    log_format: str = Field(default="text", pattern="^(text|json)$")
 
     api_host: str = "0.0.0.0"
     api_port: int = 3100

@@ -15,12 +15,16 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import JSONResponse, PlainTextResponse
 from PIL import Image, ImageOps
-from redis.asyncio import Redis
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from kcal_tracker.api.health import check_database as _check_database
+from kcal_tracker.api.health import check_redis as _check_redis
+from kcal_tracker.api.landing_events import hash_landing_ip as _hash_landing_ip
+from kcal_tracker.api.landing_events import (
+    should_record_landing_event as _should_record_landing_event,
+)
 from kcal_tracker.config import settings
-from kcal_tracker.database import engine, get_session
+from kcal_tracker.database import get_session
 from kcal_tracker.models import LandingEvent
 from kcal_tracker.schemas import (
     ActivityEstimate,
@@ -1210,27 +1214,6 @@ def _favorite_read(favorite) -> WebAppFavoriteFood:
     )
 
 
-async def _check_database() -> bool:
-    try:
-        async with engine.connect() as connection:
-            await connection.execute(text("select 1"))
-    except Exception:
-        logger.exception("Readiness database check failed")
-        return False
-    return True
-
-
-async def _check_redis() -> bool:
-    redis = Redis.from_url(settings.redis_url)
-    try:
-        return bool(await redis.ping())
-    except Exception:
-        logger.exception("Readiness Redis check failed")
-        return False
-    finally:
-        await redis.aclose()
-
-
 async def _read_apple_health_payload(request: Request) -> dict[str, Any]:
     content_length = request.headers.get("content-length")
     if content_length:
@@ -1531,50 +1514,6 @@ async def _ensure_webapp_barcode_allowed(identity: WebAppIdentity) -> None:
             detail="Too many barcode requests",
             headers={"Retry-After": str(exc.retry_after_seconds)},
         ) from exc
-
-
-def _hash_landing_ip(value: str) -> str:
-    salt = settings.telegram_bot_token or settings.admin_bot_token or settings.app_env
-    return hashlib.sha256(f"{salt}:{value}".encode()).hexdigest()
-
-
-async def _should_record_landing_event(payload: LandingEventCreate, ip_hash: str | None) -> bool:
-    redis = Redis.from_url(settings.redis_url, decode_responses=True)
-    try:
-        visitor_key = ip_hash or payload.visitor_id or "anonymous"
-        rate_key = f"landing:rate:{visitor_key}"
-        request_count = await redis.incr(rate_key)
-        if request_count == 1:
-            await redis.expire(rate_key, 60)
-        if request_count > settings.landing_event_rate_limit_per_minute:
-            logger.info("Landing event rate limited key=%s type=%s", visitor_key[:12], payload.event_type)
-            return False
-
-        if payload.event_type != "view" or settings.landing_event_dedupe_seconds <= 0:
-            return True
-
-        dedupe_source = ":".join(
-            [
-                payload.session_id or visitor_key,
-                payload.path or "/",
-                payload.utm_source or "",
-                payload.utm_medium or "",
-                payload.utm_campaign or "",
-            ]
-        )
-        dedupe_hash = hashlib.sha256(dedupe_source.encode()).hexdigest()
-        stored = await redis.set(
-            f"landing:dedupe:{dedupe_hash}",
-            "1",
-            ex=settings.landing_event_dedupe_seconds,
-            nx=True,
-        )
-        return bool(stored)
-    except Exception:
-        logger.warning("Landing event Redis guard failed", exc_info=True)
-        return payload.event_type == "bot_click"
-    finally:
-        await redis.aclose()
 
 
 def _limit_text(value: str | None, max_length: int) -> str | None:

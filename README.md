@@ -121,6 +121,9 @@ alembic upgrade head
 ./scripts/validate.sh
 ```
 
+Если Docker не установлен, скрипт выполнит Python-проверки и пропустит
+`docker compose config`; в CI эта проверка выполняется с доступным Docker.
+
 Если на хосте нет Python 3.12 и dev-инструментов, можно проверить внутри Docker:
 
 ```bash

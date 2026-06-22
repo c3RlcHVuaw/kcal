@@ -147,6 +147,12 @@ def test_ai_safety_limits_are_configurable() -> None:
     assert settings.admin_unverified_packaged_hour_threshold == 6
 
 
+def test_log_format_is_configurable() -> None:
+    settings = Settings(log_format="json")
+
+    assert settings.log_format == "json"
+
+
 def test_webapp_init_data_validation_accepts_signed_payload() -> None:
     identity = validate_webapp_init_data(
         _signed_init_data("bot-token"),
@@ -162,6 +168,28 @@ def test_webapp_init_data_validation_rejects_bad_signature() -> None:
     with pytest.raises(RuntimeError, match="Invalid init data signature"):
         validate_webapp_init_data(
             _signed_init_data("bot-token").replace("tester", "attacker"),
+            bot_token="bot-token",
+            now=1_800_000_100,
+        )
+
+
+def test_webapp_init_data_validation_rejects_expired_payload() -> None:
+    with pytest.raises(RuntimeError, match="Init data is expired"):
+        validate_webapp_init_data(
+            _signed_init_data("bot-token", auth_date=1_800_000_000),
+            bot_token="bot-token",
+            now=1_800_100_000,
+        )
+
+
+def test_webapp_init_data_validation_rejects_missing_hash() -> None:
+    payload_without_hash = "&".join(
+        part for part in _signed_init_data("bot-token").split("&") if not part.startswith("hash=")
+    )
+
+    with pytest.raises(RuntimeError, match="Missing init data hash"):
+        validate_webapp_init_data(
+            payload_without_hash,
             bot_token="bot-token",
             now=1_800_000_100,
         )

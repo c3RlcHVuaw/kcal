@@ -3,6 +3,12 @@ set -eu
 
 python_bin="${PYTHON:-}"
 if [ -z "$python_bin" ]; then
+  if [ -x ".venv/bin/python" ]; then
+    python_bin=".venv/bin/python"
+  fi
+fi
+
+if [ -z "$python_bin" ]; then
   for candidate in python3.12 python python3; do
     if command -v "$candidate" >/dev/null 2>&1; then
       python_bin="$candidate"
@@ -21,14 +27,11 @@ fi
   exit 1
 }
 
-for tool in ruff pytest docker; do
-  if ! command -v "$tool" >/dev/null 2>&1; then
-    echo "$tool is required for validation but was not found." >&2
-    exit 1
-  fi
-done
-
 "$python_bin" -m compileall src tests migrations
-ruff check src migrations tests
-pytest -q
-docker compose config
+"$python_bin" -m ruff check src migrations tests
+"$python_bin" -m pytest -q
+if command -v docker >/dev/null 2>&1; then
+  docker compose config
+else
+  echo "docker was not found; skipping docker compose config." >&2
+fi

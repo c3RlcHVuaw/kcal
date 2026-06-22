@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -14,7 +15,7 @@ from kcal_tracker.api.routes import router
 from kcal_tracker.config import settings, validate_production_settings
 from kcal_tracker.logging import configure_logging
 
-configure_logging(settings.log_level)
+configure_logging(settings.log_level, settings.log_format)
 logger = logging.getLogger(__name__)
 
 
@@ -109,12 +110,14 @@ async def sitemap_xml() -> Response:
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     started_at = time.perf_counter()
+    request_id = request.headers.get("x-request-id") or uuid.uuid4().hex
     try:
         response = await call_next(request)
     except Exception:
         duration_ms = (time.perf_counter() - started_at) * 1000
         logger.exception(
-            "Unhandled request error method=%s path=%s duration_ms=%.1f",
+            "Unhandled request error request_id=%s method=%s path=%s duration_ms=%.1f",
+            request_id,
             request.method,
             request.url.path,
             duration_ms,
@@ -122,12 +125,14 @@ async def log_requests(request: Request, call_next):
         raise
 
     duration_ms = (time.perf_counter() - started_at) * 1000
+    response.headers.setdefault("X-Request-ID", request_id)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     if request.url.path.startswith(("/app/static/", "/landing/static/")):
         response.headers.setdefault("Cache-Control", "public, max-age=604800, immutable")
     logger.info(
-        "Request completed method=%s path=%s status=%s duration_ms=%.1f",
+        "Request completed request_id=%s method=%s path=%s status=%s duration_ms=%.1f",
+        request_id,
         request.method,
         request.url.path,
         response.status_code,
