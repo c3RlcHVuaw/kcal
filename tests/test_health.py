@@ -26,6 +26,18 @@ def test_request_id_header_is_preserved() -> None:
     assert response.headers["x-request-id"] == "test-request-123"
 
 
+def test_metrics_endpoint_exposes_prometheus_text() -> None:
+    with TestClient(app) as client:
+        response = client.get("/metrics")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert "# TYPE kcal_app_info gauge" in response.text
+    assert 'kcal_app_info{version="0.1.0",env="' in response.text
+    assert "kcal_uptime_seconds" in response.text
+    assert "kcal_health 1" in response.text
+
+
 def test_webapp_shell_is_served() -> None:
     with TestClient(app) as client:
         response = client.get("/app")

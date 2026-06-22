@@ -17,6 +17,7 @@ from kcal_tracker.logging import configure_logging
 
 configure_logging(settings.log_level, settings.log_format)
 logger = logging.getLogger(__name__)
+STARTED_AT = time.time()
 
 
 @asynccontextmanager
@@ -57,6 +58,26 @@ async def telegram_food_diary_landing() -> FileResponse:
 @app.get("/app", include_in_schema=False)
 async def telegram_webapp() -> FileResponse:
     return FileResponse(WEBAPP_STATIC_DIR / "index.html")
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics() -> PlainTextResponse:
+    uptime_seconds = max(time.time() - STARTED_AT, 0)
+    content = "\n".join(
+        [
+            "# HELP kcal_app_info Application build metadata.",
+            "# TYPE kcal_app_info gauge",
+            f'kcal_app_info{{version="{app.version}",env="{settings.app_env}"}} 1',
+            "# HELP kcal_uptime_seconds Seconds since application process start.",
+            "# TYPE kcal_uptime_seconds gauge",
+            f"kcal_uptime_seconds {uptime_seconds:.3f}",
+            "# HELP kcal_health Static application health indicator.",
+            "# TYPE kcal_health gauge",
+            "kcal_health 1",
+            "",
+        ]
+    )
+    return PlainTextResponse(content, media_type="text/plain; version=0.0.4; charset=utf-8")
 
 
 @app.get("/robots.txt", include_in_schema=False)
