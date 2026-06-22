@@ -815,7 +815,7 @@ def test_day_offset_title_formats_yesterday(monkeypatch) -> None:
         def now(cls, tz=None):
             return cls(2026, 5, 22, 12, 0, tzinfo=tz)
 
-    monkeypatch.setattr("kcal_tracker.bot.handlers.diary.datetime", FixedDateTime)
+    monkeypatch.setattr("kcal_tracker.bot.handlers.diary_formatting.datetime", FixedDateTime)
 
     assert _day_offset_title("Europe/Samara", days_ago=1) == "📊 Вчера, 21.05"
 
