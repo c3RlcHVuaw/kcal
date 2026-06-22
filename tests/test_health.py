@@ -33,6 +33,8 @@ def test_webapp_shell_is_served() -> None:
     assert response.status_code == 200
     assert "Kcal Tracker" in response.text
     assert "tab-bar" in response.text
+    assert "/app/static/app_core.js?v=core-v1-20260622" in response.text
+    assert response.text.index("/app/static/app_core.js") < response.text.index("/app/static/app.js")
 
 
 def test_landing_page_is_served_with_seo_metadata() -> None:
