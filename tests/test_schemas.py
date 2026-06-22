@@ -74,7 +74,7 @@ from kcal_tracker.bot.text_parsing import (
     parse_activity_kcal,
     parse_int_from_text,
 )
-from kcal_tracker.models import Payment, QualityEvent, User
+from kcal_tracker.models import Payment, PromoCode, QualityEvent, User
 from kcal_tracker.schemas import (
     FoodEntryCreate,
     FoodEstimate,
@@ -118,10 +118,13 @@ from kcal_tracker.services.reminders import (
 )
 from kcal_tracker.services.share_cards import _wrap_card_lines
 from kcal_tracker.services.subscriptions import (
+    SUBSCRIPTION_PAYLOAD,
     YOOKASSA_PAYLOAD,
     SubscriptionService,
     _discounted_amount,
     normalize_promo_code,
+    payload_with_promo,
+    promo_is_available,
 )
 from kcal_tracker.services.throttle import ThrottleLimitReached
 
@@ -1350,6 +1353,41 @@ def test_promo_code_helpers_normalize_and_discount() -> None:
     assert normalize_promo_code(" start 20 ") == "START20"
     assert _discounted_amount(299, 20) == 239
     assert _discounted_amount(1, 95) == 1
+
+
+def test_payload_with_promo_keeps_plan_and_normalized_code() -> None:
+    assert payload_with_promo(SUBSCRIPTION_PAYLOAD, "unlimited", " start 20 ") == (
+        "ai_subscription_30d:unlimited:START20"
+    )
+    assert payload_with_promo(SUBSCRIPTION_PAYLOAD, "unknown", None) == "ai_subscription_30d:basic"
+
+
+def test_promo_availability_respects_active_expiry_and_usage_limit() -> None:
+    now = datetime(2026, 6, 22, tzinfo=UTC)
+
+    assert promo_is_available(
+        PromoCode(code="LIVE", discount_percent=20, active=True, expires_at=now + timedelta(days=1)),
+        now=now,
+    )
+    assert not promo_is_available(
+        PromoCode(code="OFF", discount_percent=20, active=False, expires_at=now + timedelta(days=1)),
+        now=now,
+    )
+    assert not promo_is_available(
+        PromoCode(code="OLD", discount_percent=20, active=True, expires_at=now),
+        now=now,
+    )
+    assert not promo_is_available(
+        PromoCode(
+            code="USED",
+            discount_percent=20,
+            active=True,
+            max_uses=3,
+            used_count=3,
+            expires_at=now + timedelta(days=1),
+        ),
+        now=now,
+    )
 
 
 def test_subscription_bonuses_hide_refund_action() -> None:
