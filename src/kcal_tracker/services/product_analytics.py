@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from kcal_tracker.models import LandingEvent, Payment, QualityEvent, User
+from kcal_tracker.models import FoodEntry, LandingEvent, Payment, QualityEvent, User
 
 AI_ACCEPT_EVENTS = {
     "webapp_ai_accept",
@@ -96,6 +96,21 @@ class FunnelMetrics:
         return _ratio(self.successful_payments, self.payment_starts)
 
 
+@dataclass(frozen=True)
+class RetentionMetrics:
+    cohort_users: int
+    d1_users: int
+    d7_users: int
+
+    @property
+    def d1_rate(self) -> float | None:
+        return _ratio(self.d1_users, self.cohort_users)
+
+    @property
+    def d7_rate(self) -> float | None:
+        return _ratio(self.d7_users, self.cohort_users)
+
+
 class ProductAnalyticsService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -148,6 +163,38 @@ class ProductAnalyticsService:
             successful_payments=int(successful_payments or 0),
         )
 
+    async def retention(self, start: datetime, end: datetime) -> RetentionMetrics:
+        user_rows = await self.session.execute(
+            select(User.id, User.created_at).where(User.created_at >= start, User.created_at <= end)
+        )
+        users = {user_id: created_at for user_id, created_at in user_rows.all()}
+        if not users:
+            return RetentionMetrics(cohort_users=0, d1_users=0, d7_users=0)
+
+        max_window_end = max(created_at for created_at in users.values()) + timedelta(days=8)
+        entry_rows = await self.session.execute(
+            select(FoodEntry.user_id, FoodEntry.created_at).where(
+                FoodEntry.user_id.in_(list(users)),
+                FoodEntry.created_at >= start,
+                FoodEntry.created_at < max_window_end,
+            )
+        )
+
+        d1_users: set[int] = set()
+        d7_users: set[int] = set()
+        for user_id, entry_created_at in entry_rows.all():
+            created_at = users[user_id]
+            if _in_day_window(entry_created_at, created_at, day_offset=1):
+                d1_users.add(user_id)
+            if _in_day_window(entry_created_at, created_at, day_offset=7):
+                d7_users.add(user_id)
+
+        return RetentionMetrics(
+            cohort_users=len(users),
+            d1_users=len(d1_users),
+            d7_users=len(d7_users),
+        )
+
     async def _count_landing_events(self, start: datetime, end: datetime, event_type: str) -> int:
         count = await self.session.scalar(
             select(func.count(LandingEvent.id)).where(
@@ -177,3 +224,9 @@ def _ratio(numerator: int, denominator: int) -> float | None:
     if denominator == 0:
         return None
     return numerator / denominator
+
+
+def _in_day_window(value: datetime, start: datetime, *, day_offset: int) -> bool:
+    window_start = start + timedelta(days=day_offset)
+    window_end = window_start + timedelta(days=1)
+    return window_start <= value < window_end

@@ -9,6 +9,7 @@ from kcal_tracker.services.product_analytics import (
     AIQualityMetrics,
     FunnelMetrics,
     ProductAnalyticsService,
+    RetentionMetrics,
 )
 
 
@@ -25,20 +26,28 @@ async def product_analytics_text() -> str:
         today_funnel = await analytics.funnel(today_start, today_end)
         week_funnel = await analytics.funnel(week_start, today_end)
         month_funnel = await analytics.funnel(month_start, today_end)
+        today_retention = await analytics.retention(today_start, today_end)
+        week_retention = await analytics.retention(week_start, today_end)
+        month_retention = await analytics.retention(month_start, today_end)
     return "\n".join(
         [
             "📈 Product analytics",
             "",
-            product_period_text("Сегодня", today_quality, today_funnel),
+            product_period_text("Сегодня", today_quality, today_funnel, today_retention),
             "",
-            product_period_text("7 дней", week_quality, week_funnel),
+            product_period_text("7 дней", week_quality, week_funnel, week_retention),
             "",
-            product_period_text("30 дней", month_quality, month_funnel),
+            product_period_text("30 дней", month_quality, month_funnel, month_retention),
         ]
     )
 
 
-def product_period_text(title: str, quality: AIQualityMetrics, funnel: FunnelMetrics) -> str:
+def product_period_text(
+    title: str,
+    quality: AIQualityMetrics,
+    funnel: FunnelMetrics,
+    retention: RetentionMetrics,
+) -> str:
     return "\n".join(
         [
             title,
@@ -62,6 +71,13 @@ def product_period_text(title: str, quality: AIQualityMetrics, funnel: FunnelMet
                 "Onboarding: "
                 f"{funnel.onboarded_users}/{funnel.new_users} "
                 f"({_optional_percent(funnel.onboarding_rate)})"
+            ),
+            (
+                "Retention: "
+                f"D1 {retention.d1_users}/{retention.cohort_users} "
+                f"({_optional_percent(retention.d1_rate)}), "
+                f"D7 {retention.d7_users}/{retention.cohort_users} "
+                f"({_optional_percent(retention.d7_rate)})"
             ),
             (
                 "Paywall: "

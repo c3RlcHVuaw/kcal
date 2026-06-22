@@ -5,6 +5,7 @@ from kcal_tracker.services.product_analytics import (
     AI_EDIT_EVENTS,
     AIQualityMetrics,
     FunnelMetrics,
+    RetentionMetrics,
 )
 
 
@@ -41,6 +42,20 @@ def test_funnel_metrics_rates() -> None:
     assert metrics.onboarding_rate == 0.75
     assert metrics.paywall_to_payment_start_rate == 0.4
     assert metrics.payment_success_rate == 0.75
+
+
+def test_retention_metrics_rates() -> None:
+    metrics = RetentionMetrics(cohort_users=20, d1_users=8, d7_users=5)
+
+    assert metrics.d1_rate == 0.4
+    assert metrics.d7_rate == 0.25
+
+
+def test_retention_metrics_rates_are_empty_without_cohort() -> None:
+    metrics = RetentionMetrics(cohort_users=0, d1_users=0, d7_users=0)
+
+    assert metrics.d1_rate is None
+    assert metrics.d7_rate is None
 
 
 def test_ai_quality_event_contract_includes_webapp_save_outcomes() -> None:
