@@ -524,6 +524,8 @@ def _score_text_match(query: str, candidate: str, item: FoodCatalogItem) -> floa
         score += 0.12
     if item.source == "curated":
         score += 0.1
+    if query in item.normalized_name and candidate != item.normalized_name:
+        score += 0.16
     score += min(item.trust_score, 1.0) * 0.18
     score += min(item.usage_count, 20) * 0.005
     return score

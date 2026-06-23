@@ -15,7 +15,12 @@ from kcal_tracker.services.brand_lookup import (
     mark_unverified_packaged_estimate,
 )
 from kcal_tracker.services.catalog_import import read_catalog_seed
-from kcal_tracker.services.food_catalog import _can_learn, normalize_food_text, scale_estimate
+from kcal_tracker.services.food_catalog import (
+    _can_learn,
+    _score_text_match,
+    normalize_food_text,
+    scale_estimate,
+)
 from kcal_tracker.services.food_search import estimate_common_food
 from kcal_tracker.services.photo_quality import detect_photo_quality_issue
 
@@ -195,6 +200,38 @@ def test_catalog_learning_rejects_low_confidence_payload() -> None:
     )
 
     assert not _can_learn(payload)
+
+
+def test_catalog_specific_name_beats_generic_alias() -> None:
+    from kcal_tracker.models import FoodCatalogItem
+
+    generic = FoodCatalogItem(
+        food_name="ролл с курицей",
+        normalized_name="ролл с курицей",
+        kcal=210,
+        protein=10,
+        fat=9,
+        carbs=22,
+        source="curated",
+        trust_score=0.95,
+        usage_count=0,
+    )
+    branded = FoodCatalogItem(
+        food_name="ростикс твистер оригинальный",
+        normalized_name="ростикс твистер оригинальный",
+        kcal=570,
+        protein=26,
+        fat=31,
+        carbs=47,
+        source="seed",
+        trust_score=0.82,
+        usage_count=0,
+    )
+
+    generic_score = _score_text_match("твистер", "твистер", generic)
+    branded_score = _score_text_match("твистер", "твистер", branded)
+
+    assert branded_score > generic_score
 
 
 def test_catalog_seed_has_enough_common_foods_and_aliases() -> None:
