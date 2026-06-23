@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026-06-23
+
+- Made CI install Node explicitly and require Mini App JavaScript syntax plus
+  Docker Compose validation in CI runs.
+
 ## 2026-06-15
 
 - Added Mini App first-day guidance for empty and nearly empty diaries so new

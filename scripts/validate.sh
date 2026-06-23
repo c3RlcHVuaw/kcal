@@ -30,14 +30,26 @@ fi
 "$python_bin" -m compileall src tests migrations
 "$python_bin" -m ruff check src migrations tests
 "$python_bin" -m pytest -q
+
+require_node="${VALIDATE_REQUIRE_NODE:-${CI:-false}}"
+require_docker="${VALIDATE_REQUIRE_DOCKER:-${CI:-false}}"
+
 if command -v node >/dev/null 2>&1; then
   node --check src/kcal_tracker/webapp_static/app_core.js
   node --check src/kcal_tracker/webapp_static/app.js
 else
+  if [ "$require_node" = "true" ] || [ "$require_node" = "1" ]; then
+    echo "node is required for webapp JavaScript syntax checks." >&2
+    exit 1
+  fi
   echo "node was not found; skipping webapp JavaScript syntax checks." >&2
 fi
 if command -v docker >/dev/null 2>&1; then
   docker compose config
 else
+  if [ "$require_docker" = "true" ] || [ "$require_docker" = "1" ]; then
+    echo "docker is required for docker compose config validation." >&2
+    exit 1
+  fi
   echo "docker was not found; skipping docker compose config." >&2
 fi
