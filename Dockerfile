@@ -30,6 +30,7 @@ RUN pip install --upgrade pip \
     && rm -rf /wheels
 
 COPY alembic.ini .
+COPY data ./data
 COPY migrations ./migrations
 COPY scripts ./scripts
 RUN chmod +x scripts/entrypoint.sh

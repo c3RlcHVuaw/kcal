@@ -14,6 +14,7 @@ from kcal_tracker.services.brand_lookup import (
     _brand_lookup_queries,
     mark_unverified_packaged_estimate,
 )
+from kcal_tracker.services.catalog_import import read_catalog_seed
 from kcal_tracker.services.food_catalog import _can_learn, normalize_food_text, scale_estimate
 from kcal_tracker.services.food_search import estimate_common_food
 from kcal_tracker.services.photo_quality import detect_photo_quality_issue
@@ -194,6 +195,26 @@ def test_catalog_learning_rejects_low_confidence_payload() -> None:
     )
 
     assert not _can_learn(payload)
+
+
+def test_catalog_seed_has_enough_common_foods_and_aliases() -> None:
+    rows = read_catalog_seed("data/food_catalog_seed.csv")
+
+    assert len(rows) >= 90
+    by_name = {row.name: row for row in rows}
+    assert "гречка вареная" in by_name
+    assert "куриная грудка" in by_name
+    assert "борщ" in by_name
+    assert "сырники" in by_name
+    assert "гречневая каша" in by_name["гречка вареная"].aliases
+    assert by_name["яйцо куриное"].weight_g == 55
+
+
+def test_catalog_seed_normalized_names_are_unique() -> None:
+    rows = read_catalog_seed("data/food_catalog_seed.csv")
+    normalized = [normalize_food_text(row.name) for row in rows]
+
+    assert len(normalized) == len(set(normalized))
 
 
 def _jpeg_bytes(size: tuple[int, int], *, color: int) -> bytes:

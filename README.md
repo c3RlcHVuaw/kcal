@@ -170,6 +170,15 @@ DEPLOY_SSH_COMMAND='ssh -i ~/.ssh/key' \
 RESTORE_CONFIRM=yes ./scripts/restore-db.sh backups/kcal-YYYYMMDDTHHMMSSZ.sql.gz
 ```
 
+### База продуктов
+
+Стартовый каталог продуктов лежит в `data/food_catalog_seed.csv`. Импорт
+идемпотентный: его можно запускать повторно после расширения CSV.
+
+```bash
+python scripts/import-food-catalog.py
+```
+
 ### Правила надежности AI
 
 - AI-оценки приблизительные.
@@ -348,6 +357,15 @@ Restore is destructive and requires an explicit confirmation:
 
 ```bash
 RESTORE_CONFIRM=yes ./scripts/restore-db.sh backups/kcal-YYYYMMDDTHHMMSSZ.sql.gz
+```
+
+### Food Catalog
+
+The starter food catalog lives in `data/food_catalog_seed.csv`. The import is
+idempotent, so it can be re-run after extending the CSV.
+
+```bash
+python scripts/import-food-catalog.py
 ```
 
 ### AI Reliability Rules

@@ -87,6 +87,12 @@ DEPLOY_SSH_COMMAND='ssh -i ~/.ssh/key' \
 
 5. Rebuild and restart the server compose stack.
 6. Verify health, readiness, and container status.
+7. Import or refresh the starter food catalog when `data/food_catalog_seed.csv`
+   changes:
+
+```bash
+docker compose exec -T api python scripts/import-food-catalog.py
+```
 
 Run:
 
