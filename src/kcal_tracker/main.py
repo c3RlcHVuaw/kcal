@@ -35,27 +35,27 @@ app.mount("/app/static", StaticFiles(directory=WEBAPP_STATIC_DIR), name="webapp-
 app.mount("/landing/static", StaticFiles(directory=LANDING_STATIC_DIR), name="landing-static")
 
 
-@app.get("/", include_in_schema=False)
+@app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)
 async def landing() -> FileResponse:
     return FileResponse(LANDING_STATIC_DIR / "index.html")
 
 
-@app.get("/bot-dlya-podscheta-kaloriy", include_in_schema=False)
+@app.api_route("/bot-dlya-podscheta-kaloriy", methods=["GET", "HEAD"], include_in_schema=False)
 async def calorie_counter_bot_landing() -> FileResponse:
     return FileResponse(LANDING_STATIC_DIR / "bot-dlya-podscheta-kaloriy.html")
 
 
-@app.get("/kalorii-po-foto", include_in_schema=False)
+@app.api_route("/kalorii-po-foto", methods=["GET", "HEAD"], include_in_schema=False)
 async def photo_calorie_landing() -> FileResponse:
     return FileResponse(LANDING_STATIC_DIR / "kalorii-po-foto.html")
 
 
-@app.get("/dnevnik-pitaniya-telegram", include_in_schema=False)
+@app.api_route("/dnevnik-pitaniya-telegram", methods=["GET", "HEAD"], include_in_schema=False)
 async def telegram_food_diary_landing() -> FileResponse:
     return FileResponse(LANDING_STATIC_DIR / "dnevnik-pitaniya-telegram.html")
 
 
-@app.get("/app", include_in_schema=False)
+@app.api_route("/app", methods=["GET", "HEAD"], include_in_schema=False)
 async def telegram_webapp() -> FileResponse:
     return FileResponse(WEBAPP_STATIC_DIR / "index.html")
 
@@ -148,7 +148,9 @@ async def log_requests(request: Request, call_next):
     duration_ms = (time.perf_counter() - started_at) * 1000
     response.headers.setdefault("X-Request-ID", request_id)
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Permitted-Cross-Domain-Policies", "none")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), payment=()")
     if request.url.path.startswith(("/app/static/", "/landing/static/")):
         response.headers.setdefault("Cache-Control", "public, max-age=604800, immutable")
     logger.info(

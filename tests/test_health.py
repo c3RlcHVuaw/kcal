@@ -26,6 +26,16 @@ def test_request_id_header_is_preserved() -> None:
     assert response.headers["x-request-id"] == "test-request-123"
 
 
+def test_common_security_headers_are_set() -> None:
+    with TestClient(app) as client:
+        response = client.get("/health")
+
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-permitted-cross-domain-policies"] == "none"
+    assert response.headers["referrer-policy"] == "strict-origin-when-cross-origin"
+    assert response.headers["permissions-policy"] == "geolocation=(), microphone=(), payment=()"
+
+
 def test_metrics_endpoint_exposes_prometheus_text() -> None:
     with TestClient(app) as client:
         response = client.get("/metrics")
@@ -49,6 +59,17 @@ def test_webapp_shell_is_served() -> None:
     assert response.text.index("/app/static/themes.css") < response.text.index("/app/static/styles.css")
     assert "/app/static/app_core.js?v=core-v1-20260622" in response.text
     assert response.text.index("/app/static/app_core.js") < response.text.index("/app/static/app.js")
+
+
+def test_public_html_routes_support_head() -> None:
+    with TestClient(app) as client:
+        landing = client.head("/")
+        webapp = client.head("/app")
+
+    assert landing.status_code == 200
+    assert webapp.status_code == 200
+    assert landing.headers["content-type"].startswith("text/html")
+    assert webapp.headers["content-type"].startswith("text/html")
 
 
 def test_landing_page_is_served_with_seo_metadata() -> None:
