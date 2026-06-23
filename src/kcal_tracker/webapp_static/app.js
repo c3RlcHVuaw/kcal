@@ -607,6 +607,7 @@ nodes.foodSearchResults.addEventListener("click", handleFoodPick);
 nodes.foodAddRecentList.addEventListener("click", handleFoodPick);
 nodes.foodAddFavoritesList.addEventListener("click", handleFoodPick);
 nodes.saveParsedFood.addEventListener("click", saveParsedFoods);
+nodes.foodPreviewList.addEventListener("focusin", captureParsedFoodWeightBase);
 nodes.foodPreviewList.addEventListener("input", updateParsedFoodField);
 nodes.foodPreviewList.addEventListener("click", removeParsedFood);
 nodes.foodPreviewList.addEventListener("submit", refineParsedFood);
@@ -2669,13 +2670,13 @@ function renderParsedFoods(result) {
       <div class="food-content">
         <div class="entry-main">
           <strong>${escapeHtml(food.name || "Еда")}</strong>
-          <b>${Math.round(food.kcal || 0)} ккал</b>
+          <b class="parsed-food-kcal">${Math.round(food.kcal || 0)} ккал</b>
         </div>
         <div class="entry-meta">
-          <span>${food.weight_g ? `${formatNumber(food.weight_g)} г` : "без граммовки"}</span>
-          <span>${Math.round(food.protein || 0)}Б</span>
-          <span>${Math.round(food.fat || 0)}Ж</span>
-          <span>${Math.round(food.carbs || 0)}У</span>
+          <span class="parsed-food-weight">${food.weight_g ? `${formatNumber(food.weight_g)} г` : "без граммовки"}</span>
+          <span class="parsed-food-protein">${Math.round(food.protein || 0)}Б</span>
+          <span class="parsed-food-fat">${Math.round(food.fat || 0)}Ж</span>
+          <span class="parsed-food-carbs">${Math.round(food.carbs || 0)}У</span>
           <span>${escapeHtml(food.source_label || sourceLabel(result.source))}${confidenceLabel(food.confidence)}</span>
         </div>
         <div class="entry-actions parsed-entry-actions">
@@ -3008,7 +3009,67 @@ function updateParsedFoodField(event) {
   const food = state.parsedFoods[index];
   if (!food) return;
   const field = input.dataset.field;
-  food[field] = field === "name" ? input.value.trim() : parseNumber(input.value);
+  if (field === "name") {
+    food.name = input.value.trim();
+    return;
+  }
+
+  const nextValue = parseNumber(input.value);
+  if (field === "weight_g") {
+    updateParsedFoodWeight(food, nextValue, card);
+    return;
+  }
+
+  food[field] = nextValue;
+  updateParsedFoodCardDisplay(card, food);
+}
+
+function captureParsedFoodWeightBase(event) {
+  const input = event.target.closest('[data-field="weight_g"]');
+  if (!input) return;
+  const card = input.closest("[data-index]");
+  const index = Number(card?.dataset.index);
+  const food = state.parsedFoods[index];
+  if (!food) return;
+  food._weightEditBase = {
+    weight_g: numberOrNull(food.weight_g),
+    kcal: numberOrNull(food.kcal) ?? 0,
+    protein: numberOrNull(food.protein) ?? 0,
+    fat: numberOrNull(food.fat) ?? 0,
+    carbs: numberOrNull(food.carbs) ?? 0,
+  };
+}
+
+function updateParsedFoodWeight(food, nextWeight, card) {
+  const base = food._weightEditBase || food;
+  const baseWeight = numberOrNull(base.weight_g);
+  if (baseWeight && baseWeight > 0 && nextWeight && nextWeight > 0) {
+    const scale = nextWeight / baseWeight;
+    ["kcal", "protein", "fat", "carbs"].forEach((field) => {
+      food[field] = scaledValue(base[field], scale);
+      const fieldInput = card.querySelector(`[data-field="${field}"]`);
+      if (fieldInput) fieldInput.value = formatInput(food[field]);
+    });
+  }
+  food.weight_g = nextWeight;
+  updateParsedFoodCardDisplay(card, food);
+}
+
+function updateParsedFoodCardDisplay(card, food) {
+  const kcal = Math.round(food.kcal || 0);
+  const weight = food.weight_g ? `${formatNumber(food.weight_g)} г` : "без граммовки";
+  const reviewWeight = food.weight_g ? `${formatNumber(food.weight_g)} г` : "граммы не указаны";
+  const setText = (selector, text) => {
+    const node = card.querySelector(selector);
+    if (node) node.textContent = text;
+  };
+  setText(".parsed-food-kcal", `${kcal} ккал`);
+  setText(".parsed-food-weight", weight);
+  setText(".parsed-food-protein", `${Math.round(food.protein || 0)}Б`);
+  setText(".parsed-food-fat", `${Math.round(food.fat || 0)}Ж`);
+  setText(".parsed-food-carbs", `${Math.round(food.carbs || 0)}У`);
+  setText(".review-preview-summary strong", `${kcal} ккал`);
+  setText(".review-preview-summary span", reviewWeight);
 }
 
 function removeParsedFood(event) {
