@@ -156,6 +156,14 @@ LOAD_SMOKE_REQUESTS=200 LOAD_SMOKE_CONCURRENCY=12 ./scripts/load-smoke.sh https:
 ./scripts/backup-db.sh
 ```
 
+Для загрузки проекта на сервер используйте helper, который исключает секреты,
+локальные кеши и серверные `backups/` даже при `rsync --delete`:
+
+```bash
+DEPLOY_SSH_COMMAND='ssh -i ~/.ssh/key' \
+  ./scripts/deploy-upload.sh user@server:/opt/kcal-tracker/
+```
+
 Восстановление намеренно требует явного подтверждения:
 
 ```bash
@@ -319,18 +327,22 @@ Server deploy helper:
 ./scripts/post-deploy.sh https://your-api.example.com
 ```
 
+Upload helper:
+
+```bash
+DEPLOY_SSH_COMMAND='ssh -i ~/.ssh/key' \
+  ./scripts/deploy-upload.sh user@server:/opt/kcal-tracker/
+```
+
 ### Backup and Restore
 
 ```bash
 ./scripts/backup-db.sh
 ```
 
-When syncing with `rsync --delete`, always exclude `backups/` so server-side
-database dumps are not removed:
-
-```bash
-rsync -az --delete --exclude backups/ ./ user@server:/opt/kcal-tracker/
-```
+Use `scripts/deploy-upload.sh` for server uploads. It excludes secrets, local
+caches, generated artifacts, and server-side `backups/` while using
+`rsync --delete`.
 
 Restore is destructive and requires an explicit confirmation:
 
