@@ -5,12 +5,12 @@ from types import SimpleNamespace
 from fastapi import HTTPException
 from starlette.requests import Request
 
+from kcal_tracker.admin_bot.launch import landing_contains, launch_text
 from kcal_tracker.admin_bot.main import (
     _broadcast_segment_allowed,
     _broadcast_segment_keyboard,
     _compact_event_details,
     _funnel_period_text,
-    _landing_contains,
     _landing_period_text,
     _payment_line,
     _paywall_variant_lines,
@@ -437,8 +437,25 @@ def test_admin_landing_formats_click_rate() -> None:
 
 
 def test_admin_landing_check_reads_packaged_static_file() -> None:
-    assert _landing_contains("109917758") is True
-    assert _landing_contains("definitely-not-in-landing") is False
+    assert landing_contains("109917758") is True
+    assert landing_contains("definitely-not-in-landing") is False
+
+
+def test_admin_launch_text_formats_check_results(monkeypatch) -> None:
+    async def fake_launch_checks() -> list[tuple[str, bool, str]]:
+        return [
+            ("API readiness", True, "database=True, redis=True"),
+            ("Fresh backup", False, "no .sql.gz in /app/backups"),
+        ]
+
+    monkeypatch.setattr("kcal_tracker.admin_bot.launch.launch_checks", fake_launch_checks)
+
+    text = asyncio.run(launch_text())
+
+    assert "Готово: 1/2" in text
+    assert "✅ API readiness: database=True, redis=True" in text
+    assert "⚠️ Fresh backup: no .sql.gz in /app/backups" in text
+    assert "Перед трафиком" in text
 
 
 def test_admin_broadcast_all_segment_is_disabled_by_default(monkeypatch) -> None:

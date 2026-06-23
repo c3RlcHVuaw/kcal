@@ -2,6 +2,8 @@
 
 ## 2026-06-23
 
+- Split admin launch readiness checks into a dedicated module with focused
+  formatting coverage.
 - Switched the production Docker image to a multi-stage wheel build so runtime
   containers no longer install development tools, and made admin launch checks
   read packaged landing assets.
