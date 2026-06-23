@@ -39,7 +39,8 @@ until docker exec "$container" psql -v ON_ERROR_STOP=1 -U kcal -d kcal -c "SELEC
   sleep 1
 done
 
-gzip -dc "$backup" | docker exec -i "$container" psql -v ON_ERROR_STOP=1 -U kcal -d kcal >/dev/null
+gzip -dc "$backup" | docker exec -i "$container" \
+  psql -v ON_ERROR_STOP=1 --single-transaction -U kcal -d kcal >/dev/null
 docker exec "$container" psql -v ON_ERROR_STOP=1 -U kcal -d kcal -c "SELECT 1" >/dev/null
 
 echo "Restore check passed for $backup"

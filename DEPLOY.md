@@ -119,6 +119,10 @@ Restores are destructive. Run only with an explicit confirmation:
 RESTORE_CONFIRM=yes ./scripts/restore-db.sh backups/kcal-YYYYMMDDTHHMMSSZ.sql.gz
 ```
 
+The restore script verifies gzip integrity and runs `psql` with
+`ON_ERROR_STOP=1 --single-transaction` so SQL errors fail the restore instead
+of leaving a partial import.
+
 To test a backup without touching production data, restore it into a temporary
 Postgres container:
 

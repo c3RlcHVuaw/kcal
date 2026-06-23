@@ -20,5 +20,6 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 gzip -t "$backup"
-gzip -dc "$backup" | docker compose exec -T postgres psql -U kcal -d kcal
+gzip -dc "$backup" | docker compose exec -T postgres \
+  psql -v ON_ERROR_STOP=1 --single-transaction -U kcal -d kcal
 echo "Database restore completed from $backup"
