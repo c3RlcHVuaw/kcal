@@ -91,6 +91,12 @@ Run:
 ./scripts/post-deploy.sh https://your-api.example.com
 ```
 
+For a container-only check, run:
+
+```bash
+./scripts/check-compose.sh
+```
+
 Before sending real traffic, run a short load smoke check:
 
 ```bash

@@ -29,6 +29,9 @@ fi
 
 "$python_bin" -m compileall src tests migrations
 "$python_bin" -m ruff check src migrations tests
+for script in scripts/*.sh; do
+  sh -n "$script"
+done
 "$python_bin" -m pytest -q
 
 require_node="${VALIDATE_REQUIRE_NODE:-${CI:-false}}"
