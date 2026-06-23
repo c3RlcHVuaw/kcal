@@ -325,6 +325,13 @@ Server deploy helper:
 ./scripts/backup-db.sh
 ```
 
+When syncing with `rsync --delete`, always exclude `backups/` so server-side
+database dumps are not removed:
+
+```bash
+rsync -az --delete --exclude backups/ ./ user@server:/opt/kcal-tracker/
+```
+
 Restore is destructive and requires an explicit confirmation:
 
 ```bash
