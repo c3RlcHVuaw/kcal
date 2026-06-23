@@ -2683,23 +2683,23 @@ function renderParsedFoods(result) {
           <button type="button" data-remove-parsed="${index}" aria-label="Удалить ${escapeHtml(food.name)}">Удалить</button>
         </div>
         ${renderPackagedVerificationNote(food)}
-        <div class="parsed-food-editor" ${state.expandedParsedFood === index ? "" : "hidden"}>
-          <label class="wide-field compact-fields">
+        <div class="parsed-food-editor review-edit-card" ${state.expandedParsedFood === index ? "" : "hidden"}>
+          <label class="review-edit-field review-name-field">
             <span>Название</span>
             <input data-field="name" value="${escapeHtml(food.name)}" aria-label="Название" />
           </label>
-          <div class="preview-summary">
+          <div class="preview-summary review-preview-summary">
             <strong>${Math.round(food.kcal || 0)} ккал</strong>
             <span>${food.weight_g ? `${formatNumber(food.weight_g)} г` : "граммы не указаны"}</span>
           </div>
-          <div class="field-row compact-fields">
-            <label><span>ккал</span><input data-field="kcal" inputmode="decimal" value="${formatInput(food.kcal)}" /></label>
-            <label><span>граммы</span><input data-field="weight_g" inputmode="decimal" value="${formatInput(food.weight_g)}" /></label>
+          <div class="review-edit-row">
+            <label class="review-edit-field"><span>ккал</span><input data-field="kcal" inputmode="decimal" value="${formatInput(food.kcal)}" /></label>
+            <label class="review-edit-field"><span>граммы</span><input data-field="weight_g" inputmode="decimal" value="${formatInput(food.weight_g)}" /></label>
           </div>
-          <div class="field-row three compact-fields">
-            <label><span>Б</span><input data-field="protein" inputmode="decimal" value="${formatInput(food.protein)}" /></label>
-            <label><span>Ж</span><input data-field="fat" inputmode="decimal" value="${formatInput(food.fat)}" /></label>
-            <label><span>У</span><input data-field="carbs" inputmode="decimal" value="${formatInput(food.carbs)}" /></label>
+          <div class="review-macro-grid" aria-label="БЖУ">
+            <label class="review-edit-field macro-protein"><span>Б</span><input data-field="protein" inputmode="decimal" value="${formatInput(food.protein)}" /></label>
+            <label class="review-edit-field macro-fat"><span>Ж</span><input data-field="fat" inputmode="decimal" value="${formatInput(food.fat)}" /></label>
+            <label class="review-edit-field macro-carbs"><span>У</span><input data-field="carbs" inputmode="decimal" value="${formatInput(food.carbs)}" /></label>
           </div>
           <div class="portion-actions">
             <button type="button" data-index="${index}" data-scale-parsed="0.5">1/2</button>
