@@ -94,6 +94,14 @@ DEPLOY_SSH_COMMAND='ssh -i ~/.ssh/key' \
 docker compose exec -T api python scripts/import-food-catalog.py
 ```
 
+8. Review real catalog gaps from recent quality events and add the highest-value
+   missing foods through the admin bot or seed CSV:
+
+```bash
+docker compose exec -T api python scripts/catalog-gaps.py --days 14 --limit 20
+docker compose exec -T api python scripts/catalog-gaps.py --format csv > catalog-gaps.csv
+```
+
 Run:
 
 ```bash

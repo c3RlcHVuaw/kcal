@@ -46,6 +46,7 @@ from kcal_tracker.models import (
     WaterLog,
     WeightLog,
 )
+from kcal_tracker.services import catalog_gaps
 from kcal_tracker.services.admin_alerts import admin_alert_loop
 from kcal_tracker.services.diary import DiaryService
 from kcal_tracker.services.food_catalog import normalize_food_text
@@ -1482,6 +1483,7 @@ async def _products_text() -> str:
             .order_by(func.count(QualityEvent.id).desc())
             .limit(8)
         )
+        gaps = await catalog_gaps.catalog_gap_report(session, days=14, limit=6)
 
     counts = {event_type: int(count or 0) for event_type, count in event_counts}
     lines = [
@@ -1507,6 +1509,15 @@ async def _products_text() -> str:
     else:
         lines.append("нет")
 
+    lines.extend(["", "Главные пробелы базы за 14 дней:"])
+    if gaps:
+        for gap in gaps:
+            status = "есть в базе" if gap.already_known else "нет в базе"
+            ready = f", {gap.ready_count} готовых" if gap.ready_count else ""
+            lines.append(f"· {gap.label[:44]}: {gap.count}×, score {gap.score} ({status}{ready})")
+    else:
+        lines.append("нет")
+
     lines.extend(["", "Последние сигналы:"])
     events = list(recent.scalars())
     if not events:
@@ -1518,7 +1529,7 @@ async def _products_text() -> str:
 
 async def _product_queue_text() -> tuple[str, list[int]]:
     since = datetime.now(UTC) - timedelta(days=14)
-    event_types = _product_queue_event_types()
+    event_types = catalog_gaps.PRODUCT_QUEUE_EVENT_TYPES
     async with SessionLocal() as session:
         result = await session.execute(
             select(QualityEvent)
@@ -1532,7 +1543,10 @@ async def _product_queue_text() -> tuple[str, list[int]]:
         if not isinstance(event.details, dict)
         or event.details.get("product_queue_status") != "ignored"
     ]
-    candidates.sort(key=lambda event: (_product_queue_weight(event), event.created_at), reverse=True)
+    candidates.sort(
+        key=lambda event: (catalog_gaps.product_queue_weight(event), event.created_at),
+        reverse=True,
+    )
     events = candidates[:8]
 
     lines = [
@@ -1609,30 +1623,11 @@ def _product_queue_event_types() -> tuple[str, ...]:
 
 
 def _event_foods(event: QualityEvent) -> list[dict]:
-    details = event.details if isinstance(event.details, dict) else {}
-    foods = details.get("foods")
-    if isinstance(foods, list):
-        return [food for food in foods if isinstance(food, dict)]
-    return []
+    return catalog_gaps.event_foods(event)
 
 
 def _product_add_command_for_event(event: QualityEvent) -> str | None:
-    food = _event_foods(event)[0] if _event_foods(event) else None
-    if food is None:
-        return None
-    name = _food_value(food, "name", event.query or "").strip()
-    kcal = _num_value(food, "kcal")
-    protein = _num_value(food, "protein")
-    fat = _num_value(food, "fat")
-    carbs = _num_value(food, "carbs")
-    weight_g = _num_value(food, "weight_g")
-    if not name or kcal <= 0 or weight_g <= 0:
-        return None
-    aliases = _product_aliases_for_event(event, name)
-    return (
-        f"/product_add {name[:120]};{_fmt_num(kcal)};{_fmt_num(protein)};"
-        f"{_fmt_num(fat)};{_fmt_num(carbs)};{_fmt_num(weight_g)};{aliases}"
-    )
+    return catalog_gaps.product_add_command_for_event(event)
 
 
 def _product_aliases_for_event(event: QualityEvent, name: str) -> str:

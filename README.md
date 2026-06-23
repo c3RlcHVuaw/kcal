@@ -179,6 +179,15 @@ RESTORE_CONFIRM=yes ./scripts/restore-db.sh backups/kcal-YYYYMMDDTHHMMSSZ.sql.gz
 python scripts/import-food-catalog.py
 ```
 
+Приоритетные пробелы базы берутся из quality events: не найденные продукты,
+отклонения AI и неподтвержденные упаковки. На сервере можно быстро посмотреть,
+что добавлять следующим:
+
+```bash
+python scripts/catalog-gaps.py --days 14 --limit 20
+python scripts/catalog-gaps.py --format csv > catalog-gaps.csv
+```
+
 ### Правила надежности AI
 
 - AI-оценки приблизительные.
@@ -366,6 +375,14 @@ idempotent, so it can be re-run after extending the CSV.
 
 ```bash
 python scripts/import-food-catalog.py
+```
+
+Catalog gaps are ranked from quality events such as missing foods, AI rejects,
+and unverified packaged products. On the server, use:
+
+```bash
+python scripts/catalog-gaps.py --days 14 --limit 20
+python scripts/catalog-gaps.py --format csv > catalog-gaps.csv
 ```
 
 ### AI Reliability Rules
