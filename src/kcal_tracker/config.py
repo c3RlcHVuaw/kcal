@@ -125,6 +125,7 @@ def parse_admin_ids(value: str) -> set[int]:
 
 PRODUCTION_REQUIRED_SETTINGS = {
     "TELEGRAM_BOT_TOKEN": "telegram_bot_token",
+    "ADMIN_BOT_TOKEN": "admin_bot_token",
     "OPENAI_API_KEY": "openai_api_key",
     "PUBLIC_API_URL": "public_api_url",
     "DATABASE_URL": "database_url",
@@ -146,6 +147,8 @@ def validate_production_settings(settings_obj: Settings = settings) -> None:
     if missing:
         joined = ", ".join(missing)
         raise RuntimeError(f"Missing required production settings: {joined}")
+
+    parse_admin_ids(settings_obj.admin_telegram_ids)
 
     parsed_public_url = urlparse(settings_obj.public_api_url)
     if parsed_public_url.scheme not in {"http", "https"} or not parsed_public_url.netloc:

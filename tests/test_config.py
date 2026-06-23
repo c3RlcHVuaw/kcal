@@ -36,6 +36,7 @@ def test_validate_production_settings_reports_missing_required_values() -> None:
     settings = Settings(
         app_env="production",
         telegram_bot_token="",
+        admin_bot_token="",
         openai_api_key="",
         public_api_url="",
         database_url="",
@@ -47,6 +48,7 @@ def test_validate_production_settings_reports_missing_required_values() -> None:
 
     message = str(exc_info.value)
     assert "TELEGRAM_BOT_TOKEN" in message
+    assert "ADMIN_BOT_TOKEN" in message
     assert "OPENAI_API_KEY" in message
     assert "PUBLIC_API_URL" in message
     assert "DATABASE_URL" in message
@@ -57,6 +59,7 @@ def test_validate_production_settings_rejects_local_public_api_url() -> None:
     settings = Settings(
         app_env="production",
         telegram_bot_token="telegram-token",
+        admin_bot_token="admin-token",
         openai_api_key="openai-key",
         public_api_url="http://127.0.0.1:3100",
         database_url="postgresql+asyncpg://user:pass@postgres:5432/kcal",
@@ -71,6 +74,7 @@ def test_validate_production_settings_rejects_relative_public_api_url() -> None:
     settings = Settings(
         app_env="production",
         telegram_bot_token="telegram-token",
+        admin_bot_token="admin-token",
         openai_api_key="openai-key",
         public_api_url="/api",
         database_url="postgresql+asyncpg://user:pass@postgres:5432/kcal",
@@ -85,6 +89,7 @@ def test_validate_production_settings_accepts_required_values() -> None:
     settings = Settings(
         app_env="production",
         telegram_bot_token="telegram-token",
+        admin_bot_token="admin-token",
         openai_api_key="openai-key",
         public_api_url="https://kcal.example.com",
         database_url="postgresql+asyncpg://user:pass@postgres:5432/kcal",
@@ -92,6 +97,22 @@ def test_validate_production_settings_accepts_required_values() -> None:
     )
 
     validate_production_settings(settings)
+
+
+def test_validate_production_settings_rejects_invalid_admin_ids() -> None:
+    settings = Settings(
+        app_env="production",
+        telegram_bot_token="telegram-token",
+        admin_bot_token="admin-token",
+        admin_telegram_ids="123,nope",
+        openai_api_key="openai-key",
+        public_api_url="https://kcal.example.com",
+        database_url="postgresql+asyncpg://user:pass@postgres:5432/kcal",
+        redis_url="redis://redis:6379/0",
+    )
+
+    with pytest.raises(RuntimeError, match="ADMIN_TELEGRAM_IDS"):
+        validate_production_settings(settings)
 
 
 def test_parse_admin_ids_accepts_commas_and_semicolons() -> None:
