@@ -20,13 +20,26 @@ logger = logging.getLogger(__name__)
 STARTED_AT = time.time()
 
 
+def _interactive_docs_urls(*, is_production: bool) -> tuple[str | None, str | None]:
+    if is_production:
+        return None, None
+    return "/docs", "/redoc"
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     validate_production_settings()
     yield
 
 
-app = FastAPI(title="Kcal Tracker API", version="0.1.0", lifespan=lifespan)
+docs_url, redoc_url = _interactive_docs_urls(is_production=settings.is_production)
+app = FastAPI(
+    title="Kcal Tracker API",
+    version="0.1.0",
+    lifespan=lifespan,
+    docs_url=docs_url,
+    redoc_url=redoc_url,
+)
 app.include_router(router)
 
 WEBAPP_STATIC_DIR = Path(__file__).resolve().parent / "webapp_static"

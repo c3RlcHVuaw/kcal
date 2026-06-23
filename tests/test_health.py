@@ -6,7 +6,7 @@ from types import SimpleNamespace
 from fastapi.testclient import TestClient
 
 from kcal_tracker.api import routes
-from kcal_tracker.main import app
+from kcal_tracker.main import _interactive_docs_urls, app
 
 
 def test_health_returns_ok() -> None:
@@ -124,6 +124,11 @@ def test_openapi_exposes_external_client_routes() -> None:
     assert "/webapp/me/weekly-missions/claim" in paths
     assert "/webapp/me/activity" in paths
     assert "/webapp/me/exports/food.csv" in paths
+
+
+def test_interactive_docs_are_disabled_in_production() -> None:
+    assert _interactive_docs_urls(is_production=True) == (None, None)
+    assert _interactive_docs_urls(is_production=False) == ("/docs", "/redoc")
 
 
 def test_legacy_api_is_disabled_in_production_without_token(monkeypatch) -> None:
