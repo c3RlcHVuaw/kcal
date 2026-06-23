@@ -61,6 +61,8 @@ from kcal_tracker.services.users import UserService
 
 logger = logging.getLogger(__name__)
 router = Router()
+PACKAGE_DIR = Path(__file__).resolve().parents[1]
+LANDING_STATIC_DIR = PACKAGE_DIR / "landing_static"
 
 QUALITY_NOT_IT_EVENTS = ("food_not_it", "webapp_ai_reject")
 QUALITY_AI_FAILED_EVENTS = ("food_ai_failed", "webapp_ai_failed")
@@ -2161,7 +2163,7 @@ def _latest_backup_status() -> tuple[bool, str]:
 
 
 def _landing_contains(text: str) -> bool:
-    index_path = Path("src/kcal_tracker/landing_static/index.html")
+    index_path = LANDING_STATIC_DIR / "index.html"
     try:
         return text in index_path.read_text(encoding="utf-8")
     except OSError:

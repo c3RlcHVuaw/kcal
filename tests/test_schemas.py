@@ -10,6 +10,7 @@ from kcal_tracker.admin_bot.main import (
     _broadcast_segment_keyboard,
     _compact_event_details,
     _funnel_period_text,
+    _landing_contains,
     _landing_period_text,
     _payment_line,
     _paywall_variant_lines,
@@ -433,6 +434,11 @@ def test_admin_landing_formats_click_rate() -> None:
     assert "Визиты: 100" in text
     assert "Уникальные: 72" in text
     assert "Клики в Telegram: 12 (12%)" in text
+
+
+def test_admin_landing_check_reads_packaged_static_file() -> None:
+    assert _landing_contains("109917758") is True
+    assert _landing_contains("definitely-not-in-landing") is False
 
 
 def test_admin_broadcast_all_segment_is_disabled_by_default(monkeypatch) -> None:

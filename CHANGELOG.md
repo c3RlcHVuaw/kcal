@@ -2,6 +2,9 @@
 
 ## 2026-06-23
 
+- Switched the production Docker image to a multi-stage wheel build so runtime
+  containers no longer install development tools, and made admin launch checks
+  read packaged landing assets.
 - Made CI install Node explicitly and require Mini App JavaScript syntax plus
   Docker Compose validation in CI runs.
 
