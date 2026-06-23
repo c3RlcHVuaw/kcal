@@ -34,6 +34,8 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://kcal:kcal@127.0.0.1:5432/kcal
       REDIS_URL: redis://127.0.0.1:6379/0
       TELEGRAM_BOT_TOKEN: test-token
+      ADMIN_BOT_TOKEN: test-admin-token
+      ADMIN_TELEGRAM_IDS: "123456"
       OPENAI_API_KEY: test-key
     steps:
       - uses: actions/checkout@v4
@@ -56,3 +58,8 @@ jobs:
         run: cp .env.example .env
       - name: Validate
         run: ./scripts/validate.sh
+      - name: Production settings preflight
+        env:
+          APP_ENV: production
+          PUBLIC_API_URL: https://kcal.example.com
+        run: python -c "from kcal_tracker.config import validate_production_settings; validate_production_settings()"
