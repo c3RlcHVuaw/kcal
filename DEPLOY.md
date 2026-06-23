@@ -20,6 +20,7 @@ OPENAI_MONTHLY_BUDGET_USD=
 OPENAI_REMAINING_ALERT_USD=2
 OPENAI_API_KEY=
 DATABASE_URL=
+POSTGRES_PASSWORD=
 REDIS_URL=
 ```
 
@@ -31,6 +32,8 @@ OpenAI organization Costs endpoint. Otherwise it falls back to `OPENAI_API_KEY`.
 Set `OPENAI_MONTHLY_BUDGET_USD` to enable "remaining budget" alerts. For example,
 with `OPENAI_REMAINING_ALERT_USD=2`, admins get a Telegram alert when the current
 month's OpenAI spend leaves about $2 or less from that budget.
+`POSTGRES_PASSWORD` must match the password embedded in `DATABASE_URL`; keep it
+in the server `.env` or your secret manager, never in git.
 
 Optional admin alert tuning:
 
