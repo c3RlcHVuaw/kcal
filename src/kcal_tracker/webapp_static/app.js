@@ -2685,14 +2685,20 @@ function renderParsedFoods(result) {
         </div>
         ${renderPackagedVerificationNote(food)}
         <div class="parsed-food-editor review-edit-card" ${state.expandedParsedFood === index ? "" : "hidden"}>
+          <div class="review-editor-head">
+            <div>
+              <span>Проверь позицию</span>
+              <strong>${escapeHtml(food.name || "Еда")}</strong>
+            </div>
+            <div class="review-preview-summary">
+              <strong>${Math.round(food.kcal || 0)} ккал</strong>
+              <span>${food.weight_g ? `${formatNumber(food.weight_g)} г` : "без граммовки"}</span>
+            </div>
+          </div>
           <label class="review-edit-field review-name-field">
             <span>Название</span>
             <input data-field="name" value="${escapeHtml(food.name)}" aria-label="Название" />
           </label>
-          <div class="preview-summary review-preview-summary">
-            <strong>${Math.round(food.kcal || 0)} ккал</strong>
-            <span>${food.weight_g ? `${formatNumber(food.weight_g)} г` : "граммы не указаны"}</span>
-          </div>
           <div class="review-edit-row">
             <label class="review-edit-field"><span>ккал</span><input data-field="kcal" inputmode="decimal" value="${formatInput(food.kcal)}" /></label>
             <label class="review-edit-field"><span>граммы</span><input data-field="weight_g" inputmode="decimal" value="${formatInput(food.weight_g)}" /></label>
