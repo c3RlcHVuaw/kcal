@@ -2680,30 +2680,24 @@ function renderParsedFoods(result) {
           <span>${escapeHtml(food.source_label || sourceLabel(result.source))}${confidenceLabel(food.confidence)}</span>
         </div>
         <div class="entry-actions parsed-entry-actions">
-          <button type="button" data-toggle-parsed="${index}">${state.expandedParsedFood === index ? "Свернуть" : "Изменить"}</button>
-          <button type="button" data-remove-parsed="${index}" aria-label="Удалить ${escapeHtml(food.name)}">Удалить</button>
+          <button class="review-icon-action" type="button" data-toggle-parsed="${index}" aria-label="${state.expandedParsedFood === index ? "Свернуть" : "Изменить"} ${escapeHtml(food.name || "еду")}">
+            <svg><use href="#${state.expandedParsedFood === index ? "icon-chevron" : "icon-edit"}"></use></svg>
+            <span>${state.expandedParsedFood === index ? "Свернуть" : "Изменить"}</span>
+          </button>
+          <button class="review-icon-action danger" type="button" data-remove-parsed="${index}" aria-label="Удалить ${escapeHtml(food.name)}">
+            <svg><use href="#icon-trash"></use></svg>
+            <span>Удалить</span>
+          </button>
         </div>
         ${renderPackagedVerificationNote(food)}
         <div class="parsed-food-editor review-edit-card" ${state.expandedParsedFood === index ? "" : "hidden"}>
-          <div class="review-editor-head">
-            <div>
-              <span>Проверь позицию</span>
-              <strong>${escapeHtml(food.name || "Еда")}</strong>
-            </div>
-            <div class="review-preview-summary">
-              <strong>${Math.round(food.kcal || 0)} ккал</strong>
-              <span>${food.weight_g ? `${formatNumber(food.weight_g)} г` : "без граммовки"}</span>
-            </div>
-          </div>
           <label class="review-edit-field review-name-field">
             <span>Название</span>
             <input data-field="name" value="${escapeHtml(food.name)}" aria-label="Название" />
           </label>
-          <div class="review-edit-row">
+          <div class="review-edit-grid" aria-label="Калории, вес и БЖУ">
             <label class="review-edit-field"><span>ккал</span><input data-field="kcal" inputmode="decimal" value="${formatInput(food.kcal)}" /></label>
             <label class="review-edit-field"><span>граммы</span><input data-field="weight_g" inputmode="decimal" value="${formatInput(food.weight_g)}" /></label>
-          </div>
-          <div class="review-macro-grid" aria-label="БЖУ">
             <label class="review-edit-field macro-protein"><span>Б</span><input data-field="protein" inputmode="decimal" value="${formatInput(food.protein)}" /></label>
             <label class="review-edit-field macro-fat"><span>Ж</span><input data-field="fat" inputmode="decimal" value="${formatInput(food.fat)}" /></label>
             <label class="review-edit-field macro-carbs"><span>У</span><input data-field="carbs" inputmode="decimal" value="${formatInput(food.carbs)}" /></label>

@@ -1728,7 +1728,7 @@ textarea:focus {
   align-content: start;
   align-items: start;
   min-height: calc(100dvh - var(--app-top-pad));
-  gap: var(--space-3);
+  gap: 10px;
   padding-bottom: 0;
 }
 
@@ -1742,10 +1742,10 @@ textarea:focus {
   max-width: 100%;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   margin: calc(var(--app-top-pad) * -1) calc(var(--space-page-x) * -1) 0;
-  padding: calc(var(--app-top-pad) + 8px) var(--space-page-x) 12px;
+  padding: calc(var(--app-top-pad) + 6px) var(--space-page-x) 10px;
   border-bottom: 1px solid var(--line);
   background:
     linear-gradient(180deg, color-mix(in srgb, var(--bg) 94%, transparent), color-mix(in srgb, var(--bg) 86%, transparent)),
@@ -1755,8 +1755,8 @@ textarea:focus {
 }
 
 .food-review-top h2 {
-  font-size: clamp(24px, 7vw, 30px);
-  line-height: 1.04;
+  font-size: 25px;
+  line-height: 1.08;
 }
 
 .review-back-button {
@@ -1764,8 +1764,8 @@ textarea:focus {
   grid-template-columns: 18px auto;
   gap: 6px;
   align-items: center;
-  min-height: 44px;
-  padding: 0 14px;
+  min-height: 40px;
+  padding: 0 13px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--surface-solid);
@@ -1787,7 +1787,7 @@ textarea:focus {
   align-content: start;
   align-items: start;
   width: 100%;
-  gap: 10px;
+  gap: 8px;
   padding-bottom: calc(112px + env(safe-area-inset-bottom));
 }
 
@@ -1798,12 +1798,12 @@ textarea:focus {
 .review-feedback {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  gap: 6px;
 }
 
 .review-feedback button {
-  min-height: 36px;
-  padding: 0 10px;
+  min-height: 32px;
+  padding: 0 8px;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--surface-solid);
@@ -1824,7 +1824,7 @@ textarea:focus {
   align-content: start;
   align-items: start;
   width: 100%;
-  gap: 10px;
+  gap: 8px;
 }
 
 .food-review-page .parsed-food-card {
@@ -1840,10 +1840,10 @@ textarea:focus {
   align-self: start;
   width: 100%;
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  gap: 9px;
+  grid-template-columns: 50px minmax(0, 1fr);
+  gap: 8px;
   min-height: 78px;
-  padding: 10px 12px;
+  padding: 9px;
   border: 1px solid var(--line);
   border-radius: 22px;
   background:
@@ -1853,31 +1853,16 @@ textarea:focus {
   transform-origin: center top;
 }
 
-.food-review-page .parsed-food-card.food-card.is-expanded {
-  grid-template-columns: 44px minmax(0, 1fr);
-  gap: 8px;
-  padding: 9px;
-  border-radius: 18px;
-  box-shadow: var(--shadow-tight);
-}
-
 .food-review-page .parsed-food-card.food-card .food-thumb {
-  width: 54px;
-  height: 54px;
-  border-radius: 17px;
-  font-size: 23px;
-}
-
-.food-review-page .parsed-food-card.food-card.is-expanded .food-thumb {
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
-  font-size: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 16px;
+  font-size: 22px;
 }
 
 .food-review-page .parsed-food-card .entry-main strong {
-  font-size: 16px;
-  line-height: 1.18;
+  font-size: 15px;
+  line-height: 1.16;
 }
 
 .food-review-page .parsed-food-card .entry-main b {
@@ -1887,7 +1872,7 @@ textarea:focus {
 
 .food-review-page .parsed-food-card .entry-meta {
   gap: 5px;
-  margin-top: 6px;
+  margin-top: 5px;
 }
 
 .food-review-page .parsed-food-card .entry-meta span {
@@ -1926,29 +1911,52 @@ textarea:focus {
 }
 
 .parsed-entry-actions {
-  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-  width: 100%;
-  justify-self: stretch;
+  display: flex !important;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 6px !important;
   margin-top: 6px;
 }
 
 .food-review-page .parsed-entry-actions button {
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: var(--radius-pill);
+  width: auto;
+  min-height: 30px;
+  padding: 0 9px;
+  border-radius: 12px;
   font-size: 12px;
+}
+
+.food-review-page .parsed-entry-actions .review-icon-action {
+  display: inline-grid;
+  grid-template-columns: 14px auto;
+  gap: 5px;
+  align-items: center;
+  justify-content: center;
+}
+
+.food-review-page .parsed-entry-actions .review-icon-action svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.food-review-page .parsed-entry-actions .review-icon-action.danger {
+  color: color-mix(in srgb, #e5484d 84%, var(--text));
 }
 
 .parsed-food-editor {
   display: grid;
   grid-column: 1 / -1;
-  gap: 10px;
-  margin-top: 4px;
-  padding: 10px;
-  border-top: 1px solid var(--line);
+  gap: 8px;
+  margin-top: 8px;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line));
   border-radius: 16px;
-  background: color-mix(in srgb, var(--surface-soft) 82%, white);
+  background: color-mix(in srgb, var(--accent) 5%, var(--surface-solid));
   animation: cardIn var(--motion-soft) both;
 }
 
@@ -1956,44 +1964,9 @@ textarea:focus {
   display: none;
 }
 
-.food-review-page .review-edit-card {
-  gap: 10px;
-}
-
-.food-review-page .review-editor-head {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-}
-
-.food-review-page .review-editor-head div:first-child {
-  min-width: 0;
-}
-
-.food-review-page .review-editor-head span {
-  display: block;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 780;
-  line-height: 1.1;
-}
-
-.food-review-page .review-editor-head strong {
-  display: block;
-  overflow: hidden;
-  margin-top: 3px;
-  color: var(--text);
-  font-size: 14px;
-  font-weight: 820;
-  line-height: 1.16;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .food-review-page .review-edit-field {
   display: grid;
-  gap: 5px;
+  gap: 4px;
   min-width: 0;
 }
 
@@ -2008,23 +1981,41 @@ textarea:focus {
 .food-review-page .review-edit-field input {
   width: 100%;
   min-width: 0;
-  min-height: 40px;
-  padding: 0 10px;
-  border-radius: 12px;
-  font-size: 16px;
+  min-height: 38px;
+  padding: 0 9px;
+  border-radius: 11px;
+  font-size: 15px;
   font-weight: 620;
   background: var(--surface-solid);
 }
 
 .food-review-page .review-name-field input {
-  min-height: 40px;
+  min-height: 38px;
   font-size: 15px;
 }
 
-.food-review-page .review-edit-row {
+.food-review-page .review-edit-row,
+.food-review-page .review-edit-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 7px;
+}
+
+.food-review-page .review-edit-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.food-review-page .review-edit-grid .review-edit-field:nth-child(1),
+.food-review-page .review-edit-grid .review-edit-field:nth-child(2) {
+  grid-column: span 3;
+}
+
+.food-review-page .review-edit-grid .review-edit-field:nth-child(n + 3) {
+  grid-column: span 2;
+}
+
+.food-review-page .review-edit-grid .review-edit-field:nth-child(n + 3) input {
+  text-align: center;
 }
 
 .food-review-page .review-macro-grid {
@@ -2113,14 +2104,14 @@ textarea:focus {
 }
 
 .food-review-page .portion-actions button {
-  min-height: 36px;
+  min-height: 34px;
   font-size: 12px;
 }
 
 .food-review-page .preview-advice {
-  padding: 10px 12px;
-  border-radius: 14px;
-  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 12px;
 }
 
 .refine-details {
