@@ -52,7 +52,7 @@ from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate, FoodEstimateList
 from kcal_tracker.services.ai_audio import AIAudioService
-from kcal_tracker.services.ai_food import AIFoodService
+from kcal_tracker.services.ai_food import AIFoodService, looks_like_multi_food_text
 from kcal_tracker.services.ai_queue import AIPhotoQueueFullError, ai_photo_slot
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
@@ -147,7 +147,7 @@ async def ask_barcode_from_inline(callback: CallbackQuery, state: FSMContext) ->
 @router.message(FoodFlow.waiting_manual, F.text)
 @router.message(FoodFlow.waiting_barcode_photo, F.text)
 async def parse_manual_food(message: Message, state: FSMContext) -> None:
-    if await _show_history_confirmation(message, state):
+    if not looks_like_multi_food_text(message.text or "") and await _show_history_confirmation(message, state):
         return
 
     query = " ".join((message.text or "").split())
@@ -492,7 +492,7 @@ async def _barcode_or_common_estimate(text: str) -> FoodEstimate | None:
                     confidence=0.9,
                 )
             )
-    return estimate_common_food(text)
+    return None if looks_like_multi_food_text(text) else estimate_common_food(text)
 
 
 async def _try_ai_text_parse(

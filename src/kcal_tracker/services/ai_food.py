@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import re
 
 from openai import AsyncOpenAI
 from redis.asyncio import Redis
@@ -94,6 +95,15 @@ TEXT_PARSE_PROMPT = """Разбери описание еды пользоват
 Правила:
 - Все названия в поле name пиши по-русски.
 - Если пользователь перечислил несколько продуктов, верни каждый отдельной позицией.
+- Сохраняй порядок позиций из исходного текста.
+- Не объединяй разные перечисленные продукты в одно блюдо и не пропускай позиции.
+- Не разбивай готовое блюдо на ингредиенты: "борщ", "бургер" или "цезарь" — это одна позиция.
+- Число позиций должно соответствовать явному перечислению пользователя. Повторы с количеством
+  (например, "2 банана") верни одной позицией с общим весом и КБЖУ.
+- Указанные пользователем граммы, миллилитры, штуки и порции имеют приоритет. Не переноси вес
+  от одной позиции к другой. Если вес не указан, используй типичную порцию.
+- Не придумывай напитки, гарниры, соусы и добавки, которых нет в тексте.
+- kcal, protein, fat и carbs указывай для всей распознанной порции, а не на 100 г.
 - Оцени калории и БЖУ спокойно и консервативно.
 - Для каждой позиции подбери один подходящий emoji.
 - Для каждой позиции дай короткий отдельный advice: польза, риск или как сбалансировать продукт.
@@ -233,7 +243,7 @@ class AIFoodService:
             response_format={"type": "json_object"},
             messages=[
                 {"role": "system", "content": TEXT_PARSE_PROMPT},
-                {"role": "user", "content": text},
+                {"role": "user", "content": food_text_parse_user_text(text)},
             ],
             temperature=0.2,
             timeout=12,
@@ -293,6 +303,11 @@ class AIFoodService:
         data = json.loads(content)
         foods = []
         for item in data.get("foods", []):
+            if not isinstance(item, dict) or len(foods) >= 30:
+                continue
+            name = " ".join(str(item.get("name") or "").split())[:120]
+            if not name or name.casefold() in {"еда", "продукт", "неизвестно"}:
+                continue
             confidence = item.get("confidence")
             if confidence is not None:
                 confidence = min(float(confidence), 0.99)
@@ -303,7 +318,7 @@ class AIFoodService:
             foods.append(
                 enrich_food_payload(
                     FoodEstimate(
-                        name=item.get("name") or "Еда",
+                        name=name,
                         weight_g=item.get("weight_g") or item.get("estimated_weight_g"),
                         kcal=item.get("kcal") or item.get("estimated_kcal") or 0,
                         protein=item.get("protein") or 0,
@@ -324,6 +339,27 @@ class AIFoodService:
         if strict_visible_single:
             foods = limit_visible_photo_foods(foods)
         return FoodEstimateList(foods=foods)
+
+
+def looks_like_multi_food_text(text: str) -> bool:
+    normalized = " ".join(text.casefold().split())
+    if len([line for line in text.splitlines() if line.strip()]) > 1:
+        return True
+    if re.search(r"(?:^|\s)\d+[.)]\s*[a-zа-яё]", normalized):
+        return True
+    return any(separator in normalized for separator in (";", ",", " + ", " плюс ", " и "))
+
+
+def food_text_parse_user_text(text: str) -> str:
+    compact = " ".join(text.split())[:500]
+    if not looks_like_multi_food_text(text):
+        return compact
+    return (
+        "Это один приём пищи с несколькими явно перечисленными позициями. "
+        "Верни каждую позицию отдельно, в исходном порядке, не смешивая и не раскладывая на ингредиенты. "
+        "Точно сохрани все указанные количества и единицы измерения.\n\n"
+        f"Исходный ввод пользователя:\n{compact}"
+    )
 
 
 def photo_recognition_user_text(text_hint: str | None = None, *, photo_count: int = 1) -> str:

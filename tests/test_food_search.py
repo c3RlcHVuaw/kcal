@@ -9,6 +9,11 @@ from kcal_tracker.bot.handlers.food import (
     _is_confident_single_search_match,
 )
 from kcal_tracker.schemas import FoodEntryCreate, FoodEstimate
+from kcal_tracker.services.ai_food import (
+    AIFoodService,
+    food_text_parse_user_text,
+    looks_like_multi_food_text,
+)
 from kcal_tracker.services.brand_lookup import (
     _best_brand_match,
     _brand_lookup_queries,
@@ -57,6 +62,32 @@ def test_estimate_common_food_handles_bar_variants() -> None:
     assert estimate.name == "протеиновый батончик"
     assert estimate.weight_g == 60
     assert estimate.protein == 18
+
+
+def test_multi_food_text_detection_handles_common_lists() -> None:
+    assert looks_like_multi_food_text("гречка 200 г, котлета 100 г и салат 150 г")
+    assert looks_like_multi_food_text("кофе 300 мл\nсырники 180 г")
+    assert looks_like_multi_food_text("1. банан 2. йогурт")
+    assert not looks_like_multi_food_text("паста с курицей 300 г")
+
+
+def test_multi_food_prompt_preserves_list_boundaries_and_quantities() -> None:
+    text = "гречка 200 г, котлета 100 г, компот 250 мл"
+    prompt = food_text_parse_user_text(text)
+
+    assert "каждую позицию отдельно" in prompt
+    assert "Точно сохрани все указанные количества" in prompt
+    assert text in prompt
+
+
+def test_ai_food_parser_drops_placeholder_and_malformed_items() -> None:
+    result = AIFoodService()._parse_foods(
+        '{"foods": [{"name": "Еда", "kcal": 100}, "мусор", '
+        '{"name": "  Банан  ", "weight_g": 120, "kcal": 107}]}'
+    )
+
+    assert [food.name for food in result.foods] == ["Банан"]
+    assert result.foods[0].weight_g == 120
 
 
 def test_food_search_filters_irrelevant_database_results() -> None:

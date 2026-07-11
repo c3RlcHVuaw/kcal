@@ -71,7 +71,7 @@ from kcal_tracker.schemas import (
     WeightGoalRead,
     WeightGoalUpdate,
 )
-from kcal_tracker.services.ai_food import AIFoodService
+from kcal_tracker.services.ai_food import AIFoodService, looks_like_multi_food_text
 from kcal_tracker.services.ai_queue import AIPhotoQueueFullError, ai_photo_slot
 from kcal_tracker.services.ai_usage import AILimitReachedError, AIUsageService
 from kcal_tracker.services.barcode import BarcodeNotFoundError, BarcodeService, normalize_barcode
@@ -434,7 +434,8 @@ async def webapp_parse_food_text(
     user = await UserService(session).get_or_create(identity.telegram_id, identity.username)
     diary = DiaryService(session)
 
-    history_entry = await diary.recent_matching_entry(user, text)
+    is_multi_food = looks_like_multi_food_text(text)
+    history_entry = None if is_multi_food else await diary.recent_matching_entry(user, text)
     if history_entry is not None:
         return WebAppFoodTextParseResult(
             foods=[estimate_from_entry(history_entry)],
@@ -443,7 +444,7 @@ async def webapp_parse_food_text(
             remaining_ai_today=await _remaining_ai_for_webapp(user, AIUsageService(session)),
         )
 
-    common_estimate = None if _should_parse_food_text_with_ai(text) else estimate_common_food(text)
+    common_estimate = None if is_multi_food or _should_parse_food_text_with_ai(text) else estimate_common_food(text)
     if common_estimate is not None:
         common_estimate.source_label = "База"
         return WebAppFoodTextParseResult(
@@ -783,7 +784,7 @@ def _should_parse_food_text_with_ai(text: str) -> bool:
     tokens = re.findall(r"[0-9a-zа-яё]+", normalized)
     if len(tokens) >= 4:
         return True
-    return any(separator in normalized for separator in (" и ", ",", "+", " плюс ", " с "))
+    return looks_like_multi_food_text(text) or " с " in normalized
 
 
 async def _webapp_barcode_result(
