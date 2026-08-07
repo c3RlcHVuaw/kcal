@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from kcal_tracker.config import settings
 from kcal_tracker.database import SessionLocal
 from kcal_tracker.models import AIUsage, LandingEvent, Payment, QualityEvent, User
+from kcal_tracker.services.admin_notification_settings import get_admin_notification_settings
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +37,12 @@ async def admin_alert_loop(bot: Bot, admin_ids: set[int]) -> None:
     await asyncio.sleep(15)
     while True:
         try:
+            async with SessionLocal() as session:
+                notification_settings = await get_admin_notification_settings(session)
+            if not notification_settings.alerts_enabled:
+                active_keys = set()
+                await asyncio.sleep(settings.admin_alert_interval_seconds)
+                continue
             alerts = await collect_admin_alerts()
             alert_keys = {alert.key for alert in alerts}
             now = time.time()
@@ -46,6 +53,8 @@ async def admin_alert_loop(bot: Bot, admin_ids: set[int]) -> None:
                 await _notify_admins(bot, admin_ids, alert.text)
                 last_sent_at[alert.key] = now
             for recovered_key in sorted(active_keys - alert_keys):
+                if not notification_settings.recovery_enabled:
+                    continue
                 await _notify_admins(
                     bot,
                     admin_ids,
@@ -58,12 +67,21 @@ async def admin_alert_loop(bot: Bot, admin_ids: set[int]) -> None:
 
 
 async def collect_admin_alerts() -> list[AdminAlert]:
+    async with SessionLocal() as session:
+        notification_settings = await get_admin_notification_settings(session)
+    if not notification_settings.alerts_enabled:
+        return []
+
     alerts: list[AdminAlert] = []
-    alerts.extend(_server_alerts())
-    alerts.extend(await _api_alerts())
-    alerts.extend(await _openai_alerts())
-    alerts.extend(await _business_alerts())
-    alerts.extend(await _quality_alerts())
+    if notification_settings.server_alerts_enabled:
+        alerts.extend(_server_alerts())
+        alerts.extend(await _api_alerts())
+    if notification_settings.openai_alerts_enabled:
+        alerts.extend(await _openai_alerts())
+    if notification_settings.business_alerts_enabled:
+        alerts.extend(await _business_alerts())
+    if notification_settings.quality_alerts_enabled:
+        alerts.extend(await _quality_alerts())
     return alerts
 
 

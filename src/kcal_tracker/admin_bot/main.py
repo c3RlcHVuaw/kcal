@@ -48,6 +48,11 @@ from kcal_tracker.models import (
 )
 from kcal_tracker.services import catalog_gaps
 from kcal_tracker.services.admin_alerts import admin_alert_loop
+from kcal_tracker.services.admin_notification_settings import (
+    ADMIN_NOTIFICATION_KEYS,
+    get_admin_notification_settings,
+    toggle_admin_notification_flag,
+)
 from kcal_tracker.services.diary import DiaryService
 from kcal_tracker.services.food_catalog import normalize_food_text
 from kcal_tracker.services.openai_balance import OpenAIBalanceService
@@ -235,6 +240,11 @@ async def admin_daily_digest_loop(bot: Bot, admin_ids: set[int]) -> None:
             key = now.date().isoformat()
             is_due = now.hour * 60 + now.minute >= scheduled_hour * 60 + scheduled_minute
             if is_due and key not in sent_dates:
+                async with SessionLocal() as session:
+                    notification_settings = await get_admin_notification_settings(session)
+                if not notification_settings.daily_digest_enabled:
+                    await asyncio.sleep(60)
+                    continue
                 text = await _digest_text()
                 for admin_id in admin_ids:
                     await bot.send_message(admin_id, text, reply_markup=_today_keyboard())
@@ -421,6 +431,32 @@ async def alerts_callback(callback: CallbackQuery) -> None:
     text = await _alerts_text()
     await callback.message.edit_text(text, reply_markup=_alerts_keyboard())
     await _answer_callback(callback, "Обновлено")
+
+
+@router.message(Command("notifications"))
+async def notifications_command(message: Message) -> None:
+    text = await _notifications_text()
+    await message.answer(text, reply_markup=await _notifications_keyboard())
+
+
+@router.callback_query(F.data == "admin:notifications")
+async def notifications_callback(callback: CallbackQuery) -> None:
+    text = await _notifications_text()
+    await callback.message.edit_text(text, reply_markup=await _notifications_keyboard())
+    await _answer_callback(callback, "Обновлено")
+
+
+@router.callback_query(F.data.startswith("admin:notifications:toggle:"))
+async def notifications_toggle_callback(callback: CallbackQuery) -> None:
+    key = callback.data.rsplit(":", 1)[1]
+    if key not in ADMIN_NOTIFICATION_KEYS:
+        await _answer_callback(callback, "Не понял настройку.", show_alert=True)
+        return
+    async with SessionLocal() as session:
+        await toggle_admin_notification_flag(session, key)
+    text = await _notifications_text()
+    await callback.message.edit_text(text, reply_markup=await _notifications_keyboard())
+    await _answer_callback(callback, "Сохранено")
 
 
 @router.message(Command("quality"))
@@ -1315,7 +1351,22 @@ async def _alerts_text() -> str:
             .order_by(func.sum(AIUsage.request_count).desc())
             .limit(5)
         )
-    lines = ["🚨 Alerts", "", f"Ожидают оплаты: {pending}", f"Просроченные pending: {expired}", f"Новые без onboarding: {not_onboarded}", ""]
+    async with SessionLocal() as session:
+        notification_settings = await get_admin_notification_settings(session)
+    alert_status = (
+        "включены"
+        if notification_settings.alerts_enabled
+        else "выключены через /notifications"
+    )
+    lines = [
+        "🚨 Alerts",
+        f"Уведомления: {alert_status}",
+        "",
+        f"Ожидают оплаты: {pending}",
+        f"Просроченные pending: {expired}",
+        f"Новые без onboarding: {not_onboarded}",
+        "",
+    ]
     lines.append("Высокий AI сегодня:")
     rows = list(high_ai)
     if rows:
@@ -1325,6 +1376,35 @@ async def _alerts_text() -> str:
     else:
         lines.append("нет")
     return "\n".join(lines)
+
+
+async def _notifications_text() -> str:
+    async with SessionLocal() as session:
+        notification_settings = await get_admin_notification_settings(session)
+    updated = (
+        notification_settings.updated_at.strftime("%d.%m %H:%M UTC")
+        if notification_settings.updated_at
+        else "ещё не меняли"
+    )
+    return "\n".join(
+        [
+            "🔔 Уведомления админки",
+            "",
+            "Живые переключатели для алертов и ежедневного дайджеста. Работают без деплоя и правки .env.",
+            "",
+            f"Все алерты: {_notification_status(notification_settings.alerts_enabled)}",
+            f"Сервер и API: {_notification_status(notification_settings.server_alerts_enabled)}",
+            f"OpenAI бюджет: {_notification_status(notification_settings.openai_alerts_enabled)}",
+            f"Бизнес/оплаты/воронка: {_notification_status(notification_settings.business_alerts_enabled)}",
+            f"Качество распознавания: {_notification_status(notification_settings.quality_alerts_enabled)}",
+            f"Сообщения о восстановлении: {_notification_status(notification_settings.recovery_enabled)}",
+            f"Ежедневный дайджест: {_notification_status(notification_settings.daily_digest_enabled)}",
+            "",
+            f"Дайджест: {settings.admin_daily_digest_time}",
+            f"Алерты: каждые {settings.admin_alert_interval_seconds}s, cooldown {settings.admin_alert_cooldown_seconds}s",
+            f"Последнее изменение: {updated}",
+        ]
+    )
 
 
 async def _quality_text(mode: str = "overview") -> str:
@@ -2602,6 +2682,10 @@ def _format_seconds(value: float) -> str:
     return f"{seconds}с"
 
 
+def _notification_status(enabled: bool) -> str:
+    return "вкл" if enabled else "выкл"
+
+
 def _today_bounds(tz: ZoneInfo) -> tuple[datetime, datetime]:
     now = datetime.now(tz)
     start = now.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -2639,7 +2723,7 @@ def _main_menu_text() -> str:
             "Выбери раздел кнопками ниже.",
             "",
             "Команды тоже работают:",
-            "/today, /digest, /launch, /server, /openai, /alerts, /quality, /product, /products, /product_queue, /product_add, /problems, /funnel, /landing, /promos, /user, /grant",
+            "/today, /digest, /notifications, /launch, /server, /openai, /alerts, /quality, /product, /products, /product_queue, /product_add, /problems, /funnel, /landing, /promos, /user, /grant",
         ]
     )
 
@@ -2654,6 +2738,9 @@ def _main_menu_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text="🧠 OpenAI", callback_data="admin:openai"),
                 InlineKeyboardButton(text="🚨 Alerts", callback_data="admin:alerts"),
+            ],
+            [
+                InlineKeyboardButton(text="🔔 Уведомления", callback_data="admin:notifications"),
             ],
             [
                 InlineKeyboardButton(text="📉 Quality", callback_data="admin:quality"),
@@ -2711,6 +2798,9 @@ def _ops_keyboard() -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(text="💳 OpenAI costs", callback_data="admin:openai"),
                 InlineKeyboardButton(text="🚨 Alerts", callback_data="admin:alerts"),
+            ],
+            [
+                InlineKeyboardButton(text="🔔 Уведомления", callback_data="admin:notifications"),
             ],
             [
                 InlineKeyboardButton(text="📉 Quality", callback_data="admin:quality"),
@@ -2796,7 +2886,44 @@ def _alerts_keyboard() -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:alerts"),
                 InlineKeyboardButton(text="🖥 Сервер", callback_data="admin:server"),
             ],
+            [InlineKeyboardButton(text="🔔 Настроить уведомления", callback_data="admin:notifications")],
             [InlineKeyboardButton(text="📉 Quality", callback_data="admin:quality")],
+            [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
+        ]
+    )
+
+
+async def _notifications_keyboard() -> InlineKeyboardMarkup:
+    async with SessionLocal() as session:
+        notification_settings = await get_admin_notification_settings(session)
+
+    def button(key: str, title: str) -> InlineKeyboardButton:
+        enabled = bool(getattr(notification_settings, key))
+        prefix = "✅" if enabled else "⛔"
+        return InlineKeyboardButton(
+            text=f"{prefix} {title}",
+            callback_data=f"admin:notifications:toggle:{key}",
+        )
+
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [button("alerts_enabled", "Все алерты")],
+            [
+                button("server_alerts_enabled", "Сервер/API"),
+                button("openai_alerts_enabled", "OpenAI"),
+            ],
+            [
+                button("business_alerts_enabled", "Бизнес"),
+                button("quality_alerts_enabled", "Качество"),
+            ],
+            [
+                button("recovery_enabled", "Recovery"),
+                button("daily_digest_enabled", "Дайджест"),
+            ],
+            [
+                InlineKeyboardButton(text="🔄 Обновить", callback_data="admin:notifications"),
+                InlineKeyboardButton(text="🚨 Alerts", callback_data="admin:alerts"),
+            ],
             [InlineKeyboardButton(text="🏠 Меню", callback_data="admin:menu")],
         ]
     )

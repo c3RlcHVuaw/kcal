@@ -84,6 +84,9 @@ from kcal_tracker.schemas import (
     WebAppWeeklyMission,
     WebAppWeeklyMissions,
 )
+from kcal_tracker.services.admin_notification_settings import (
+    admin_notification_settings_from_value,
+)
 from kcal_tracker.services.ai_food import food_refinement_user_text, photo_recognition_user_text
 from kcal_tracker.services.diary import (
     NutritionPatterns,
@@ -476,6 +479,40 @@ def test_admin_broadcast_all_segment_can_be_enabled(monkeypatch) -> None:
     monkeypatch.setattr(routes.settings, "admin_broadcast_all_enabled", True)
 
     assert _broadcast_segment_allowed("all") is True
+
+
+def test_admin_notification_settings_default_to_enabled() -> None:
+    parsed = admin_notification_settings_from_value({})
+
+    assert parsed.alerts_enabled is True
+    assert parsed.server_alerts_enabled is True
+    assert parsed.openai_alerts_enabled is True
+    assert parsed.business_alerts_enabled is True
+    assert parsed.quality_alerts_enabled is True
+    assert parsed.recovery_enabled is True
+    assert parsed.daily_digest_enabled is True
+
+
+def test_admin_notification_settings_parse_stored_flags() -> None:
+    parsed = admin_notification_settings_from_value(
+        {
+            "alerts_enabled": "off",
+            "server_alerts_enabled": 0,
+            "openai_alerts_enabled": "yes",
+            "business_alerts_enabled": False,
+            "quality_alerts_enabled": True,
+            "recovery_enabled": "disabled",
+            "daily_digest_enabled": "1",
+        }
+    )
+
+    assert parsed.alerts_enabled is False
+    assert parsed.server_alerts_enabled is False
+    assert parsed.openai_alerts_enabled is True
+    assert parsed.business_alerts_enabled is False
+    assert parsed.quality_alerts_enabled is True
+    assert parsed.recovery_enabled is False
+    assert parsed.daily_digest_enabled is True
 
 
 def test_food_insights_add_emoji_and_advice() -> None:
