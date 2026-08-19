@@ -166,6 +166,12 @@ async def log_requests(request: Request, call_next):
     response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), payment=()")
     if request.url.path.startswith(("/app/static/", "/landing/static/")):
         response.headers.setdefault("Cache-Control", "public, max-age=604800, immutable")
+    elif response.headers.get("content-type", "").startswith("text/html"):
+        # HTML carries the versioned asset URLs. Without an explicit directive a
+        # webview may cache it heuristically and keep serving an old document,
+        # so bumping an asset version would never reach the client. ETag keeps
+        # revalidation cheap.
+        response.headers.setdefault("Cache-Control", "no-cache")
     logger.info(
         "Request completed request_id=%s method=%s path=%s status=%s duration_ms=%.1f",
         request_id,

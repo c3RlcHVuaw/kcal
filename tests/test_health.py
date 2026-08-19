@@ -65,6 +65,19 @@ def test_webapp_shell_is_served() -> None:
     assert response.text.index("/app/static/app.js") < response.text.index("/app/static/ios26.js")
 
 
+def test_html_documents_are_revalidated_but_assets_are_cached() -> None:
+    with TestClient(app) as client:
+        webapp = client.get("/app")
+        landing = client.get("/")
+        asset = client.get("/app/static/ios26.css")
+
+    # The document holds the versioned asset URLs, so it must never be served
+    # from a heuristic cache without revalidation.
+    assert webapp.headers["cache-control"] == "no-cache"
+    assert landing.headers["cache-control"] == "no-cache"
+    assert asset.headers["cache-control"] == "public, max-age=604800, immutable"
+
+
 def test_public_html_routes_support_head() -> None:
     with TestClient(app) as client:
         landing = client.head("/")
