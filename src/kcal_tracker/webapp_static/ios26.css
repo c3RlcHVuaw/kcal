@@ -1123,12 +1123,66 @@ body.chrome-compact .tab-bar span {
    plain fill instead. */
 /* Scoped to the scroll container: the sheet panel itself also carries
    .component-card, and matching it here turned the whole sheet translucent. */
+/* The mode screens are full-height content, not cards: painting them left a
+   panel inside the panel. */
 #food-add-sheet .food-add-scroll .food-add-overview,
-#food-add-sheet .food-add-scroll .component-card {
+#food-add-sheet .food-add-scroll .component-card:not(.add-mode-panel) {
   background: var(--fill-quaternary);
   box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+/* The photo picker is a filled drop target; a dashed outline is a web idiom.
+   The id-scoped legacy rule sets that dash, so it has to be matched here. */
+#food-add-sheet .media-action.photo-primary-action svg,
+.photo-primary-action svg {
+  stroke: var(--accent);
+  fill: none;
+}
+
+#food-add-sheet .media-action.photo-primary-action,
+.photo-primary-action {
+  min-height: 148px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--fill-tertiary);
+  color: var(--accent);
+  box-shadow: none;
+}
+
+.photo-primary-action span {
+  color: var(--text);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.photo-primary-action b {
+  color: var(--label-secondary);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+/* Shooting tips are guidance, so they read as plain footnotes. */
+.photo-checklist {
+  gap: 4px;
+  padding: 0 2px;
+}
+
+.photo-checklist span {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--label-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.08px;
+}
+
+.photo-checklist b {
+  color: var(--text);
+  font-weight: 600;
 }
 
 /* A field is one surface: the inner input must not add a second fill.
