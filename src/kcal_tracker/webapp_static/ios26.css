@@ -404,7 +404,8 @@ textarea {
   padding: 11px 14px;
   border: 0;
   border-radius: var(--radius-sm);
-  background: var(--fill-quaternary);
+  /* A field sits inside a glass card, so it needs the stronger fill to read. */
+  background: var(--fill-secondary);
   color: var(--text);
   font-size: 17px;
   letter-spacing: -0.43px;
@@ -516,9 +517,57 @@ textarea::placeholder {
   font-weight: 600;
 }
 
-/* The ring replaces the bar, so the linear track is redundant here. */
+/* The ring replaces the bar, so the linear track is redundant here.
+   The id selector matches the legacy `#view-today .progress-track` rule. */
+#view-today .calorie-card .progress-track,
 .calorie-card .progress-track {
   display: none;
+}
+
+/*
+ * Rows that were flattened to a transparent fill must also drop their legacy
+ * backdrop-filter: a blur layer keeps re-compositing what is behind it, which
+ * shows up as a lighter band even when the background itself is transparent.
+ */
+.calorie-card .stats-link,
+.entry,
+.list-item,
+.action-list button,
+.text-button,
+.disclosure {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* "0 / 0 ккал  0%" reads as a list row that drills into Progress, not a chip. */
+.calorie-card .stats-link {
+  width: 100%;
+  min-height: 44px;
+  margin-top: -4px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--label-secondary);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.23px;
+}
+
+.calorie-card .stats-link::after {
+  content: "›";
+  margin-left: 4px;
+  color: var(--label-tertiary);
+  font-size: 20px;
+  line-height: 1;
+}
+
+.calorie-card .stats-link b {
+  margin-left: auto;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -900,8 +949,6 @@ body.chrome-compact .tab-bar span {
 
 /* Inner tiles sit one level up from their parent card. */
 .macro-card article,
-.stats-link,
-.calorie-card .stats-link,
 .food-thumb,
 .food-card .entry-actions button,
 .more-action-grid i,
@@ -978,6 +1025,37 @@ body.chrome-compact .tab-bar span {
   background: var(--material-thick);
   backdrop-filter: var(--blur-chrome);
   -webkit-backdrop-filter: var(--blur-chrome);
+}
+
+/* These carry id specificity in the legacy sheet, so they must be matched. */
+#food-add-sheet input:not([type="checkbox"]):not([type="radio"]),
+#food-add-sheet textarea {
+  border-radius: var(--radius-sm);
+  background: var(--fill-secondary);
+  box-shadow: none;
+}
+
+/* The onboarding tour popover is chrome, so it gets the chrome material. */
+#onboarding .onboarding-panel {
+  border: 0;
+  border-radius: var(--radius-xl);
+  background:
+    var(--glass-sheen),
+    var(--material-thick);
+  box-shadow:
+    inset 0 0 0 0.5px var(--glass-rim),
+    inset 0 1px 0 var(--glass-specular),
+    var(--shadow-float);
+  backdrop-filter: var(--blur-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
+}
+
+#onboarding .onboarding-menu button {
+  background: var(--label-quaternary);
+}
+
+#onboarding .onboarding-menu button.active {
+  background: var(--accent);
 }
 
 .toast {
@@ -1106,7 +1184,58 @@ body.chrome-compact .tab-bar span {
 }
 
 /* ---------------------------------------------------------------------------
- * 15. Motion preferences
+ * 16. Native interaction details
+ * ------------------------------------------------------------------------ */
+
+/* Today hides the toolbar so its large title can lead the screen; the compact
+   bar takes over once that title has scrolled away, as it does in UIKit. */
+body[data-view="today"].chrome-scrolled .app-header {
+  display: flex;
+  animation: iosBarIn var(--motion-fast) both;
+}
+
+@keyframes iosBarIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Tab switches in UIKit are instantaneous — a sliding fade reads like the web. */
+.view.active {
+  animation: none;
+}
+
+/* There is no hover on a touch device, and the legacy hover skins fight the
+   press states, so neutralize them where a pointer happens to exist. */
+@media (hover: hover) and (pointer: fine) {
+  .stats-link:hover,
+  .action-list button:hover,
+  .entry:hover,
+  .list-item:hover {
+    background: none;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .add-mode-actions button:hover,
+  .secondary-button:hover {
+    background: var(--fill-tertiary);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .primary-button:hover {
+    background: var(--accent);
+    box-shadow: none;
+    transform: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 17. Motion preferences
  * ------------------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {

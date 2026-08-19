@@ -25,6 +25,13 @@
   top stop, and a flick down dismisses it through the existing close path.
 - Asked for continuous (squircle) corners where the engine supports
   `corner-shape`, falling back to the plain radius everywhere else.
+- Turned the Today calorie summary into a plain list row that drills into
+  Progress, and dropped the stale backdrop filters that were painting a lighter
+  band behind rows flattened to a transparent fill.
+- Raised form field contrast so inputs read against the glass cards they sit in,
+  and matched the id-specificity rules that were overriding the new layer.
+- Made tab switches instant, neutralized leftover hover skins, and let the
+  compact toolbar appear on Today once its large title scrolls away.
 
 ## 2026-06-23
 
