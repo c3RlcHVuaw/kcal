@@ -12,6 +12,10 @@ const PREMIUM_THEME_KEY = "kcal:premium-theme:v1";
 const PREMIUM_THEME_PREVIEW_MS = 6500;
 const TOUR_SAFE_GAP = 18;
 const DEFAULT_START_PROMO = "START20";
+// Premium skins are parked: they repaint surfaces the iOS 26 layer owns, so the
+// picker is hidden and any stored choice resolves back to the system theme.
+const PREMIUM_THEMES_ENABLED = false;
+
 const PREMIUM_THEMES = [
   {
     id: "system",
@@ -207,6 +211,7 @@ const nodes = {
   nutritionStatus: document.querySelector("#nutrition-status"),
   macroTotal: document.querySelector("#macro-total"),
   macroBars: document.querySelector("#macro-bars"),
+  nutritionScoreBar: document.querySelector("#nutrition-score-bar"),
   protein: document.querySelector("#protein"),
   fat: document.querySelector("#fat"),
   carbs: document.querySelector("#carbs"),
@@ -1276,7 +1281,8 @@ function writeStoredPremiumTheme(themeId) {
 }
 
 function applyPremiumTheme(themeId) {
-  const nextTheme = PREMIUM_THEMES.some((theme) => theme.id === themeId) ? themeId : "system";
+  const requested = PREMIUM_THEMES.some((theme) => theme.id === themeId) ? themeId : "system";
+  const nextTheme = PREMIUM_THEMES_ENABLED ? requested : "system";
   document.body.classList.remove("theme-previewing");
   document.body.classList.forEach((className) => {
     if (className.startsWith("premium-theme-")) {
@@ -1291,7 +1297,7 @@ function applyPremiumTheme(themeId) {
 }
 
 function renderThemePicker() {
-  if (!nodes.themeGrid) return;
+  if (!nodes.themeGrid || !PREMIUM_THEMES_ENABLED) return;
   const activeTheme = state.hasActiveSubscription ? state.appTheme : document.body.dataset.appTheme || "system";
   nodes.themeGrid.innerHTML = PREMIUM_THEMES.map((theme) => {
     const active = theme.id === activeTheme;
@@ -1884,10 +1890,29 @@ function renderNutritionOverview(diary) {
   setTextWithPulse(nodes.nutritionStatus, status);
   nodes.nutritionStatus.classList.toggle("warn-status", score < 45);
   setTextWithPulse(nodes.macroTotal, `${macroTotal} грамм`);
-  nodes.macroBars.innerHTML = Array.from({ length: 28 }, (_, index) => {
-    const kind = index % 3 === 0 ? "protein" : index % 3 === 1 ? "carbs" : "fat";
-    return `<i class="${kind}"></i>`;
-  }).join("");
+  setProgressValue(nodes.nutritionScoreBar, "width", `${Math.max(0, Math.min(score, 100))}%`);
+  renderMacroBalance(diary, macroTotal);
+}
+
+// The bar shows how today's grams actually split between protein, fat and
+// carbs, so its segments mean something instead of decorating the card.
+function renderMacroBalance(diary, macroTotal) {
+  if (!nodes.macroBars) return;
+  const parts = [
+    { kind: "protein", grams: Math.max(Number(diary.protein || 0), 0) },
+    { kind: "fat", grams: Math.max(Number(diary.fat || 0), 0) },
+    { kind: "carbs", grams: Math.max(Number(diary.carbs || 0), 0) },
+  ];
+  if (macroTotal <= 0) {
+    nodes.macroBars.innerHTML = "";
+    nodes.macroBars.classList.add("is-empty");
+    return;
+  }
+  nodes.macroBars.classList.remove("is-empty");
+  nodes.macroBars.innerHTML = parts
+    .filter((part) => part.grams > 0)
+    .map((part) => `<i class="${part.kind}" style="width: ${(part.grams / macroTotal) * 100}%"></i>`)
+    .join("");
 }
 
 function renderMacroRing(kind, rawValue, rawTarget) {

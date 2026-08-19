@@ -32,6 +32,11 @@
   and matched the id-specificity rules that were overriding the new layer.
 - Made tab switches instant, neutralized leftover hover skins, and let the
   compact toolbar appear on Today once its large title scrolls away.
+- Replaced the two decorative bar charts on Today with meters over real values:
+  the nutrition score out of 100, and the day's actual protein/fat/carb split.
+- Parked the premium themes: the picker is hidden and any stored skin resolves
+  back to the system theme, because those skins repaint surfaces the iOS 26
+  layer owns.
 
 ## 2026-06-23
 

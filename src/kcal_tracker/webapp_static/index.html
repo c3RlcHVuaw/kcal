@@ -7,9 +7,9 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/themes.css?v=ios26-v3-20260819" />
-    <link rel="stylesheet" href="/app/static/styles.css?v=ios26-v3-20260819" />
-    <link rel="stylesheet" href="/app/static/ios26.css?v=ios26-v3-20260819" />
+    <link rel="stylesheet" href="/app/static/themes.css?v=ios26-v4-20260819" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=ios26-v4-20260819" />
+    <link rel="stylesheet" href="/app/static/ios26.css?v=ios26-v4-20260819" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -166,8 +166,8 @@
                 <strong id="nutrition-score">0</strong>
                 <p id="nutrition-status" class="good-status">В норме</p>
               </div>
-              <div class="score-sparkline" aria-hidden="true">
-                <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+              <div class="score-meter" aria-hidden="true">
+                <span id="nutrition-score-bar"></span>
               </div>
             </article>
             <article class="macro-balance-card component-card">
@@ -175,7 +175,7 @@
                 <span class="caption">Баланс БЖУ</span>
                 <strong id="macro-total">0 грамм</strong>
               </div>
-              <div id="macro-bars" class="macro-bars" aria-hidden="true"></div>
+              <div id="macro-bars" class="macro-bars is-empty" aria-hidden="true"></div>
             </article>
           </section>
         </section>
@@ -483,7 +483,7 @@
           </div>
         </section>
 
-        <section class="more-section theme-section">
+        <section class="more-section theme-section hidden">
           <div class="section-title">
             <div>
               <h2>Темы</h2>
@@ -1056,7 +1056,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="/app/static/app_core.js?v=core-v1-20260622"></script>
-    <script src="/app/static/app.js?v=ios26-v3-20260819" type="module"></script>
-    <script src="/app/static/ios26.js?v=ios26-v3-20260819"></script>
+    <script src="/app/static/app.js?v=ios26-v4-20260819" type="module"></script>
+    <script src="/app/static/ios26.js?v=ios26-v4-20260819"></script>
   </body>
 </html>

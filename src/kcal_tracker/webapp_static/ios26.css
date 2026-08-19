@@ -1102,17 +1102,69 @@ body.chrome-compact .tab-bar span {
   color: var(--warning);
 }
 
-/* One hue for the score trend instead of a three-colour chart. */
-.score-sparkline i {
-  background: color-mix(in srgb, var(--accent) 28%, transparent);
+/*
+ * Both cards used to carry decorative bar charts wired to nothing. They are now
+ * meters over real values: the score out of 100, and the day's macro split.
+ */
+.score-meter {
+  align-self: center;
+  width: clamp(96px, 32%, 148px);
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-tertiary);
+  overflow: hidden;
 }
 
-.score-sparkline i:nth-child(2n) {
-  background: color-mix(in srgb, var(--accent) 55%, transparent);
-}
-
-.score-sparkline i:nth-child(3n) {
+.score-meter > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: var(--radius-pill);
   background: var(--accent);
+  transition: width var(--motion-spring);
+}
+
+.macro-bars {
+  display: flex;
+  /* The legacy rule ends its bars at the baseline; segments must fill instead. */
+  align-items: stretch;
+  /* One continuous bar with rounded ends, not three separate pills. */
+  gap: 0;
+  align-self: center;
+  width: clamp(96px, 38%, 168px);
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  overflow: hidden;
+}
+
+.macro-bars.is-empty {
+  background: var(--fill-tertiary);
+}
+
+.macro-bars i {
+  height: 100%;
+  border-radius: 0;
+  transition: width var(--motion-spring);
+}
+
+.macro-bars i.protein {
+  background: var(--protein);
+}
+
+.macro-bars i.fat {
+  background: var(--fat);
+}
+
+.macro-bars i.carbs {
+  background: var(--carbs);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .score-meter > span,
+  .macro-bars i {
+    transition: none;
+  }
 }
 
 /* Numbers carry the hierarchy, so they get the display face and tabular figures. */
