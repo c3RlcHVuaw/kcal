@@ -58,6 +58,9 @@
 - Turned the More quick actions from a two-column grid of tinted cards into one
   inset group of rows — coloured glyph, title, chevron — and dropped the static
   descriptions under each title.
+- Kept the navigation bar's own height once the refresh button was removed:
+  with the compact title positioned absolutely, the bar had no in-flow content
+  left and collapsed to its padding, so the blur stopped covering the title.
 - Replaced the toolbar refresh buttons with pull to refresh. Telegram's own
   vertical swipe is released so the gesture can work; its header close button
   still dismisses the app.

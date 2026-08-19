@@ -100,6 +100,10 @@ h3,
   position: sticky;
   top: 0;
   z-index: 20;
+  /* The compact title is positioned absolutely, so the bar keeps its own
+     height — otherwise it collapses to its padding and the blur no longer
+     covers the title. */
+  min-height: calc(var(--app-top-pad) + 52px);
   margin: calc(var(--app-top-pad) * -1) calc(var(--space-page-x) * -1) 8px;
   padding: calc(var(--app-top-pad) + 4px) var(--space-page-x) 10px;
   border-bottom: 0.5px solid transparent;
@@ -120,10 +124,13 @@ h3,
 body.chrome-scrolled .app-header {
   border-bottom-color: transparent;
   background: transparent;
-  backdrop-filter: blur(18px) saturate(180%);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
-  mask-image: linear-gradient(to bottom, #000 62%, transparent);
-  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent);
+  /* The mask fades the whole layer out, so the material can stay strong at the
+     top where text sits and still disappear into the content below. */
+  background: var(--material-chrome);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  mask-image: linear-gradient(to bottom, #000 58%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent);
 }
 
 .app-header h1 {
