@@ -63,6 +63,9 @@
   line that narrates each stage, and a result that springs in card by card.
   app.js already toggled a `[data-ai-processing]` element that the markup never
   had, so the state now has something to show.
+- Centred only the waiting state, not the whole panel. The mode screen is a
+  flex column whose first child is its sticky header, so centring the panel
+  pushed that header into the middle of the sheet and left a void above it.
 - Cleared the form away while the model works: the composer, its example chips
   and the submit button are hidden, so the waiting state has the screen to
   itself and centres in it.

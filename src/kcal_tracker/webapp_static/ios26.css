@@ -2017,9 +2017,12 @@ body[data-view="today"].chrome-scrolled .app-header {
   display: none;
 }
 
-/* With the form gone, the waiting state centres itself in the sheet. */
-#food-add-sheet .add-mode-panel.is-ai-processing {
-  justify-content: center;
+/* With the form gone the waiting state centres itself — but only itself. The
+   panel is a flex column whose first child is the sticky header, so centring
+   the panel pushed that header into the middle of the sheet. */
+.add-mode-panel.is-ai-processing .ai-thinking {
+  flex: 1 1 auto;
+  align-content: center;
 }
 
 @keyframes aiBreathe {
