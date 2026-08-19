@@ -7,9 +7,11 @@
  * working because every value here comes from the shared token set.
  *
  * Two rules define the look:
- *   1. Every raised surface is glass: translucent fill, rim hairline, top sheen.
- *   2. The canvas carries soft colour washes so that blur has something to
- *      refract — without them translucency reads as flat grey.
+ *   1. Content is opaque. A card is a solid systemBackground fill sitting on
+ *      the grouped background — translucent cards blend into the canvas and
+ *      stop reading as separate surfaces.
+ *   2. Chrome is glass. Only floating layers — the tab dock, navigation bars,
+ *      sheet headers — blur what scrolls beneath them.
  */
 
 /* ---------------------------------------------------------------------------
@@ -18,12 +20,7 @@
 
 body {
   min-height: 100dvh;
-  background:
-    radial-gradient(120% 60% at 8% -6%, var(--bg-wash-a), transparent 62%),
-    radial-gradient(100% 52% at 100% 4%, var(--bg-wash-b), transparent 58%),
-    radial-gradient(120% 46% at 50% 104%, var(--bg-wash-c), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--bg);
   font-family: var(--font-text);
   font-size: 17px;
   line-height: 1.29;
@@ -117,9 +114,7 @@ h3,
 
 body.chrome-scrolled .app-header {
   border-bottom-color: var(--separator);
-  background:
-    var(--glass-sheen),
-    var(--material-chrome);
+  background: var(--material-chrome);
   backdrop-filter: var(--blur-chrome);
   -webkit-backdrop-filter: var(--blur-chrome);
 }
@@ -157,14 +152,10 @@ body.chrome-scrolled .app-header > div:first-child {
 }
 
 /* ---------------------------------------------------------------------------
- * 4. Content cards — grouped glass surfaces
+ * 4. Content cards — solid grouped surfaces
  * ------------------------------------------------------------------------ */
 
-/*
- * The Liquid Glass build-up, used by every raised surface: a translucent fill
- * that blurs what is behind it, a hairline rim, and a specular sheen along the
- * top edge. Layer order matters — sheen first so it sits above the fill.
- */
+/* Solid grouped cards. No blur: content does not refract in iOS. */
 .component-card,
 .summary-panel,
 .form-panel,
@@ -178,15 +169,12 @@ body.chrome-scrolled .app-header > div:first-child {
 .meal-section {
   border: 0;
   border-radius: var(--radius-xl);
-  background:
-    var(--glass-sheen),
-    var(--material-card);
+  background: var(--material-card);
   box-shadow:
     inset 0 0 0 0.5px var(--glass-rim),
-    inset 0 1px 0 var(--glass-specular),
     var(--shadow-card);
-  backdrop-filter: var(--blur-panel);
-  -webkit-backdrop-filter: var(--blur-panel);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .accent-card::before {
@@ -654,12 +642,9 @@ body[data-view="food-review"] .tab-dock {
   padding: 5px;
   border: 0;
   border-radius: var(--radius-pill);
-  background:
-    var(--glass-sheen),
-    var(--material-chrome);
+  background: var(--material-chrome);
   box-shadow:
-    inset 0 0 0 0.5px var(--glass-rim),
-    inset 0 1px 0 var(--glass-specular),
+    inset 0 0 0 0.5px var(--material-edge),
     var(--shadow-chrome);
   backdrop-filter: var(--blur-chrome);
   -webkit-backdrop-filter: var(--blur-chrome);
@@ -817,15 +802,10 @@ body.chrome-compact .tab-bar span {
   padding-top: 12px;
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   border: 0;
-  background:
-    var(--glass-sheen),
-    var(--material-thick);
-  box-shadow:
-    inset 0 0 0 0.5px var(--glass-rim),
-    inset 0 1px 0 var(--glass-specular),
-    var(--shadow-float);
-  backdrop-filter: var(--blur-chrome);
-  -webkit-backdrop-filter: var(--blur-chrome);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* Grabber handle. */
@@ -863,12 +843,8 @@ body.chrome-compact .tab-bar span {
   height: calc(100dvh - 12px);
   max-height: calc(100dvh - 12px);
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
-  background:
-    var(--glass-sheen),
-    var(--material-thick);
+  background: var(--bg-elevated);
   box-shadow: var(--shadow-float);
-  backdrop-filter: var(--blur-chrome);
-  -webkit-backdrop-filter: var(--blur-chrome);
 }
 
 #food-add-sheet .sheet-panel::before {
@@ -938,15 +914,12 @@ body.chrome-compact .tab-bar span {
 .entry-edit-card {
   border: 0;
   border-radius: var(--radius-xl);
-  background:
-    var(--glass-sheen),
-    var(--material-card);
+  background: var(--material-card);
   box-shadow:
     inset 0 0 0 0.5px var(--glass-rim),
-    inset 0 1px 0 var(--glass-specular),
     var(--shadow-card);
-  backdrop-filter: var(--blur-panel);
-  -webkit-backdrop-filter: var(--blur-panel);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 /* Inner tiles sit one level up from their parent card. */
@@ -1150,12 +1123,9 @@ body.chrome-compact .tab-bar span {
 #onboarding .onboarding-panel {
   border: 0;
   border-radius: var(--radius-xl);
-  background:
-    var(--glass-sheen),
-    var(--material-thick);
+  background: var(--material-thick);
   box-shadow:
-    inset 0 0 0 0.5px var(--glass-rim),
-    inset 0 1px 0 var(--glass-specular),
+    inset 0 0 0 0.5px var(--material-edge),
     var(--shadow-float);
   backdrop-filter: var(--blur-chrome);
   -webkit-backdrop-filter: var(--blur-chrome);

@@ -44,6 +44,11 @@
   inside the sheet, which were reading as bright slabs of glass over glass.
 - Redrew the selected home glyph with roof eaves so it reads as a house at tab
   bar size, and calmed the bottom background wash the dock floats over.
+- Made content surfaces opaque again — cards are a solid systemBackground fill
+  on the grouped background, and the colour washes behind them are gone.
+  Translucent cards blended into the canvas, which is the opposite of how iOS
+  separates content from chrome; blur now applies only to the tab dock,
+  navigation bars and sheet headers.
 - Presented sheets as a centred card on wide viewports instead of stretching
   the phone layout across a desktop window, matching how iOS switches
   presentation by width class.

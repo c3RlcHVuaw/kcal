@@ -1,9 +1,10 @@
 /*
  * iOS 26 design tokens.
  *
- * Palette follows the iOS system colors, materials follow Liquid Glass: every
- * surface is a translucent fill lit by a rim highlight and a top sheen, layered
- * over a softly washed canvas so the blur has something to refract.
+ * Palette follows the iOS system colors. Content surfaces are opaque — a card
+ * is systemBackground over the grouped background — and translucency is
+ * reserved for floating chrome: the tab dock, navigation bars and sheet
+ * headers. That split is what keeps content readable and chrome layered.
  */
 
 :root {
@@ -64,11 +65,11 @@
   --material-highlight: rgba(255, 255, 255, 0.9);
   --material-edge: rgba(255, 255, 255, 0.75);
   /* Glass build-up: fill, rim light, specular sheen */
-  --material-card: rgba(255, 255, 255, 0.68);
-  --glass-rim: rgba(255, 255, 255, 0.9);
+  --material-card: #ffffff;
+  --glass-rim: rgba(0, 0, 0, 0.04);
   --glass-edge-dark: rgba(0, 0, 0, 0.06);
-  --glass-specular: rgba(255, 255, 255, 0.95);
-  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 46%);
+  --glass-specular: transparent;
+  --glass-sheen: none;
   --material-chrome: rgba(252, 252, 254, 0.62);
   --glass: rgba(255, 255, 255, 0.72);
   --glass-strong: rgba(255, 255, 255, 0.86);
@@ -111,9 +112,9 @@
   --focus-ring: 0 0 0 4px rgba(52, 199, 89, 0.24);
 
   /* Background washes stay flat in the system look */
-  --bg-wash-a: rgba(52, 199, 89, 0.14);
-  --bg-wash-b: rgba(0, 122, 255, 0.12);
-  --bg-wash-c: rgba(175, 82, 222, 0.08);
+  --bg-wash-a: transparent;
+  --bg-wash-b: transparent;
+  --bg-wash-c: transparent;
   --bg-pattern: linear-gradient(180deg, transparent, transparent);
 
   --calorie-card-bg: var(--surface);
@@ -195,12 +196,12 @@
     --material-thin: rgba(44, 44, 46, 0.56);
     --material-highlight: rgba(255, 255, 255, 0.16);
     --material-edge: rgba(255, 255, 255, 0.12);
-    --material-card: rgba(255, 255, 255, 0.14);
-    --glass-rim: rgba(255, 255, 255, 0.18);
+    --material-card: #1c1c1e;
+    --glass-rim: transparent;
     --glass-edge-dark: rgba(0, 0, 0, 0.5);
-    --glass-specular: rgba(255, 255, 255, 0.3);
-    --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 44%);
-    --material-chrome: rgba(255, 255, 255, 0.16);
+    --glass-specular: transparent;
+    --glass-sheen: none;
+    --material-chrome: rgba(30, 30, 32, 0.72);
   --glass: rgba(30, 30, 32, 0.72);
     --glass-strong: rgba(44, 44, 46, 0.86);
     --glass-line: rgba(255, 255, 255, 0.12);
@@ -211,9 +212,9 @@
     --specular: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 
     --focus-ring: 0 0 0 4px rgba(48, 209, 88, 0.3);
-    --bg-wash-a: rgba(48, 209, 88, 0.22);
-    --bg-wash-b: rgba(10, 132, 255, 0.2);
-    --bg-wash-c: rgba(191, 90, 242, 0.07);
+    --bg-wash-a: transparent;
+    --bg-wash-b: transparent;
+    --bg-wash-c: transparent;
   }
 }
 
@@ -263,12 +264,12 @@ body.theme-dark {
   --material-thin: rgba(44, 44, 46, 0.56);
   --material-highlight: rgba(255, 255, 255, 0.16);
   --material-edge: rgba(255, 255, 255, 0.12);
-  --material-card: rgba(255, 255, 255, 0.14);
-  --glass-rim: rgba(255, 255, 255, 0.18);
+  --material-card: #1c1c1e;
+  --glass-rim: transparent;
   --glass-edge-dark: rgba(0, 0, 0, 0.5);
-  --glass-specular: rgba(255, 255, 255, 0.3);
-  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 44%);
-  --material-chrome: rgba(255, 255, 255, 0.16);
+  --glass-specular: transparent;
+  --glass-sheen: none;
+  --material-chrome: rgba(30, 30, 32, 0.72);
   --glass: rgba(30, 30, 32, 0.72);
   --glass-strong: rgba(44, 44, 46, 0.86);
   --glass-line: rgba(255, 255, 255, 0.12);
@@ -279,9 +280,9 @@ body.theme-dark {
   --specular: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 
   --focus-ring: 0 0 0 4px rgba(48, 209, 88, 0.3);
-  --bg-wash-a: rgba(48, 209, 88, 0.22);
-  --bg-wash-b: rgba(10, 132, 255, 0.2);
-  --bg-wash-c: rgba(191, 90, 242, 0.07);
+  --bg-wash-a: transparent;
+  --bg-wash-b: transparent;
+  --bg-wash-c: transparent;
 }
 
 /* ---------------------------------------------------------------------------
@@ -348,15 +349,15 @@ body.premium-theme-noir {
   --material-thin: rgba(36, 36, 40, 0.56);
   --material-highlight: rgba(255, 255, 255, 0.16);
   --material-edge: rgba(255, 255, 255, 0.12);
-  --material-card: rgba(22, 22, 24, 0.68);
-  --glass-rim: rgba(255, 255, 255, 0.1);
+  --material-card: #141416;
+  --glass-rim: transparent;
   --glass-edge-dark: rgba(0, 0, 0, 0.5);
-  --glass-specular: rgba(255, 255, 255, 0.16);
-  --glass-sheen: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 44%);
-  --material-chrome: rgba(22, 22, 24, 0.58);
-  --bg-wash-a: rgba(100, 210, 255, 0.1);
-  --bg-wash-b: rgba(10, 132, 255, 0.1);
-  --bg-wash-c: rgba(191, 90, 242, 0.07);
+  --glass-specular: transparent;
+  --glass-sheen: none;
+  --material-chrome: rgba(22, 22, 24, 0.74);
+  --bg-wash-a: transparent;
+  --bg-wash-b: transparent;
+  --bg-wash-c: transparent;
   --glass: rgba(24, 24, 26, 0.72);
   --glass-strong: rgba(36, 36, 40, 0.86);
   --glass-line: rgba(255, 255, 255, 0.12);
