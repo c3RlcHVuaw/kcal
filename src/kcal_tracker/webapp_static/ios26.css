@@ -112,11 +112,18 @@ h3,
     backdrop-filter var(--motion-soft);
 }
 
+/*
+ * iOS 26 does not draw a bar. The title and its actions float over the content
+ * and only the blur marks the scroll edge, fading out down the bar — hence the
+ * mask rather than a fill plus hairline.
+ */
 body.chrome-scrolled .app-header {
-  border-bottom-color: var(--separator);
-  background: var(--material-chrome);
-  backdrop-filter: var(--blur-chrome);
-  -webkit-backdrop-filter: var(--blur-chrome);
+  border-bottom-color: transparent;
+  background: transparent;
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  mask-image: linear-gradient(to bottom, #000 62%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 62%, transparent);
 }
 
 .app-header h1 {
@@ -292,6 +299,16 @@ body.chrome-scrolled .app-header > div:first-child {
 .calorie-card::after,
 .scan-shortcut::after {
   display: none;
+}
+
+.app-header .icon-button,
+.today-actions .icon-button,
+.today-actions .mission-button,
+.review-back-button {
+  background: var(--material-chrome);
+  box-shadow: inset 0 0 0 0.5px var(--material-edge);
+  backdrop-filter: var(--blur-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
 }
 
 .icon-button,
@@ -774,8 +791,19 @@ body.chrome-compact .tab-add {
   height: 54px;
 }
 
+/*
+ * Hiding the label with max-height still left it occupying an implicit grid row
+ * plus the row gap, so the glyph sat at the top of the button instead of in the
+ * middle. Drop the row entirely and centre what remains.
+ */
 body.chrome-compact .tab-bar button {
   grid-template-rows: 24px;
+  row-gap: 0;
+  align-content: center;
+}
+
+body.chrome-compact .tab-bar span {
+  display: none;
 }
 
 body.chrome-compact .tab-bar span {

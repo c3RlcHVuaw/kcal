@@ -49,6 +49,15 @@
   Translucent cards blended into the canvas, which is the opposite of how iOS
   separates content from chrome; blur now applies only to the tab dock,
   navigation bars and sheet headers.
+- Rebuilt the navigation bar the way iOS 26 draws one: no slab and no hairline,
+  just the title and floating glass action buttons over a blur that fades out
+  down the bar.
+- Centred the tab glyphs while the bar is minimized. Hiding the label with
+  max-height left it holding an implicit grid row plus the row gap, so the icons
+  sat high in the capsule.
+- Cut interface noise: removed nine section subtitles that only restated their
+  heading, the marketing hero on More (its status numbers stay), and the Premium
+  badges repeated on every AI entry point.
 - Fixed the add-food sheet turning see-through: its panel also carries
   `.component-card`, so the rule that flattens cards nested in a sheet was
   repainting the panel itself. The rule is now scoped to the scroll container.

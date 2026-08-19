@@ -7,9 +7,9 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/themes.css?v=ios26-v8-20260819" />
-    <link rel="stylesheet" href="/app/static/styles.css?v=ios26-v8-20260819" />
-    <link rel="stylesheet" href="/app/static/ios26.css?v=ios26-v8-20260819" />
+    <link rel="stylesheet" href="/app/static/themes.css?v=ios26-v9-20260819" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=ios26-v9-20260819" />
+    <link rel="stylesheet" href="/app/static/ios26.css?v=ios26-v9-20260819" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -211,7 +211,6 @@
           <div class="section-title">
             <div>
               <h2>Дневник</h2>
-              <p class="section-subtitle">Приёмы пищи за сегодня</p>
             </div>
             <button class="text-button" type="button" data-view-shortcut="food">Добавить</button>
           </div>
@@ -223,9 +222,7 @@
         <section class="food-sheet-head component-card">
           <div class="section-title">
             <div>
-              <p class="caption">Быстрое добавление</p>
               <h2>Еда</h2>
-              <p class="section-subtitle">Частое, шаблоны и вчерашний день</p>
             </div>
           </div>
         </section>
@@ -258,7 +255,6 @@
           <div class="section-title">
             <div>
               <h2>Неделя питания</h2>
-              <p class="section-subtitle">Как держится калорийность относительно цели</p>
             </div>
           </div>
           <article class="progress-insight-card component-card accent-card">
@@ -303,7 +299,6 @@
           <div class="section-title">
             <div>
               <h2>Последние 7 дней</h2>
-              <p class="section-subtitle">Цвет показывает отношение к цели</p>
             </div>
             <span id="week-chart-note" class="muted">0 записей</span>
           </div>
@@ -339,7 +334,6 @@
           <div class="section-title">
             <div>
               <h2>Быстрые действия</h2>
-              <p class="section-subtitle">Вода, вес и активность</p>
             </div>
           </div>
         </section>
@@ -393,12 +387,7 @@
       </section>
 
       <section id="view-more" class="view" data-title="Ещё">
-        <section class="more-hero component-card accent-card">
-          <div>
-            <span class="caption">Центр функций</span>
-            <h2>Всё под рукой</h2>
-            <p class="muted">Еда, вода, активность, прогресс и сервисные сценарии из бота.</p>
-          </div>
+        <section class="more-hero component-card">
           <div class="more-status-grid" aria-label="Краткий статус">
             <span>
               <b id="more-kcal">0 / 0</b>
@@ -419,7 +408,6 @@
           <div class="section-title">
             <div>
               <h2>Основное</h2>
-              <p class="section-subtitle">Те же быстрые сценарии, что в боте</p>
             </div>
           </div>
           <div class="more-action-grid">
@@ -470,7 +458,6 @@
           <div class="section-title">
             <div>
               <h2>AI и Premium</h2>
-              <p class="section-subtitle">Лимиты, подписка и промокоды</p>
             </div>
           </div>
           <div class="more-premium-card component-card">
@@ -507,7 +494,6 @@
           <div class="section-title">
             <div>
               <h2>Сервис</h2>
-              <p class="section-subtitle">Экспорт и функции, которые пока живут в боте</p>
             </div>
           </div>
           <div class="action-list component-card more-service-list">
@@ -714,13 +700,11 @@
 
             <div class="add-mode-actions" aria-label="Способ добавления">
               <button type="button" data-add-mode="ai">
-                <i class="premium-badge">Premium</i>
                 <span>AI</span>
                 <b>описать</b>
                 <em>дом, кафе, состав</em>
               </button>
               <button type="button" data-add-mode="photo">
-                <i class="premium-badge">Premium</i>
                 <span>Фото</span>
                 <b>камера</b>
                 <em>блюдо или упаковка</em>
@@ -760,7 +744,7 @@
           <form id="food-text-form" class="form-panel component-card food-text-panel add-mode-panel" data-add-panel="ai">
             <div class="mode-screen-head">
               <button type="button" data-add-mode-back><span aria-hidden="true">‹</span>Назад</button>
-              <h3>Опиши еду <span class="premium-badge">Premium</span></h3>
+              <h3>Опиши еду</h3>
             </div>
             <div class="premium-feature-note">
               <b>Premium AI</b>
@@ -787,7 +771,7 @@
           <section class="form-panel component-card food-text-panel add-mode-panel add-photo-panel" data-add-panel="photo">
             <div class="mode-screen-head">
               <button type="button" data-add-mode-back><span aria-hidden="true">‹</span>Назад</button>
-              <h3>Фото блюда <span class="premium-badge">Premium</span></h3>
+              <h3>Фото блюда</h3>
             </div>
             <div class="premium-feature-note">
               <b>Premium фото</b>
@@ -1056,7 +1040,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="/app/static/app_core.js?v=core-v1-20260622"></script>
-    <script src="/app/static/app.js?v=ios26-v8-20260819" type="module"></script>
-    <script src="/app/static/ios26.js?v=ios26-v8-20260819"></script>
+    <script src="/app/static/app.js?v=ios26-v9-20260819" type="module"></script>
+    <script src="/app/static/ios26.js?v=ios26-v9-20260819"></script>
   </body>
 </html>
