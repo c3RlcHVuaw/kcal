@@ -303,5 +303,59 @@
     window.setTimeout(() => pullIndicator.classList.remove("is-active", "is-loading"), 900);
   });
 
+  /* -------------------------------------------------------------------------
+   * While the model works, the status line walks through what it is doing.
+   * app.js owns the .is-ai-processing flag; this only narrates it.
+   * ---------------------------------------------------------------------- */
+
+  const AI_STAGES = [
+    "Читаю описание…",
+    "Ищу продукты в базе…",
+    "Считаю калории и БЖУ…",
+  ];
+  const AI_STAGE_MS = 1800;
+  const aiTimers = new WeakMap();
+
+  function startNarration(panel) {
+    const label = panel.querySelector(".ai-thinking-label");
+    if (!label || aiTimers.has(panel)) return;
+    let index = 0;
+    label.textContent = AI_STAGES[0];
+    const timer = window.setInterval(() => {
+      index = (index + 1) % AI_STAGES.length;
+      label.style.opacity = "0";
+      window.setTimeout(() => {
+        label.textContent = AI_STAGES[index];
+        label.style.opacity = "";
+      }, 180);
+    }, AI_STAGE_MS);
+    aiTimers.set(panel, timer);
+  }
+
+  function stopNarration(panel) {
+    const timer = aiTimers.get(panel);
+    if (timer === undefined) return;
+    window.clearInterval(timer);
+    aiTimers.delete(panel);
+    const label = panel.querySelector(".ai-thinking-label");
+    if (label) label.style.opacity = "";
+  }
+
+  new MutationObserver((records) => {
+    for (const record of records) {
+      const panel = record.target;
+      if (!panel.classList?.contains("add-mode-panel")) continue;
+      if (panel.classList.contains("is-ai-processing")) {
+        startNarration(panel);
+      } else {
+        stopNarration(panel);
+      }
+    }
+  }).observe(document.body, {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["class"],
+  });
+
   applyScrollState();
 })();

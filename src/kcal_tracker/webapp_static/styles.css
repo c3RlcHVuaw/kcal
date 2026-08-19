@@ -5495,15 +5495,15 @@ textarea {
 }
 
 .add-mode-actions button[data-add-mode="ai"] {
-  --action-tint: #6e8dff;
+  --action-tint: #5856d6;
 }
 
 .add-mode-actions button[data-add-mode="photo"] {
-  --action-tint: #47c08b;
+  --action-tint: var(--accent);
 }
 
 .add-mode-actions button[data-add-mode="manual"] {
-  --action-tint: #ffb43e;
+  --action-tint: var(--carbs);
 }
 
 .add-mode-actions button::before {

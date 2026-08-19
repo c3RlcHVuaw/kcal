@@ -7,9 +7,9 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/themes.css?v=ios26-v14-20260819" />
-    <link rel="stylesheet" href="/app/static/styles.css?v=ios26-v14-20260819" />
-    <link rel="stylesheet" href="/app/static/ios26.css?v=ios26-v14-20260819" />
+    <link rel="stylesheet" href="/app/static/themes.css?v=ios26-v15-20260819" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=ios26-v15-20260819" />
+    <link rel="stylesheet" href="/app/static/ios26.css?v=ios26-v15-20260819" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -58,6 +58,14 @@
         <path d="M5.75 4.75h12.5a1.5 1.5 0 0 1 1.5 1.5v11.5a1.5 1.5 0 0 1-1.5 1.5H5.75a1.5 1.5 0 0 1-1.5-1.5V6.25a1.5 1.5 0 0 1 1.5-1.5z" />
         <path d="M9 9.5a3 3 0 0 1 6 0" />
         <path d="M12 9.5v2.4" />
+      </symbol>
+      <symbol id="icon-sparkles" viewBox="0 0 24 24">
+        <path d="M12 3.6l1.5 3.9 3.9 1.5-3.9 1.5L12 14.4l-1.5-3.9L6.6 9l3.9-1.5z" />
+        <path d="M18.4 14.6l.7 1.8 1.8.7-1.8.7-.7 1.8-.7-1.8-1.8-.7 1.8-.7z" />
+      </symbol>
+      <symbol id="icon-keypad" viewBox="0 0 24 24">
+        <path d="M6.5 5.5h11a1.5 1.5 0 0 1 1.5 1.5v10a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 17V7a1.5 1.5 0 0 1 1.5-1.5z" />
+        <path d="M8.4 9.4h.01M12 9.4h.01M15.6 9.4h.01M8.4 12.4h.01M12 12.4h.01M15.6 12.4h.01M8.4 15.4h.01M12 15.4h.01M15.6 15.4h.01" />
       </symbol>
       <symbol id="icon-refresh" viewBox="0 0 24 24">
         <path d="M20 12a8 8 0 1 1-2.35-5.65" />
@@ -695,14 +703,17 @@
 
             <div class="add-mode-actions" aria-label="Способ добавления">
               <button type="button" data-add-mode="ai">
+                <i class="add-mode-glyph"><svg aria-hidden="true"><use href="#icon-sparkles"></use></svg></i>
                 <span>AI</span>
                 <b>описать</b>
               </button>
               <button type="button" data-add-mode="photo">
+                <i class="add-mode-glyph"><svg aria-hidden="true"><use href="#icon-camera"></use></svg></i>
                 <span>Фото</span>
                 <b>камера</b>
               </button>
               <button type="button" data-add-mode="manual">
+                <i class="add-mode-glyph"><svg aria-hidden="true"><use href="#icon-keypad"></use></svg></i>
                 <span>Точно</span>
                 <b>ккал и БЖУ</b>
               </button>
@@ -743,7 +754,12 @@
               <span>Разбирает сложные блюда, граммы и КБЖУ. Бесплатный лимит ограничен.</span>
               <button type="button" data-more-action="subscription">Открыть подписку</button>
             </div>
-            <label class="input-label" for="food-text">Что съел?</label>
+            <div class="ai-hero">
+              <span class="ai-hero-glyph" aria-hidden="true"><svg><use href="#icon-sparkles"></use></svg></span>
+              <h4>Опиши, что съел</h4>
+              <p>Обычными словами — «овсянка на молоке и кофе». Посчитаю калории и БЖУ.</p>
+            </div>
+            <label class="visually-hidden" for="food-text">Что съел?</label>
             <textarea
               id="food-text"
               name="text"
@@ -752,6 +768,11 @@
               placeholder="Например: вафли на завтрак и 2 яйца"
               required
             ></textarea>
+            <div class="ai-thinking hidden" data-ai-processing aria-live="polite">
+              <span class="ai-thinking-orb" aria-hidden="true"></span>
+              <p class="ai-thinking-label">Разбираю еду…</p>
+              <span class="ai-thinking-lines" aria-hidden="true"><i></i><i></i><i></i></span>
+            </div>
             <div class="quick-prompts" aria-label="Быстрые примеры">
               <button type="button" data-food-example="овсянка на молоке, банан и кофе">Овсянка</button>
               <button type="button" data-food-example="куриная грудка, рис и овощи">Курица с рисом</button>
@@ -775,6 +796,11 @@
               <span>Выбрать фото</span>
               <b>До 6 фото, упаковки сверяются с базами</b>
             </button>
+            <div class="ai-thinking hidden" data-ai-processing aria-live="polite">
+              <span class="ai-thinking-orb" aria-hidden="true"></span>
+              <p class="ai-thinking-label">Разбираю еду…</p>
+              <span class="ai-thinking-lines" aria-hidden="true"><i></i><i></i><i></i></span>
+            </div>
             <div class="photo-checklist" aria-label="Как сфотографировать еду">
               <span><b>Упаковка</b> бренд, вкус, вес, КБЖУ или штрихкод крупно</span>
               <span><b>Блюдо</b> вся тарелка, соусы и напитки в кадре</span>
@@ -1029,7 +1055,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="/app/static/app_core.js?v=core-v1-20260622"></script>
-    <script src="/app/static/app.js?v=ios26-v14-20260819" type="module"></script>
-    <script src="/app/static/ios26.js?v=ios26-v14-20260819"></script>
+    <script src="/app/static/app.js?v=ios26-v15-20260819" type="module"></script>
+    <script src="/app/static/ios26.js?v=ios26-v15-20260819"></script>
   </body>
 </html>

@@ -58,6 +58,16 @@
 - Turned the More quick actions from a two-column grid of tinted cards into one
   inset group of rows — coloured glyph, title, chevron — and dropped the static
   descriptions under each title.
+- Gave the AI flow three designed states: an idle hero that says what to type,
+  a thinking state with a breathing orb, shimmering result lines and a status
+  line that narrates each stage, and a result that springs in card by card.
+  app.js already toggled a `[data-ai-processing]` element that the markup never
+  had, so the state now has something to show.
+- Rebuilt the add-food tiles: each is tinted by its own mode with a gradient
+  glyph tile, replacing three identical grey cards with typographic stand-ins.
+- Gave sheet headers an opaque fill. A transparent blurred header leaves a seam
+  where its backdrop root ends, which showed as a vertical edge by the back
+  button.
 - Stripped presentation out of styles.css: every background, box-shadow,
   backdrop-filter and border it declared is gone, except where the paint is the
   data itself (rings, chart bars, thumbnails). The old sheet now carries layout

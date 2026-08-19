@@ -909,8 +909,10 @@ body.chrome-compact .tab-bar span {
   border-radius: 0;
   border-bottom: 0.5px solid var(--separator);
   /* Flush nav bar across the sheet, not a floating card inside it. */
-  background: transparent;
+  background: var(--bg-elevated);
   box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 #food-add-sheet #food-add-close {
@@ -1068,16 +1070,19 @@ body.chrome-compact .tab-bar span {
  * sticky header. It is a navigation bar, so it gets the chrome material and a
  * borderless back button instead of a filled pill.
  */
+/*
+ * The sheet itself is opaque, so its header takes the same fill rather than a
+ * blur: a transparent blurred layer leaves a visible seam where its backdrop
+ * root ends, which showed up as a vertical edge beside the back button.
+ */
 .mode-screen-head {
   min-height: 56px;
   padding: 12px 18px;
   border-bottom: 0.5px solid var(--separator);
-  /* Blur alone, no fill: a nav bar over a sheet should not read as a second
-     lighter slab on top of the sheet's own material. */
-  background: transparent;
+  background: var(--bg-elevated);
   box-shadow: none;
-  backdrop-filter: var(--blur-chrome);
-  -webkit-backdrop-filter: var(--blur-chrome);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .mode-screen-head button[data-add-mode-back] {
@@ -1878,4 +1883,351 @@ body[data-view="today"].chrome-scrolled .app-header {
 
 .food-review-page .parsed-food-card {
   background: var(--material-card);
+}
+
+/* ---------------------------------------------------------------------------
+ * 19. Mode tiles and the AI thinking state
+ * ------------------------------------------------------------------------ */
+
+.add-mode-actions button {
+  min-height: 118px;
+  align-content: center;
+  gap: 6px;
+  padding: 14px 10px;
+}
+
+/* The glyph replaces the typographic stand-ins ("AI", "◎", "123"). */
+.add-mode-actions button::before {
+  display: none;
+}
+
+.add-mode-glyph {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 2px;
+  border-radius: 12px;
+  background: var(--action-tint-soft);
+  color: var(--action-tint);
+}
+
+.add-mode-glyph svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/*
+ * While the model works, the form steps back and a breathing orb takes over:
+ * a soft accent glow under a slowly rotating ring, with three lines settling
+ * in below to hint at the card being assembled.
+ */
+.ai-thinking {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 28px 16px 24px;
+}
+
+.ai-thinking.hidden {
+  display: none;
+}
+
+.ai-thinking-orb {
+  position: relative;
+  display: block;
+  width: 68px;
+  height: 68px;
+  border-radius: var(--radius-pill);
+  background: radial-gradient(
+    circle at 50% 50%,
+    color-mix(in srgb, var(--accent) 55%, transparent),
+    transparent 68%
+  );
+  animation: aiBreathe 2.4s ease-in-out infinite;
+}
+
+.ai-thinking-orb::before {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    color-mix(in srgb, var(--accent) 85%, transparent) 90deg,
+    transparent 200deg
+  );
+  mask-image: radial-gradient(circle, transparent 58%, #000 60%);
+  -webkit-mask-image: radial-gradient(circle, transparent 58%, #000 60%);
+  animation: aiOrbit 1.5s linear infinite;
+}
+
+.ai-thinking-label {
+  color: var(--label-secondary);
+  font-size: 15px;
+  letter-spacing: -0.23px;
+}
+
+.ai-thinking-lines {
+  display: grid;
+  gap: 8px;
+  width: min(240px, 80%);
+}
+
+.ai-thinking-lines i {
+  display: block;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(
+    90deg,
+    var(--fill-quaternary) 25%,
+    var(--fill-secondary) 45%,
+    var(--fill-quaternary) 65%
+  );
+  background-size: 220% 100%;
+  animation: aiShimmer 1.4s ease-in-out infinite;
+}
+
+.ai-thinking-lines i:nth-child(2) {
+  width: 78%;
+  animation-delay: 0.12s;
+}
+
+.ai-thinking-lines i:nth-child(3) {
+  width: 54%;
+  animation-delay: 0.24s;
+}
+
+/* The inputs stay visible but recede while the request is in flight. */
+.add-mode-panel.is-ai-processing .quick-prompts,
+.add-mode-panel.is-ai-processing .photo-checklist,
+.add-mode-panel.is-ai-processing textarea,
+.add-mode-panel.is-ai-processing .photo-primary-action {
+  opacity: 0.45;
+  pointer-events: none;
+  animation: none;
+  transition: opacity var(--motion-soft);
+}
+
+@keyframes aiBreathe {
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.85;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+
+@keyframes aiOrbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes aiShimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-thinking-orb,
+  .ai-thinking-orb::before,
+  .ai-thinking-lines i {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 20. The AI flow: idle, thinking, result
+ * ------------------------------------------------------------------------ */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* Each tile is tinted by its own mode, so the three read as distinct choices
+   rather than three identical grey cards. */
+.add-mode-actions button {
+  gap: 4px;
+  background: color-mix(
+    in srgb,
+    var(--action-tint) 10%,
+    var(--fill-quaternary)
+  );
+}
+
+.add-mode-glyph {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--action-tint) 92%, white),
+    var(--action-tint)
+  );
+  color: #ffffff;
+  box-shadow: 0 6px 16px color-mix(in srgb, var(--action-tint) 32%, transparent);
+}
+
+.add-mode-glyph svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.7;
+}
+
+.add-mode-actions button span {
+  font-size: 16px;
+}
+
+.add-mode-actions button b {
+  color: var(--label-secondary);
+}
+
+.add-mode-actions button:active .add-mode-glyph {
+  transform: scale(0.94);
+  transition: transform var(--motion-fast);
+}
+
+/* Idle: one glyph, one instruction, then the composer. */
+.ai-hero {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px 8px 4px;
+  text-align: center;
+}
+
+.ai-hero-glyph {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 2px;
+  border-radius: var(--radius-pill);
+  background: radial-gradient(
+    circle at 50% 35%,
+    color-mix(in srgb, var(--accent) 34%, transparent),
+    transparent 70%
+  );
+  color: var(--accent);
+}
+
+.ai-hero-glyph svg {
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linejoin: round;
+}
+
+.ai-hero h4 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.ai-hero p {
+  max-width: 34ch;
+  color: var(--label-secondary);
+  font-size: 15px;
+  letter-spacing: -0.23px;
+}
+
+#food-add-sheet .add-mode-panel textarea {
+  min-height: 108px;
+  padding: 14px;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+/* Thinking: the hero steps aside so the orb owns the screen. */
+.add-mode-panel.is-ai-processing .ai-hero {
+  opacity: 0;
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+  transition:
+    opacity var(--motion-fast),
+    height var(--motion-soft);
+}
+
+.ai-thinking {
+  animation: aiEnter var(--motion-soft) both;
+}
+
+/* Result: the parsed card springs in the way a pushed view settles. */
+.food-review-page .parsed-food-card,
+.parsed-food-list > * {
+  animation: aiResultIn var(--motion-spring) both;
+}
+
+.parsed-food-list > *:nth-child(2) {
+  animation-delay: 60ms;
+}
+
+.parsed-food-list > *:nth-child(3) {
+  animation-delay: 120ms;
+}
+
+.review-feedback button {
+  border-radius: var(--radius-pill);
+  background: var(--fill-tertiary);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 400;
+}
+
+@keyframes aiEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes aiResultIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-thinking,
+  .food-review-page .parsed-food-card,
+  .parsed-food-list > * {
+    animation: none;
+  }
+}
+
+.ai-thinking-label {
+  transition: opacity 180ms ease;
 }
