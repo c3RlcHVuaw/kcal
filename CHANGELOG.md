@@ -17,6 +17,14 @@
   out of labels so hue only marks rings, bars and states.
 - Fixed the gap left in the tab capsule after the add button moved out of the
   navigation, by laying the tabs out with flex instead of fixed grid columns.
+- Redrew the navigation icons in SF Symbols geometry and gave each tab a solid
+  variant that replaces the outline once the tab is selected.
+- Rebuilt the Today hero around a single calorie ring with the day's secondary
+  numbers underneath, replacing the linear progress bar.
+- Made sheets draggable: a tall sheet now has a medium detent, resists past its
+  top stop, and a flick down dismisses it through the existing close path.
+- Asked for continuous (squircle) corners where the engine supports
+  `corner-shape`, falling back to the plain radius everywhere else.
 
 ## 2026-06-23
 

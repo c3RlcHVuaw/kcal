@@ -435,8 +435,97 @@ textarea::placeholder {
 }
 
 /* ---------------------------------------------------------------------------
- * 8. Today hero
+ * 8. Today hero — one ring carries the day, details sit under it
  * ------------------------------------------------------------------------ */
+
+.calorie-card {
+  display: grid;
+  gap: 18px;
+  padding: 22px var(--space-4) 18px;
+}
+
+.calorie-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(228px, 64%);
+  margin: 0 auto;
+  aspect-ratio: 1;
+}
+
+.calorie-ring-svg {
+  width: 100%;
+  height: 100%;
+  /* Start the sweep at twelve o'clock. */
+  transform: rotate(-90deg);
+  overflow: visible;
+}
+
+.calorie-ring-track,
+.calorie-ring-value {
+  fill: none;
+  stroke-width: 16;
+  stroke-linecap: round;
+}
+
+.calorie-ring-track {
+  stroke: var(--fill-tertiary);
+}
+
+.calorie-ring-value {
+  stroke: var(--accent);
+  stroke-dasharray: 552.92;
+  stroke-dashoffset: 552.92;
+  transition: stroke-dashoffset var(--motion-spring);
+}
+
+.calorie-ring .calorie-main {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.calorie-ring .calorie-main strong {
+  font-size: clamp(38px, 11vw, 52px);
+  line-height: 1;
+}
+
+.calorie-ring .calorie-main strong::after {
+  display: block;
+  margin: 4px 0 0;
+}
+
+.calorie-card .calorie-side {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.calorie-card .calorie-side > div {
+  padding: 10px 8px;
+  border-radius: var(--radius-md);
+  background: var(--fill-quaternary);
+}
+
+.calorie-card .calorie-side b {
+  display: block;
+  margin-top: 2px;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* The ring replaces the bar, so the linear track is redundant here. */
+.calorie-card .progress-track {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .calorie-ring-value {
+    transition: none;
+  }
+}
 
 .today-top h1 {
   font-size: 34px;
@@ -586,14 +675,28 @@ body[data-view="food-review"] .tab-dock {
 }
 
 .tab-bar svg {
-  width: 24px;
-  height: 24px;
-  stroke-width: 1.9;
+  grid-row: 1;
+  grid-column: 1;
+  width: 25px;
+  height: 25px;
+  stroke-width: 1.8;
 }
 
-.tab-bar [data-view="today"] svg,
-.tab-bar [data-view="body"] svg {
-  fill: none;
+/* Outline while inactive, solid once selected — the SF Symbols convention. */
+.tab-bar .tab-icon-active {
+  display: none;
+  fill: currentColor;
+  stroke: none;
+}
+
+.tab-bar button.active .tab-icon {
+  display: none;
+}
+
+.tab-bar button.active .tab-icon-active {
+  display: block;
+  fill: currentColor;
+  stroke: none;
 }
 
 .tab-bar button.active {
@@ -604,8 +707,12 @@ body[data-view="food-review"] .tab-dock {
 
 .tab-bar button.active svg {
   transform: none;
-  stroke-width: 2.2;
-  fill: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+/* The ellipsis glyph is drawn with round line caps, not a filled shape. */
+.tab-bar [data-view="more"] .tab-icon {
+  stroke-width: 2.6;
+  stroke-linecap: round;
 }
 
 /* No idle pulse — native tab bars never animate on their own. */
@@ -958,7 +1065,48 @@ body.chrome-compact .tab-bar span {
 }
 
 /* ---------------------------------------------------------------------------
- * 14. Motion preferences
+ * 14. Continuous corners
+ *
+ * Apple's rounded rectangles are superellipses, not circular arcs. Where the
+ * engine supports corner-shape we ask for the real curve; elsewhere the plain
+ * radius above stays in effect.
+ * ------------------------------------------------------------------------ */
+
+@supports (corner-shape: squircle) {
+  .component-card,
+  .summary-panel,
+  .form-panel,
+  .details-card,
+  .grouped-list,
+  .action-list,
+  .metric-grid article,
+  .metric-grid button,
+  .week-chart,
+  .weight-chart,
+  .meal-section,
+  .calorie-card,
+  .macro-card,
+  .calorie-card .calorie-side > div,
+  .weekly-mission,
+  .subscription-status-card,
+  .subscription-plan-card,
+  .food-sheet-head,
+  .food-ai-search-card,
+  .ai-limit-panel,
+  .entry-edit-card,
+  .add-mode-actions button,
+  .scan-shortcut,
+  .food-search-field,
+  .sheet-panel,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    corner-shape: squircle;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 15. Motion preferences
  * ------------------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {

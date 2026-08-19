@@ -185,6 +185,7 @@ const nodes = {
   kcalTarget: document.querySelector("#kcal-target"),
   kcalPercent: document.querySelector("#kcal-percent"),
   kcalProgress: document.querySelector("#kcal-progress"),
+  kcalRing: document.querySelector("#kcal-ring"),
   kcalCompare: document.querySelector("#kcal-compare"),
   firstDayNudge: document.querySelector("#first-day-nudge"),
   firstDayCaption: document.querySelector("#first-day-caption"),
@@ -1356,6 +1357,14 @@ function previewLockedTheme(theme) {
   window.setTimeout(() => openSubscriptionFlow({ highlight: true }), 720);
 }
 
+const CALORIE_RING_CIRCUMFERENCE = 2 * Math.PI * 88;
+
+function setCalorieRingProgress(progress) {
+  if (!nodes.kcalRing) return;
+  const clamped = Math.max(0, Math.min(Number(progress) || 0, 1));
+  nodes.kcalRing.style.strokeDashoffset = String(CALORIE_RING_CIRCUMFERENCE * (1 - clamped));
+}
+
 function triggerHaptic(style = "light") {
   try {
     tg?.HapticFeedback?.impactOccurred?.(style);
@@ -1500,6 +1509,7 @@ function renderToday(data) {
   renderAiBadges();
   const progress = diary.target_kcal > 0 ? Math.min(diary.kcal / diary.target_kcal, 1) : 0;
   setProgressValue(nodes.kcalProgress, "width", `${Math.round(progress * 100)}%`);
+  setCalorieRingProgress(progress);
   setTextWithPulse(nodes.kcalPercent, `${Math.round(progress * 100)}%`);
   const left = Math.round(diary.target_kcal - diary.kcal);
   setTextWithPulse(nodes.kcalEaten, Math.round(diary.kcal));
@@ -3723,6 +3733,7 @@ function renderEmptyApp() {
   nodes.kcalTarget.textContent = "0 / 0 ккал";
   nodes.kcalPercent.textContent = "0%";
   nodes.kcalProgress.style.width = "0%";
+  setCalorieRingProgress(0);
   renderMacroRing("protein", 0, 0);
   renderMacroRing("fat", 0, 0);
   renderMacroRing("carbs", 0, 0);
