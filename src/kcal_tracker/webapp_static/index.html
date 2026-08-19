@@ -7,9 +7,9 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Kcal</title>
-    <link rel="stylesheet" href="/app/static/themes.css?v=ios26-v9-20260819" />
-    <link rel="stylesheet" href="/app/static/styles.css?v=ios26-v9-20260819" />
-    <link rel="stylesheet" href="/app/static/ios26.css?v=ios26-v9-20260819" />
+    <link rel="stylesheet" href="/app/static/themes.css?v=ios26-v10-20260819" />
+    <link rel="stylesheet" href="/app/static/styles.css?v=ios26-v10-20260819" />
+    <link rel="stylesheet" href="/app/static/ios26.css?v=ios26-v10-20260819" />
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
   </head>
   <body data-view="today">
@@ -40,6 +40,24 @@
       </symbol>
       <symbol id="icon-more-fill" viewBox="0 0 24 24">
         <path d="M7.4 12a1.75 1.75 0 1 1-3.5 0 1.75 1.75 0 0 1 3.5 0zm6.35 0a1.75 1.75 0 1 1-3.5 0 1.75 1.75 0 0 1 3.5 0zm6.35 0a1.75 1.75 0 1 1-3.5 0 1.75 1.75 0 0 1 3.5 0z" />
+      </symbol>
+      <symbol id="icon-star" viewBox="0 0 24 24">
+        <path d="M12 4.2l2.36 4.78 5.28.77-3.82 3.72.9 5.26L12 16.24l-4.72 2.49.9-5.26L4.36 9.75l5.28-.77z" />
+      </symbol>
+      <symbol id="icon-repeat" viewBox="0 0 24 24">
+        <path d="M4.4 12a7.6 7.6 0 1 0 2.23-5.37" />
+        <path d="M4.4 5v4.4h4.4" />
+      </symbol>
+      <symbol id="icon-drop" viewBox="0 0 24 24">
+        <path d="M12 3.6c3.1 3.5 5.5 6.4 5.5 9.2a5.5 5.5 0 0 1-11 0c0-2.8 2.4-5.7 5.5-9.2z" />
+      </symbol>
+      <symbol id="icon-flame" viewBox="0 0 24 24">
+        <path d="M12 3.5c2.6 2.6 4.9 5 4.9 8.3a4.9 4.9 0 0 1-9.8 0c0-1.3.5-2.4 1.3-3.5.5 1 1.2 1.6 2 1.9-.4-2.4.4-4.6 1.6-6.7z" />
+      </symbol>
+      <symbol id="icon-scale" viewBox="0 0 24 24">
+        <path d="M5.75 4.75h12.5a1.5 1.5 0 0 1 1.5 1.5v11.5a1.5 1.5 0 0 1-1.5 1.5H5.75a1.5 1.5 0 0 1-1.5-1.5V6.25a1.5 1.5 0 0 1 1.5-1.5z" />
+        <path d="M9 9.5a3 3 0 0 1 6 0" />
+        <path d="M12 9.5v2.4" />
       </symbol>
       <symbol id="icon-refresh" viewBox="0 0 24 24">
         <path d="M20 12a8 8 0 1 1-2.35-5.65" />
@@ -412,44 +430,36 @@
           </div>
           <div class="more-action-grid">
             <button type="button" data-more-action="add-food">
-              <i>+</i>
+              <i><svg aria-hidden="true"><use href="#icon-plus"></use></svg></i>
               <span>Еда</span>
-              <b>поиск, AI, фото</b>
             </button>
             <button type="button" data-more-action="barcode">
-              <i>⌗</i>
+              <i><svg aria-hidden="true"><use href="#icon-scan"></use></svg></i>
               <span>Штрихкод</span>
-              <b>скан или цифры</b>
             </button>
             <button type="button" data-more-action="templates">
-              <i>☆</i>
+              <i><svg aria-hidden="true"><use href="#icon-star"></use></svg></i>
               <span>Шаблоны</span>
-              <b>любимые блюда</b>
             </button>
             <button type="button" data-more-action="repeat-yesterday">
-              <i>↺</i>
+              <i><svg aria-hidden="true"><use href="#icon-repeat"></use></svg></i>
               <span>Как вчера</span>
-              <b>повторить день</b>
             </button>
             <button type="button" data-more-action="water">
-              <i>ml</i>
+              <i><svg aria-hidden="true"><use href="#icon-drop"></use></svg></i>
               <span>Вода</span>
-              <b>250 / 500 мл</b>
             </button>
             <button type="button" data-more-action="activity">
-              <i>↯</i>
+              <i><svg aria-hidden="true"><use href="#icon-flame"></use></svg></i>
               <span>Активность</span>
-              <b>расход ккал</b>
             </button>
             <button type="button" data-more-action="weight">
-              <i>kg</i>
+              <i><svg aria-hidden="true"><use href="#icon-scale"></use></svg></i>
               <span>Вес</span>
-              <b>цель и тренд</b>
             </button>
             <button type="button" data-more-action="progress">
-              <i>▥</i>
+              <i><svg aria-hidden="true"><use href="#icon-chart"></use></svg></i>
               <span>Прогресс</span>
-              <b>неделя и цель</b>
             </button>
           </div>
         </section>
@@ -463,10 +473,9 @@
           <div class="more-premium-card component-card">
             <div>
               <span class="caption">AI сегодня</span>
-              <strong><span id="more-ai-caption">Проверяю лимит</span> <span class="premium-badge">Premium</span></strong>
-              <p class="muted">Фото еды, уточнение записей и разбор текста используют дневной лимит.</p>
+              <strong id="more-ai-caption">Проверяю лимит</strong>
             </div>
-            <button class="secondary-button" type="button" data-more-action="subscription">Подписка</button>
+            <button class="primary-button" type="button" data-more-action="subscription">Подписка</button>
           </div>
         </section>
 
@@ -479,15 +488,6 @@
             <span class="premium-badge">Premium</span>
           </div>
           <div id="theme-grid" class="theme-grid" aria-label="Темы мини приложения"></div>
-        </section>
-
-        <section class="subscription-entry-card component-card">
-          <div>
-            <span class="caption">Premium</span>
-            <h2>Подписка и AI</h2>
-            <p class="section-subtitle">Лимиты, продление, промокоды и способы оплаты.</p>
-          </div>
-          <button class="primary-button" type="button" data-more-action="subscription">Открыть подписку</button>
         </section>
 
         <section class="list-section component-section">
@@ -1040,7 +1040,7 @@
 
     <div id="toast" class="toast hidden"></div>
     <script src="/app/static/app_core.js?v=core-v1-20260622"></script>
-    <script src="/app/static/app.js?v=ios26-v9-20260819" type="module"></script>
-    <script src="/app/static/ios26.js?v=ios26-v9-20260819"></script>
+    <script src="/app/static/app.js?v=ios26-v10-20260819" type="module"></script>
+    <script src="/app/static/ios26.js?v=ios26-v10-20260819"></script>
   </body>
 </html>

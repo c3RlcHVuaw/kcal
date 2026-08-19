@@ -55,6 +55,15 @@
 - Centred the tab glyphs while the bar is minimized. Hiding the label with
   max-height left it holding an implicit grid row plus the row gap, so the icons
   sat high in the capsule.
+- Turned the More quick actions from a two-column grid of tinted cards into one
+  inset group of rows — coloured glyph, title, chevron — and dropped the static
+  descriptions under each title.
+- Unified the More row icons: white glyphs of one geometry on solid system
+  colour tiles, replacing a mix of typographic stand-ins ("ml", "kg", "⌗") and
+  gradient chips. Adds star, repeat, drop, flame and scale symbols.
+- Merged the two Premium blocks into a single card: the AI status line and one
+  button, instead of a status card followed by a promo card pointing at the same
+  screen.
 - Cut interface noise: removed nine section subtitles that only restated their
   heading, the marketing hero on More (its status numbers stay), and the Premium
   badges repeated on every AI entry point.

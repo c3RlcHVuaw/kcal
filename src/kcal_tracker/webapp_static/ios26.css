@@ -1306,6 +1306,137 @@ body.chrome-compact .tab-bar span {
 }
 
 /* ---------------------------------------------------------------------------
+ * 13a. The More screen reads as Settings
+ *
+ * A two-column grid of tinted cards is an app launcher, not a system screen.
+ * iOS puts the same actions in one inset group: coloured glyph, title, chevron.
+ * ------------------------------------------------------------------------ */
+
+.more-action-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--radius-xl);
+  background: var(--material-card);
+  box-shadow:
+    inset 0 0 0 0.5px var(--glass-rim),
+    var(--shadow-card);
+}
+
+.more-action-grid button {
+  position: relative;
+  display: grid;
+  grid-template-columns: 29px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  padding: 9px var(--space-4);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.more-action-grid button + button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: calc(var(--space-4) + 29px + 12px);
+  height: 0.5px;
+  background: var(--separator);
+}
+
+.more-action-grid button::after {
+  content: "›";
+  color: var(--label-tertiary);
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* Settings-style glyph tiles: one solid system colour, one white glyph, one
+   geometry. The legacy tiles mixed gradients with text stand-ins like "ml". */
+.more-action-grid i {
+  display: grid;
+  place-items: center;
+  width: 29px;
+  height: 29px;
+  border-radius: 7px;
+  background: var(--fill-primary);
+  color: #ffffff;
+  font-size: 0;
+  font-style: normal;
+}
+
+.more-action-grid i svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.more-action-grid button:nth-child(1) i {
+  background: var(--accent);
+}
+
+.more-action-grid button:nth-child(2) i {
+  background: var(--protein);
+}
+
+.more-action-grid button:nth-child(3) i {
+  background: var(--fat);
+}
+
+.more-action-grid button:nth-child(4) i {
+  background: var(--carbs);
+}
+
+.more-action-grid button:nth-child(5) i {
+  background: var(--activity);
+}
+
+.more-action-grid button:nth-child(6) i {
+  background: var(--danger);
+}
+
+.more-action-grid button:nth-child(7) i {
+  background: #ff2d55;
+}
+
+.more-action-grid button:nth-child(8) i {
+  background: #5856d6;
+}
+
+.more-action-grid span {
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.43px;
+}
+
+.more-action-grid button:active {
+  background: var(--fill-quaternary);
+  transform: none;
+}
+
+/* The AI card is a status line plus one action, not a pitch. */
+.more-premium-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.more-premium-card strong {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.45px;
+}
+
+/* ---------------------------------------------------------------------------
  * 13b. Wide viewports — Telegram Desktop and the browser
  *
  * A phone sheet that spans a 1000px window reads as a web panel. On a regular
