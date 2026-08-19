@@ -2004,15 +2004,22 @@ body[data-view="today"].chrome-scrolled .app-header {
   animation-delay: 0.24s;
 }
 
-/* The inputs stay visible but recede while the request is in flight. */
+/* While the request is in flight the screen belongs to the waiting state: the
+   composer, its suggestions and the submit button have nothing to offer yet. */
+.add-mode-panel.is-ai-processing .ai-hero,
 .add-mode-panel.is-ai-processing .quick-prompts,
 .add-mode-panel.is-ai-processing .photo-checklist,
 .add-mode-panel.is-ai-processing textarea,
-.add-mode-panel.is-ai-processing .photo-primary-action {
-  opacity: 0.45;
-  pointer-events: none;
-  animation: none;
-  transition: opacity var(--motion-soft);
+.add-mode-panel.is-ai-processing .photo-primary-action,
+.add-mode-panel.is-ai-processing .premium-feature-note,
+.add-mode-panel.is-ai-processing .primary-button,
+.add-mode-panel.is-ai-processing .input-label {
+  display: none;
+}
+
+/* With the form gone, the waiting state centres itself in the sheet. */
+#food-add-sheet .add-mode-panel.is-ai-processing {
+  justify-content: center;
 }
 
 @keyframes aiBreathe {
@@ -2159,17 +2166,6 @@ body[data-view="today"].chrome-scrolled .app-header {
   padding: 14px;
   font-size: 17px;
   line-height: 1.35;
-}
-
-/* Thinking: the hero steps aside so the orb owns the screen. */
-.add-mode-panel.is-ai-processing .ai-hero {
-  opacity: 0;
-  height: 0;
-  padding: 0;
-  overflow: hidden;
-  transition:
-    opacity var(--motion-fast),
-    height var(--motion-soft);
 }
 
 .ai-thinking {

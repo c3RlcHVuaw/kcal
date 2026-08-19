@@ -63,6 +63,9 @@
   line that narrates each stage, and a result that springs in card by card.
   app.js already toggled a `[data-ai-processing]` element that the markup never
   had, so the state now has something to show.
+- Cleared the form away while the model works: the composer, its example chips
+  and the submit button are hidden, so the waiting state has the screen to
+  itself and centres in it.
 - Rebuilt the add-food tiles: each is tinted by its own mode with a gradient
   glyph tile, replacing three identical grey cards with typographic stand-ins.
 - Gave sheet headers an opaque fill. A transparent blurred header leaves a seam
