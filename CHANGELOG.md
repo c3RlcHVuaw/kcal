@@ -37,6 +37,13 @@
 - Parked the premium themes: the picker is hidden and any stored skin resolves
   back to the system theme, because those skins repaint surfaces the iOS 26
   layer owns.
+- Reworked the add-food mode screens: the sticky header is a real navigation bar
+  with a chevron back button, example chips are neutral capsules, and the mode
+  tiles lost their coloured halos and coloured label text.
+- Made the search field a single surface again and toned down cards nested
+  inside the sheet, which were reading as bright slabs of glass over glass.
+- Redrew the selected home glyph with roof eaves so it reads as a house at tab
+  bar size, and calmed the bottom background wash the dock floats over.
 
 ## 2026-06-23
 
