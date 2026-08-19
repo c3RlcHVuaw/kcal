@@ -49,6 +49,9 @@
   Translucent cards blended into the canvas, which is the opposite of how iOS
   separates content from chrome; blur now applies only to the tab dock,
   navigation bars and sheet headers.
+- Fixed the add-food sheet turning see-through: its panel also carries
+  `.component-card`, so the rule that flattens cards nested in a sheet was
+  repainting the panel itself. The rule is now scoped to the scroll container.
 - Presented sheets as a centred card on wide viewports instead of stretching
   the phone layout across a desktop window, matching how iOS switches
   presentation by width class.

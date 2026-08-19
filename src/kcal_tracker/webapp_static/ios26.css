@@ -1086,8 +1086,10 @@ body.chrome-compact .tab-bar span {
 
 /* Glass inside glass reads as a bright slab; cards nested in a sheet get a
    plain fill instead. */
-#food-add-sheet .food-add-overview,
-#food-add-sheet .component-card {
+/* Scoped to the scroll container: the sheet panel itself also carries
+   .component-card, and matching it here turned the whole sheet translucent. */
+#food-add-sheet .food-add-scroll .food-add-overview,
+#food-add-sheet .food-add-scroll .component-card {
   background: var(--fill-quaternary);
   box-shadow: none;
   backdrop-filter: none;
