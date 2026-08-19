@@ -58,6 +58,12 @@
 - Turned the More quick actions from a two-column grid of tinted cards into one
   inset group of rows — coloured glyph, title, chevron — and dropped the static
   descriptions under each title.
+- Replaced the toolbar refresh buttons with pull to refresh. Telegram's own
+  vertical swipe is released so the gesture can work; its header close button
+  still dismisses the app.
+- Dropped the third line from the add-food mode tiles, the decorative caption
+  above the Today title, and the duplicate "Еда" row on More — the dock button
+  and the diary's own add action already cover it.
 - Unified the More row icons: white glyphs of one geometry on solid system
   colour tiles, replacing a mix of typographic stand-ins ("ml", "kg", "⌗") and
   gradient chips. Adds star, repeat, drop, flame and scale symbols.

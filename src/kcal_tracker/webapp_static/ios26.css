@@ -1306,6 +1306,50 @@ body.chrome-compact .tab-bar span {
 }
 
 /* ---------------------------------------------------------------------------
+ * 12b. Pull to refresh
+ *
+ * The toolbar refresh buttons stay in the DOM as the refresh entry point the
+ * gesture triggers, but a native app does not show them.
+ * ------------------------------------------------------------------------ */
+
+#refresh,
+#refresh-hero {
+  display: none;
+}
+
+.ptr-indicator {
+  position: fixed;
+  top: calc(var(--app-top-pad) + 8px);
+  left: 50%;
+  z-index: 30;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  border: 2px solid var(--label-quaternary);
+  border-top-color: var(--accent);
+  opacity: 0;
+  transform: translate(-50%, 0);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.ptr-indicator.is-active {
+  visibility: visible;
+}
+
+.ptr-indicator.is-loading {
+  opacity: 1;
+  transform: translate(-50%, 28px);
+  animation: ptrSpin 0.7s linear infinite;
+}
+
+@keyframes ptrSpin {
+  to {
+    transform: translate(-50%, 28px) rotate(360deg);
+  }
+}
+
+/* ---------------------------------------------------------------------------
  * 13a. The More screen reads as Settings
  *
  * A two-column grid of tinted cards is an app launcher, not a system screen.

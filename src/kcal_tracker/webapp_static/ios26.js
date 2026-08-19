@@ -8,7 +8,9 @@
  *     way up, the way iOS 26 tab bars behave;
  *   - tab selection fires a selection haptic;
  *   - sheets can be dragged between detents or flicked away, with the
- *     rubber-band resistance UIKit applies past the top stop.
+ *     rubber-band resistance UIKit applies past the top stop;
+ *   - pulling down at the top of a screen refreshes it, replacing the toolbar
+ *     refresh button that no native app carries.
  *
  * It only toggles classes on <body>, so app.js keeps full ownership of state.
  */
@@ -222,6 +224,83 @@
     subtree: true,
     attributes: true,
     attributeFilter: ["class"],
+  });
+
+  /* -------------------------------------------------------------------------
+   * Pull to refresh. Telegram claims vertical swipes to dismiss the Mini App,
+   * so that gesture is released first; the close button in Telegram's own
+   * header still dismisses.
+   * ---------------------------------------------------------------------- */
+
+  try {
+    tg?.disableVerticalSwipes?.();
+  } catch {
+    // Older Telegram clients simply keep their swipe gesture.
+  }
+
+  const PULL_THRESHOLD = 72;
+  const PULL_MAX = 140;
+
+  const pullIndicator = document.createElement("div");
+  pullIndicator.className = "ptr-indicator";
+  pullIndicator.setAttribute("aria-hidden", "true");
+  document.body.appendChild(pullIndicator);
+
+  let pull = null;
+
+  function refreshControl() {
+    return document.querySelector("#refresh-hero") || document.querySelector("#refresh");
+  }
+
+  function resetPull() {
+    pull = null;
+    pullIndicator.style.transform = "";
+    pullIndicator.style.opacity = "";
+    pullIndicator.classList.remove("is-active");
+  }
+
+  window.addEventListener(
+    "touchstart",
+    (event) => {
+      if (event.touches.length !== 1) return;
+      if (body.classList.contains("sheet-open")) return;
+      if (currentScroll() > 0) return;
+      pull = { startY: event.touches[0].clientY, distance: 0 };
+    },
+    { passive: true },
+  );
+
+  window.addEventListener(
+    "touchmove",
+    (event) => {
+      if (!pull) return;
+      const distance = event.touches[0].clientY - pull.startY;
+      if (distance <= 0) {
+        resetPull();
+        return;
+      }
+      pull.distance = Math.min(distance, PULL_MAX);
+      const progress = Math.min(pull.distance / PULL_THRESHOLD, 1);
+      pullIndicator.classList.add("is-active");
+      pullIndicator.style.opacity = String(progress);
+      pullIndicator.style.transform = `translate(-50%, ${pull.distance * 0.45}px) rotate(${progress * 320}deg)`;
+    },
+    { passive: true },
+  );
+
+  window.addEventListener("touchend", () => {
+    if (!pull) return;
+    const shouldRefresh = pull.distance >= PULL_THRESHOLD;
+    resetPull();
+    if (!shouldRefresh) return;
+    try {
+      tg?.HapticFeedback?.impactOccurred?.("medium");
+    } catch {
+      // Optional outside Telegram.
+    }
+    pullIndicator.classList.add("is-active", "is-loading");
+    refreshControl()?.click();
+    window.setTimeout(() => pullIndicator.classList.remove("is-active", "is-loading"), 900);
   });
 
   applyScrollState();

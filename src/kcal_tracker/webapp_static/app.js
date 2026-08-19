@@ -440,7 +440,7 @@ lockViewportZoom();
 
 if (tg?.initDataUnsafe?.user?.first_name) {
   nodes.hello.textContent = `Привет, ${tg.initDataUnsafe.user.first_name}`;
-  nodes.todayHello.textContent = `Привет, ${tg.initDataUnsafe.user.first_name}`;
+  if (nodes.todayHello) nodes.todayHello.textContent = `Привет, ${tg.initDataUnsafe.user.first_name}`;
 }
 
 document.querySelectorAll("[data-view]").forEach((button) => {
