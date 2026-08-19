@@ -44,6 +44,9 @@
   inside the sheet, which were reading as bright slabs of glass over glass.
 - Redrew the selected home glyph with roof eaves so it reads as a house at tab
   bar size, and calmed the bottom background wash the dock floats over.
+- Presented sheets as a centred card on wide viewports instead of stretching
+  the phone layout across a desktop window, matching how iOS switches
+  presentation by width class.
 - Sent `Cache-Control: no-cache` with the HTML documents. Static assets were
   already versioned and cached hard, but the document that references them had
   no directive at all, so webviews cached it heuristically and never picked up

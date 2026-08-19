@@ -1306,6 +1306,47 @@ body.chrome-compact .tab-bar span {
 }
 
 /* ---------------------------------------------------------------------------
+ * 13b. Wide viewports — Telegram Desktop and the browser
+ *
+ * A phone sheet that spans a 1000px window reads as a web panel. On a regular
+ * width class iOS presents sheets as a centred card instead, so do the same
+ * rather than stretching the phone layout.
+ * ------------------------------------------------------------------------ */
+
+@media (min-width: 640px) {
+  .sheet,
+  #food-add-sheet {
+    align-items: center;
+    justify-items: center;
+    padding: 24px;
+  }
+
+  .sheet-panel {
+    width: min(560px, 100%);
+    border-radius: var(--radius-sheet);
+  }
+
+  #food-add-sheet .food-add-panel {
+    width: min(560px, 100%);
+    height: auto;
+    max-height: min(84dvh, 780px);
+    margin: 0 auto;
+    border-radius: var(--radius-sheet);
+  }
+
+  #food-add-sheet .food-add-scroll {
+    height: auto;
+    max-height: min(84dvh, 780px);
+  }
+
+  /* Rounded on every corner, so the sticky header has to be clipped to match. */
+  #food-add-sheet .food-add-scroll > .sheet-title {
+    border-top-left-radius: var(--radius-sheet);
+    border-top-right-radius: var(--radius-sheet);
+  }
+}
+
+/* ---------------------------------------------------------------------------
  * 14. Continuous corners
  *
  * Apple's rounded rectangles are superellipses, not circular arcs. Where the
