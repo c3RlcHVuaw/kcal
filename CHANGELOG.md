@@ -11,6 +11,12 @@
   large title into a centered compact one, with a selection haptic on tab taps.
 - Removed the older competing style passes that redefined the palette, page
   background and card skins so the theme tokens are authoritative again.
+- Gave every raised surface the Liquid Glass build-up — translucent fill, rim
+  hairline and top sheen over a softly washed canvas — instead of flat cards.
+- Normalized the ad-hoc font weights onto the four SF weights and pulled colour
+  out of labels so hue only marks rings, bars and states.
+- Fixed the gap left in the tab capsule after the add button moved out of the
+  navigation, by laying the tabs out with flex instead of fixed grid columns.
 
 ## 2026-06-23
 

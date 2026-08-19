@@ -7,8 +7,9 @@
  * working because every value here comes from the shared token set.
  *
  * Two rules define the look:
- *   1. Content is opaque. Cards are solid fills on a grouped background.
- *   2. Chrome is glass. Only floating layers (tab bar, toolbars, sheets) blur.
+ *   1. Every raised surface is glass: translucent fill, rim hairline, top sheen.
+ *   2. The canvas carries soft colour washes so that blur has something to
+ *      refract — without them translucency reads as flat grey.
  */
 
 /* ---------------------------------------------------------------------------
@@ -17,7 +18,12 @@
 
 body {
   min-height: 100dvh;
-  background: var(--bg);
+  background:
+    radial-gradient(120% 60% at 8% -6%, var(--bg-wash-a), transparent 62%),
+    radial-gradient(100% 52% at 100% 4%, var(--bg-wash-b), transparent 58%),
+    radial-gradient(120% 46% at 50% 104%, var(--bg-wash-c), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
   font-family: var(--font-text);
   font-size: 17px;
   line-height: 1.29;
@@ -111,7 +117,9 @@ h3,
 
 body.chrome-scrolled .app-header {
   border-bottom-color: var(--separator);
-  background: var(--material-regular);
+  background:
+    var(--glass-sheen),
+    var(--material-chrome);
   backdrop-filter: var(--blur-chrome);
   -webkit-backdrop-filter: var(--blur-chrome);
 }
@@ -149,9 +157,14 @@ body.chrome-scrolled .app-header > div:first-child {
 }
 
 /* ---------------------------------------------------------------------------
- * 4. Content cards — opaque grouped surfaces
+ * 4. Content cards — grouped glass surfaces
  * ------------------------------------------------------------------------ */
 
+/*
+ * The Liquid Glass build-up, used by every raised surface: a translucent fill
+ * that blurs what is behind it, a hairline rim, and a specular sheen along the
+ * top edge. Layer order matters — sheen first so it sits above the fill.
+ */
 .component-card,
 .summary-panel,
 .form-panel,
@@ -164,21 +177,20 @@ body.chrome-scrolled .app-header > div:first-child {
 .weight-chart,
 .meal-section {
   border: 0;
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  border-radius: var(--radius-xl);
+  background:
+    var(--glass-sheen),
+    var(--material-card);
+  box-shadow:
+    inset 0 0 0 0.5px var(--glass-rim),
+    inset 0 1px 0 var(--glass-specular),
+    var(--shadow-card);
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
 }
 
 .accent-card::before {
   display: none;
-}
-
-.calorie-card,
-.premium-card,
-.more-premium-card {
-  background: var(--surface);
 }
 
 /* Nested cards step down one radius level so corners stay concentric. */
@@ -495,17 +507,22 @@ body[data-view="food-review"] .tab-dock {
   position: static;
   left: auto;
   bottom: auto;
+  /* Flex ignores the explicit grid-column assignments left over from the
+     five-slot bar, so removing the add button cannot leave an empty column. */
+  display: flex;
   flex: 1 1 auto;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   width: auto;
-  height: 60px;
+  height: 64px;
   padding: 5px;
-  border: 0.5px solid var(--material-edge);
+  border: 0;
   border-radius: var(--radius-pill);
-  background: var(--material-regular);
+  background:
+    var(--glass-sheen),
+    var(--material-chrome);
   box-shadow:
-    var(--shadow-chrome),
-    var(--specular);
+    inset 0 0 0 0.5px var(--glass-rim),
+    inset 0 1px 0 var(--glass-specular),
+    var(--shadow-chrome);
   backdrop-filter: var(--blur-chrome);
   -webkit-backdrop-filter: var(--blur-chrome);
   transform: none;
@@ -519,15 +536,18 @@ body[data-view="food-review"] .tab-dock {
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  width: 60px;
-  height: 60px;
-  border: 0.5px solid var(--material-edge);
+  width: 64px;
+  height: 64px;
+  border: 0;
   border-radius: var(--radius-pill);
-  background: var(--accent);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 52%),
+    var(--accent);
   color: var(--accent-text);
   box-shadow:
-    var(--shadow-chrome),
-    var(--specular);
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    var(--shadow-chrome);
   transition:
     width var(--motion-soft),
     height var(--motion-soft),
@@ -552,9 +572,11 @@ body[data-view="food-review"] .tab-dock {
 }
 
 .tab-bar button {
+  flex: 1 1 0;
   grid-template-rows: 24px auto;
   gap: 3px;
   height: 100%;
+  min-width: 0;
   padding: 0 2px;
   border-radius: var(--radius-pill);
   color: var(--label-secondary);
@@ -603,12 +625,12 @@ body[data-view="food-review"] .tab-dock {
 
 /* iOS 26 minimizes the tab bar while the user scrolls down. */
 body.chrome-compact .tab-bar {
-  height: 52px;
+  height: 54px;
 }
 
 body.chrome-compact .tab-add {
-  width: 52px;
-  height: 52px;
+  width: 54px;
+  height: 54px;
 }
 
 body.chrome-compact .tab-bar button {
@@ -639,10 +661,15 @@ body.chrome-compact .tab-bar span {
   padding-top: 12px;
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
   border: 0;
-  background: var(--bg-elevated);
-  box-shadow: var(--shadow-float);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  background:
+    var(--glass-sheen),
+    var(--material-thick);
+  box-shadow:
+    inset 0 0 0 0.5px var(--glass-rim),
+    inset 0 1px 0 var(--glass-specular),
+    var(--shadow-float);
+  backdrop-filter: var(--blur-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
 }
 
 /* Grabber handle. */
@@ -680,8 +707,12 @@ body.chrome-compact .tab-bar span {
   height: calc(100dvh - 12px);
   max-height: calc(100dvh - 12px);
   border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
-  background: var(--bg-elevated);
+  background:
+    var(--glass-sheen),
+    var(--material-thick);
   box-shadow: var(--shadow-float);
+  backdrop-filter: var(--blur-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
 }
 
 #food-add-sheet .sheet-panel::before {
@@ -747,9 +778,17 @@ body.chrome-compact .tab-bar span {
 .ai-limit-panel,
 .day-share-card,
 .entry-edit-card {
-  border-color: transparent;
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background:
+    var(--glass-sheen),
+    var(--material-card);
+  box-shadow:
+    inset 0 0 0 0.5px var(--glass-rim),
+    inset 0 1px 0 var(--glass-specular),
+    var(--shadow-card);
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
 }
 
 /* Inner tiles sit one level up from their parent card. */
@@ -845,7 +884,81 @@ body.chrome-compact .tab-bar span {
 }
 
 /* ---------------------------------------------------------------------------
- * 13. Motion preferences
+ * 13. Colour restraint
+ *
+ * iOS spends colour only where it carries meaning — a ring, a bar, a state.
+ * Labels around them stay in the neutral label ramp, which is most of the
+ * difference between a native screen and a dashboard.
+ * ------------------------------------------------------------------------ */
+
+.macro-protein span,
+.macro-fat span,
+.macro-carbs span,
+.macro-card span,
+.metric-grid span {
+  color: var(--label-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.08px;
+}
+
+.good-status,
+.warn-status {
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.23px;
+}
+
+.good-status {
+  color: var(--label-secondary);
+}
+
+.warn-status {
+  color: var(--warning);
+}
+
+/* One hue for the score trend instead of a three-colour chart. */
+.score-sparkline i {
+  background: color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+.score-sparkline i:nth-child(2n) {
+  background: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+
+.score-sparkline i:nth-child(3n) {
+  background: var(--accent);
+}
+
+/* Numbers carry the hierarchy, so they get the display face and tabular figures. */
+.nutrition-score-card strong,
+.macro-balance-card strong,
+.summary-panel strong,
+.metric-grid strong {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.calorie-main strong {
+  font-size: clamp(44px, 12vw, 60px);
+  font-weight: 700;
+  letter-spacing: -1.4px;
+}
+
+.calorie-main strong::after {
+  content: " ккал";
+  margin-left: 4px;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.43px;
+  color: var(--label-secondary);
+}
+
+/* ---------------------------------------------------------------------------
+ * 14. Motion preferences
  * ------------------------------------------------------------------------ */
 
 @media (prefers-reduced-motion: reduce) {

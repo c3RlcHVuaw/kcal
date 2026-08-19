@@ -141,7 +141,7 @@ h1 {
   font-size: 30px;
   line-height: 1.06;
   letter-spacing: 0;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 h2 {
@@ -149,7 +149,7 @@ h2 {
   font-size: 18px;
   line-height: 1.2;
   letter-spacing: 0;
-  font-weight: 740;
+  font-weight: 600;
 }
 
 .caption,
@@ -435,7 +435,7 @@ h2 {
   backdrop-filter: var(--control-blur);
   -webkit-backdrop-filter: var(--control-blur);
   font-size: 13px;
-  font-weight: 860;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -577,7 +577,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   margin-top: 4px;
   font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: clamp(46px, 13vw, 68px);
-  font-weight: 780;
+  font-weight: 600;
   line-height: 0.96;
   color: var(--text);
 }
@@ -585,7 +585,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
 .calorie-main strong::after {
   content: " ккал";
   font-size: 18px;
-  font-weight: 720;
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -794,7 +794,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
 .weekly-mission span {
   flex: 0 0 auto;
   color: var(--muted);
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .weekly-mission i {
@@ -814,7 +814,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
 
 .stats-link {
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 600;
   letter-spacing: 0.09em;
   text-transform: uppercase;
 }
@@ -895,7 +895,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   display: block;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 740;
+  font-weight: 600;
 }
 
 .macro-card b,
@@ -904,7 +904,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   margin-top: 8px;
   overflow-wrap: anywhere;
   font-size: 15px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .macro-card b {
@@ -947,7 +947,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   z-index: 1;
   color: var(--text);
   font-size: clamp(11px, 3vw, 13px);
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .macro-overflow {
@@ -956,7 +956,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   color: #ff4f78;
   font-size: 10px;
   font-style: normal;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1;
   opacity: 0;
 }
@@ -1036,7 +1036,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   border-radius: var(--radius-pill);
   background: var(--surface-soft);
   color: var(--accent-strong);
-  font-weight: 720;
+  font-weight: 600;
 }
 
 .summary-panel {
@@ -1162,7 +1162,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   color: var(--muted);
   font-size: 11px;
   font-style: normal;
-  font-weight: 760;
+  font-weight: 600;
   line-height: 1.2;
 }
 
@@ -1196,7 +1196,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   background: transparent;
   color: var(--muted);
   text-align: left;
-  font-weight: 720;
+  font-weight: 600;
 }
 
 .meal-empty span,
@@ -1216,7 +1216,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   color: var(--muted);
   font-size: 12px;
   font-style: normal;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.25;
 }
 
@@ -1242,7 +1242,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   min-height: 32px;
   padding: 0 10px 0 12px;
   background: var(--surface-soft);
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .meal-add svg,
@@ -1355,7 +1355,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
     linear-gradient(135deg, rgba(71, 192, 139, 0.42), rgba(99, 128, 214, 0.24));
   color: var(--accent-strong);
   font-size: 27px;
-  font-weight: 780;
+  font-weight: 600;
 }
 
 .food-thumb.has-photo {
@@ -1408,7 +1408,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   background: var(--surface-soft);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 680;
+  font-weight: 600;
 }
 
 .food-card .entry-meta span:nth-child(2) {
@@ -1443,7 +1443,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   background: rgba(120, 120, 128, 0.13);
   color: var(--accent-strong);
   font-size: 13px;
-  font-weight: 720;
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -1493,7 +1493,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   background: color-mix(in srgb, var(--accent) 9%, transparent);
   color: color-mix(in srgb, var(--accent-strong) 76%, var(--text));
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 600;
   line-height: 1.25;
 }
 
@@ -1537,7 +1537,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   background: transparent;
   color: var(--muted);
   font-size: 14px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .meal-picker button {
@@ -1547,7 +1547,7 @@ body.theme-dark .today-actions .mission-button.is-eligible {
   background: transparent;
   color: var(--muted);
   font-size: 13px;
-  font-weight: 740;
+  font-weight: 600;
 }
 
 .segmented button.active,
@@ -1624,7 +1624,7 @@ textarea:focus {
 .input-label {
   color: var(--text);
   font-size: 14px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .food-text-panel {
@@ -1653,7 +1653,7 @@ textarea:focus {
   background: color-mix(in srgb, var(--surface-soft) 78%, transparent);
   color: var(--muted);
   font-size: 13px;
-  font-weight: 720;
+  font-weight: 600;
 }
 
 .media-actions {
@@ -1691,13 +1691,13 @@ textarea:focus {
 .media-action span {
   color: var(--text);
   font-size: 15px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .media-action b {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 620;
+  font-weight: 600;
 }
 
 .barcode-inline {
@@ -1809,7 +1809,7 @@ textarea:focus {
   background: var(--surface-solid);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
   box-shadow: var(--shadow-tight);
 }
 
@@ -1901,7 +1901,7 @@ textarea:focus {
 
 .packaged-warning b {
   font-size: 12px;
-  font-weight: 790;
+  font-weight: 600;
 }
 
 .packaged-warning span {
@@ -1973,7 +1973,7 @@ textarea:focus {
 .food-review-page .review-edit-field span {
   color: var(--muted);
   font-size: 10px;
-  font-weight: 780;
+  font-weight: 600;
   line-height: 1;
   text-transform: uppercase;
 }
@@ -1985,7 +1985,7 @@ textarea:focus {
   padding: 0 9px;
   border-radius: 11px;
   font-size: 15px;
-  font-weight: 620;
+  font-weight: 600;
   background: var(--surface-solid);
 }
 
@@ -2062,7 +2062,7 @@ textarea:focus {
   min-height: 48px;
   border-radius: 16px;
   font-size: 17px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .food-review-page .icon-mini {
@@ -2126,7 +2126,7 @@ textarea:focus {
   place-items: center;
   color: var(--accent-strong);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 600;
   list-style: none;
   cursor: pointer;
 }
@@ -2311,7 +2311,7 @@ textarea:focus {
 .compact-fields span {
   color: var(--muted);
   font-size: 11px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .compact-fields input {
@@ -2331,7 +2331,7 @@ textarea:focus {
   background: var(--surface-soft);
   color: var(--accent-strong);
   font-size: 13px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .preview-advice {
@@ -2367,7 +2367,7 @@ textarea:focus {
   overflow: hidden;
   min-height: var(--control-lg);
   border-radius: var(--radius-lg);
-  font-weight: 790;
+  font-weight: 600;
 }
 
 .primary-button {
@@ -2415,7 +2415,7 @@ textarea:focus {
 .action-list b {
   margin-top: 5px;
   font-size: 13px;
-  font-weight: 520;
+  font-weight: 500;
   line-height: 1.25;
 }
 
@@ -2508,7 +2508,7 @@ textarea:focus {
   color: var(--muted);
   font-size: 10px;
   font-style: normal;
-  font-weight: 760;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -2605,7 +2605,7 @@ textarea:focus {
   align-self: start;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 680;
+  font-weight: 600;
 }
 
 .more-premium-card {
@@ -2937,7 +2937,7 @@ textarea:focus {
   color: var(--muted);
   font-size: 11px;
   font-style: normal;
-  font-weight: 720;
+  font-weight: 600;
   text-transform: uppercase;
 }
 
@@ -3013,7 +3013,7 @@ textarea:focus {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent-strong);
   font-size: 11px;
-  font-weight: 760;
+  font-weight: 600;
   letter-spacing: 0;
   text-transform: uppercase;
 }
@@ -3039,7 +3039,7 @@ textarea:focus {
   color: var(--muted);
   font-size: 13px;
   font-style: normal;
-  font-weight: 680;
+  font-weight: 600;
 }
 
 .subscription-pay-methods {
@@ -3060,7 +3060,7 @@ textarea:focus {
   background: transparent;
   color: var(--muted);
   font-size: 14px;
-  font-weight: 760;
+  font-weight: 600;
   transition:
     background var(--motion-soft),
     box-shadow var(--motion-soft),
@@ -3127,7 +3127,7 @@ textarea:focus {
 
 .subscription-faq summary {
   color: var(--text);
-  font-weight: 800;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -3141,7 +3141,7 @@ textarea:focus {
   color: var(--accent-strong);
   vertical-align: middle;
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .progress-hero {
@@ -3175,7 +3175,7 @@ textarea:focus {
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent-strong);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .progress-insight-card.is-over .caption {
@@ -3249,14 +3249,14 @@ textarea:focus {
 .progress-coach-card span {
   color: var(--accent-strong);
   font-size: 12px;
-  font-weight: 820;
+  font-weight: 700;
 }
 
 .progress-coach-card p {
   margin: 0;
   color: var(--text);
   font-size: 13px;
-  font-weight: 680;
+  font-weight: 600;
   line-height: 1.32;
 }
 
@@ -3281,7 +3281,7 @@ textarea:focus {
 
 .progress-kpi-grid span {
   font-size: 12px;
-  font-weight: 780;
+  font-weight: 600;
 }
 
 .progress-kpi-grid strong {
@@ -3294,7 +3294,7 @@ textarea:focus {
 
 .progress-kpi-grid small {
   font-size: 10px;
-  font-weight: 720;
+  font-weight: 600;
 }
 
 .progress-chart-section {
@@ -3380,7 +3380,7 @@ textarea:focus {
   color: rgba(255, 255, 255, 0.88);
   box-shadow: none;
   font-size: 32px;
-  font-weight: 320;
+  font-weight: 400;
 }
 
 .day-share-head::after {
@@ -3423,12 +3423,12 @@ textarea:focus {
 
 .day-share-card-top strong {
   font-size: 17px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .day-share-card-top span {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   opacity: 0.96;
 }
 
@@ -3440,7 +3440,7 @@ textarea:focus {
 .day-share-card-main > span {
   color: #202835;
   font-size: 24px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -3454,7 +3454,7 @@ textarea:focus {
 .day-share-card-main strong {
   color: #202835;
   font-size: clamp(56px, 17vw, 82px);
-  font-weight: 930;
+  font-weight: 700;
   line-height: 0.9;
 }
 
@@ -3462,7 +3462,7 @@ textarea:focus {
   color: #7b8494;
   font-size: 14px;
   font-style: normal;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -3486,7 +3486,7 @@ textarea:focus {
   margin-top: -6px;
   color: #202835;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .day-share-card-stats {
@@ -3507,7 +3507,7 @@ textarea:focus {
   display: block;
   color: #7b8494;
   font-size: 10px;
-  font-weight: 850;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -3516,7 +3516,7 @@ textarea:focus {
   margin-top: 3px;
   color: #202835;
   font-size: 13px;
-  font-weight: 920;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -3529,7 +3529,7 @@ textarea:focus {
 .day-share-card-summary strong {
   color: #202835;
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1.08;
 }
 
@@ -3537,7 +3537,7 @@ textarea:focus {
   margin: 0;
   color: #566173;
   font-size: 11px;
-  font-weight: 750;
+  font-weight: 600;
   line-height: 1.35;
 }
 
@@ -3551,7 +3551,7 @@ textarea:focus {
 .day-share-card footer strong {
   color: #078b7b;
   font-size: 12px;
-  font-weight: 950;
+  font-weight: 700;
 }
 
 .day-share-card footer span {
@@ -3600,7 +3600,7 @@ body.theme-dark .day-share-card {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .week-bar i {
@@ -3646,12 +3646,12 @@ body.theme-dark .day-share-card {
 
 .week-bar em {
   font-size: 9px;
-  font-weight: 720;
+  font-weight: 600;
 }
 
 .week-bar span {
   font-size: 10px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .week-legend {
@@ -3661,7 +3661,7 @@ body.theme-dark .day-share-card {
   margin-top: -2px;
   color: var(--muted);
   font-size: 11px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .week-legend span {
@@ -3744,7 +3744,7 @@ body.theme-dark .day-share-card {
   background: transparent;
   color: color-mix(in srgb, var(--muted) 82%, transparent);
   font-size: 10px;
-  font-weight: 740;
+  font-weight: 600;
   line-height: 1;
   letter-spacing: 0;
   transition:
@@ -3853,7 +3853,7 @@ body.sheet-open .tab-bar [data-view="food"] {
   background: color-mix(in srgb, var(--surface-solid) 74%, transparent);
   color: var(--muted);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .onboarding-head button:last-child {
@@ -3867,7 +3867,7 @@ body.sheet-open .tab-bar [data-view="food"] {
 .onboarding-head span {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .onboarding-progress {
@@ -3931,7 +3931,7 @@ body.sheet-open .tab-bar [data-view="food"] {
   margin: 0;
   color: var(--muted);
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.38;
 }
 
@@ -3978,7 +3978,7 @@ body.sheet-open .tab-bar [data-view="food"] {
 .onboarding-tips b {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 740;
+  font-weight: 600;
 }
 
 .onboarding-actions {
@@ -4096,7 +4096,7 @@ body.sheet-open .tab-bar [data-view="food"] {
   box-shadow: none;
   color: var(--muted);
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 #onboarding .onboarding-head button:last-child {
@@ -4149,7 +4149,7 @@ body.sheet-open .tab-bar [data-view="food"] {
 #onboarding .onboarding-copy p {
   color: var(--muted);
   font-size: 15px;
-  font-weight: 620;
+  font-weight: 600;
   line-height: 1.44;
 }
 
@@ -4303,7 +4303,7 @@ body.sheet-open .tab-bar [data-view="food"] {
   min-width: 0;
   color: var(--text);
   font-size: 13px;
-  font-weight: 760;
+  font-weight: 600;
   line-height: 1.2;
   overflow-wrap: anywhere;
 }
@@ -4373,7 +4373,7 @@ body.sheet-open .tab-bar [data-view="food"] {
   background: linear-gradient(135deg, var(--accent), var(--activity));
   color: #ffffff;
   font-size: 22px;
-  font-weight: 950;
+  font-weight: 700;
   box-shadow: 0 16px 30px rgba(91, 200, 170, 0.28);
 }
 
@@ -4384,7 +4384,7 @@ body.sheet-open .tab-bar [data-view="food"] {
   background: rgba(224, 248, 237, 0.9);
   color: var(--accent-dark);
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 700;
 }
 
 .ai-limit-panel h2 {
@@ -4440,7 +4440,7 @@ body.sheet-open .tab-bar [data-view="food"] {
   background: rgba(255, 255, 255, 0.82);
   color: var(--text);
   font-size: 16px;
-  font-weight: 740;
+  font-weight: 600;
 }
 
 .ai-limit-panel .primary-button,
@@ -5019,7 +5019,7 @@ body.sheet-open .tab-bar [data-view="food"] {
 .today-top h1 {
   font-size: 15px;
   line-height: 1.1;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .app-header .caption,
@@ -5148,7 +5148,7 @@ body.sheet-open .tab-bar [data-view="food"] {
 .warn-status {
   margin-top: 6px;
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .good-status {
@@ -5814,12 +5814,12 @@ textarea {
 
 .food-add-overview strong {
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .food-add-overview span {
   color: var(--text);
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .food-add-overview > i {
@@ -5860,7 +5860,7 @@ textarea {
 
 .food-add-macro-row b {
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .food-add-macro-row em {
@@ -6036,7 +6036,7 @@ textarea {
   white-space: nowrap;
   color: color-mix(in srgb, var(--action-tint) 52%, var(--muted));
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .add-mode-actions em {
@@ -6047,7 +6047,7 @@ textarea {
   color: var(--muted);
   font-size: 9px;
   font-style: normal;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.18;
   text-align: center;
 }
@@ -6074,7 +6074,7 @@ textarea {
   background: transparent;
   color: var(--muted);
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .food-pick-list {
@@ -6309,7 +6309,7 @@ body.is-free-user .premium-feature-note {
 .premium-feature-note span {
   color: var(--muted);
   font-size: 12px;
-  font-weight: 660;
+  font-weight: 600;
   line-height: 1.25;
 }
 
@@ -6322,7 +6322,7 @@ body.is-free-user .premium-feature-note {
   background: var(--text);
   color: var(--surface);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .food-pick-card:nth-child(2) {
@@ -6350,7 +6350,7 @@ body.is-free-user .premium-feature-note {
 .food-pick-main strong {
   overflow: hidden;
   font-size: 19px;
-  font-weight: 780;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -6363,7 +6363,7 @@ body.is-free-user .premium-feature-note {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent-strong);
   font-size: 11px;
-  font-weight: 650;
+  font-weight: 600;
   vertical-align: 2px;
 }
 
@@ -6391,7 +6391,7 @@ body.is-free-user .premium-feature-note {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent-strong);
   font-size: 12px;
-  font-weight: 780;
+  font-weight: 600;
 }
 
 .food-impact.near {
@@ -6567,7 +6567,7 @@ body.is-free-user .premium-feature-note {
     var(--control-gradient),
     var(--glass);
   color: var(--accent-strong);
-  font-weight: 650;
+  font-weight: 600;
   box-shadow: var(--shadow-tight);
 }
 
@@ -6704,13 +6704,13 @@ body.is-free-user .premium-feature-note {
   background: color-mix(in srgb, var(--accent) 7%, var(--surface-solid));
   color: var(--muted);
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 600;
   line-height: 1.25;
 }
 
 .photo-checklist b {
   color: var(--text);
-  font-weight: 800;
+  font-weight: 700;
 }
 
 #food-add-sheet #food-form .field-row {
@@ -6830,7 +6830,7 @@ body.is-free-user .premium-feature-note {
   flex: 0 0 auto;
   color: var(--muted);
   font-size: 14px;
-  font-weight: 790;
+  font-weight: 600;
 }
 
 .edit-field {
@@ -6842,7 +6842,7 @@ body.is-free-user .premium-feature-note {
 .edit-field span {
   color: #8a8f98;
   font-size: 12px;
-  font-weight: 760;
+  font-weight: 600;
 }
 
 .edit-field input,
@@ -6874,7 +6874,7 @@ body.is-free-user .premium-feature-note {
   padding: 0 8px;
   background: #fff;
   text-align: center;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .macro-protein span {
@@ -7219,7 +7219,7 @@ h3,
 .food-pick-card strong,
 .parsed-food-card strong,
 .onboarding-tips > span > span {
-  font-weight: 650;
+  font-weight: 600;
 }
 
 #kcal-eaten,
@@ -7239,7 +7239,7 @@ h3,
 .entry-main b,
 .food-card .entry-main b,
 .toast-icon {
-  font-weight: 720;
+  font-weight: 600;
 }
 
 .premium-badge,
