@@ -41,6 +41,7 @@ require_docker="${VALIDATE_REQUIRE_DOCKER:-${CI:-false}}"
 if command -v node >/dev/null 2>&1; then
   node --check src/kcal_tracker/webapp_static/app_core.js
   node --check src/kcal_tracker/webapp_static/app.js
+  node --check src/kcal_tracker/webapp_static/ios26.js
 else
   if [ "$require_node" = "true" ] || [ "$require_node" = "1" ]; then
     echo "node is required for webapp JavaScript syntax checks." >&2

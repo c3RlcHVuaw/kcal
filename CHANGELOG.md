@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-19
+
+- Reworked the Mini App interface into an iOS 26 look: system color tokens,
+  the native type ramp, opaque grouped content cards, inset row separators and
+  Liquid Glass reserved for floating chrome.
+- Replaced the bottom navigation with an iOS 26 dock — a glass tab capsule plus
+  a separate accessory button — that minimizes while scrolling down.
+- Added scroll-aware navigation bars that gain their material and collapse the
+  large title into a centered compact one, with a selection haptic on tab taps.
+- Removed the older competing style passes that redefined the palette, page
+  background and card skins so the theme tokens are authoritative again.
+
 ## 2026-06-23
 
 - Split admin launch readiness checks into a dedicated module with focused

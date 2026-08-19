@@ -358,7 +358,7 @@ const onboardingSteps = [
   {
     title: "Еда добавляется отсюда",
     text: "Кнопка открывает фото, AI-описание, штрихкод, поиск и ручной ввод. Первый успех здесь: добавь один продукт и сразу увидишь день.",
-    target: ".tab-bar [data-view='food']",
+    target: ".tab-dock [data-view='food']",
   },
   {
     title: "Поиск и штрихкод",
@@ -408,7 +408,7 @@ const onboardingSteps = [
     title: "Сделай первую запись",
     text: "Лучший старт — занести один приём пищи любым способом. После сохранения дневник покажет остаток калорий и прогресс дня.",
     target: ".add-mode-actions",
-    fallbackTarget: ".tab-bar [data-view='food']",
+    fallbackTarget: ".tab-dock [data-view='food']",
     sheet: "food-add",
     cta: "Добавить еду",
   },

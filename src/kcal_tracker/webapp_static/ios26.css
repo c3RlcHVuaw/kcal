@@ -1,0 +1,859 @@
+/*
+ * iOS 26 component layer.
+ *
+ * Loaded after styles.css and deliberately re-styles only the structural
+ * chrome: typography ramp, grouped content cards, rows, controls, the floating
+ * Liquid Glass tab bar and sheets. Feature-specific rules in styles.css keep
+ * working because every value here comes from the shared token set.
+ *
+ * Two rules define the look:
+ *   1. Content is opaque. Cards are solid fills on a grouped background.
+ *   2. Chrome is glass. Only floating layers (tab bar, toolbars, sheets) blur.
+ */
+
+/* ---------------------------------------------------------------------------
+ * 1. Base + type ramp
+ * ------------------------------------------------------------------------ */
+
+body {
+  min-height: 100dvh;
+  background: var(--bg);
+  font-family: var(--font-text);
+  font-size: 17px;
+  line-height: 1.29;
+  letter-spacing: -0.43px;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+h1 {
+  font-family: var(--font-display);
+  font-size: 34px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+}
+
+h2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  line-height: 1.27;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+h3,
+.section-title h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.45px;
+}
+
+.caption {
+  margin-bottom: 2px;
+  color: var(--label-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.08px;
+}
+
+.muted,
+.section-subtitle {
+  color: var(--label-secondary);
+  font-size: 13px;
+  letter-spacing: -0.08px;
+}
+
+/* Section headers above grouped cards read as iOS list headers. */
+.component-section > .section-title h2,
+.view.active > .section-title h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.45px;
+}
+
+/* ---------------------------------------------------------------------------
+ * 2. Shell
+ * ------------------------------------------------------------------------ */
+
+.app-shell {
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding:
+    var(--app-top-pad)
+    var(--space-page-x)
+    calc(112px + env(safe-area-inset-bottom));
+}
+
+.view.active {
+  gap: 20px;
+}
+
+/* ---------------------------------------------------------------------------
+ * 3. Navigation bar — glass toolbar with a hairline that appears on scroll
+ * ------------------------------------------------------------------------ */
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin: calc(var(--app-top-pad) * -1) calc(var(--space-page-x) * -1) 8px;
+  padding: calc(var(--app-top-pad) + 4px) var(--space-page-x) 10px;
+  border-bottom: 0.5px solid transparent;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transition:
+    background var(--motion-soft),
+    border-color var(--motion-soft),
+    backdrop-filter var(--motion-soft);
+}
+
+body.chrome-scrolled .app-header {
+  border-bottom-color: var(--separator);
+  background: var(--material-regular);
+  backdrop-filter: var(--blur-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
+}
+
+.app-header h1 {
+  font-size: 34px;
+  transition:
+    font-size var(--motion-soft),
+    letter-spacing var(--motion-soft);
+}
+
+/* Large title collapses into a compact nav title, the way UIKit does it. */
+body.chrome-scrolled .app-header h1 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.43px;
+}
+
+body.chrome-scrolled .app-header .caption {
+  display: none;
+}
+
+/* The collapsed title centers itself in the bar, as UIKit does, while the
+ * trailing action stays pinned to the right. */
+body.chrome-scrolled .app-header {
+  justify-content: flex-end;
+}
+
+body.chrome-scrolled .app-header > div:first-child {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * 4. Content cards — opaque grouped surfaces
+ * ------------------------------------------------------------------------ */
+
+.component-card,
+.summary-panel,
+.form-panel,
+.details-card,
+.grouped-list,
+.action-list,
+.metric-grid article,
+.metric-grid button,
+.week-chart,
+.weight-chart,
+.meal-section {
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.accent-card::before {
+  display: none;
+}
+
+.calorie-card,
+.premium-card,
+.more-premium-card {
+  background: var(--surface);
+}
+
+/* Nested cards step down one radius level so corners stay concentric. */
+.component-section > .grouped-list,
+.component-section > .week-chart,
+.component-section > .weight-chart {
+  border-radius: var(--radius-lg);
+}
+
+.metric-grid article,
+.metric-grid button {
+  border-radius: var(--radius-md);
+}
+
+/* ---------------------------------------------------------------------------
+ * 5. Rows and separators — hairlines inset from the leading edge
+ * ------------------------------------------------------------------------ */
+
+.entry,
+.list-item,
+.action-list button {
+  position: relative;
+  min-height: 48px;
+  padding: 12px var(--space-4);
+  border-top: 0;
+  font-size: 17px;
+  letter-spacing: -0.43px;
+}
+
+.entry + .entry::before,
+.list-item + .list-item::before,
+.action-list button + button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: var(--space-4);
+  height: 0.5px;
+  background: var(--separator);
+  pointer-events: none;
+}
+
+.entry-main strong,
+.list-item strong,
+.action-list span {
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.43px;
+}
+
+.entry-meta,
+.action-list b {
+  color: var(--label-secondary);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.23px;
+}
+
+/* iOS disclosure indicator: a thin chevron, not a filled circle. */
+.action-list button::after {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  background: none;
+  color: var(--label-tertiary);
+  font-size: 20px;
+  font-weight: 500;
+}
+
+.meal-header {
+  min-height: 44px;
+  padding: 10px var(--space-4);
+  border-bottom: 0.5px solid var(--separator);
+}
+
+.row-action,
+.meal-add {
+  background: var(--fill-tertiary);
+  color: var(--accent);
+}
+
+/* ---------------------------------------------------------------------------
+ * 6. Buttons
+ * ------------------------------------------------------------------------ */
+
+.primary-button,
+.secondary-button {
+  min-height: var(--control-lg);
+  border-radius: var(--radius-pill);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.43px;
+}
+
+.primary-button {
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow: none;
+}
+
+.secondary-button {
+  border: 0;
+  background: var(--fill-tertiary);
+  color: var(--accent);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.primary-button::after,
+.secondary-button::after,
+.calorie-card::after,
+.scan-shortcut::after {
+  display: none;
+}
+
+.icon-button,
+.icon-mini {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-tertiary);
+  color: var(--accent);
+  box-shadow: none;
+  backdrop-filter: var(--blur-panel);
+  -webkit-backdrop-filter: var(--blur-panel);
+}
+
+.icon-button svg {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2;
+}
+
+/* Press feedback matches UIKit: a small, fast scale with no bounce. */
+button:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.metric-grid button:active,
+.action-list button:active,
+.details-card summary:active,
+.stats-link:active,
+.entry:active,
+.list-item:active {
+  transform: none;
+  background: var(--fill-quaternary);
+}
+
+/* ---------------------------------------------------------------------------
+ * 7. Controls — segmented, pickers, fields
+ * ------------------------------------------------------------------------ */
+
+.segmented,
+.meal-picker {
+  padding: 2px;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: var(--fill-quaternary);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.segmented {
+  border-radius: var(--radius-xs);
+}
+
+.meal-picker {
+  border-radius: var(--radius-sm);
+}
+
+.segmented button,
+.meal-picker button {
+  height: 32px;
+  min-height: 32px;
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: -0.23px;
+}
+
+.meal-picker button {
+  border-radius: var(--radius-xs);
+  font-size: 14px;
+}
+
+/* The active segment is a raised thumb, like UISegmentedControl. */
+.segmented button.active,
+.meal-picker button.active {
+  background: var(--surface-raised);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.12),
+    0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+body.theme-dark .segmented button.active,
+body.theme-dark .meal-picker button.active {
+  background: var(--fill-primary);
+  box-shadow: none;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  min-height: 44px;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--fill-quaternary);
+  color: var(--text);
+  font-size: 17px;
+  letter-spacing: -0.43px;
+  box-shadow: none;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--label-tertiary);
+}
+
+/* iOS search field: pill, leading glyph, quiet fill. */
+.food-search-field {
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--fill-tertiary);
+}
+
+.food-search-field input {
+  background: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+ * 8. Today hero
+ * ------------------------------------------------------------------------ */
+
+.today-top h1 {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.8px;
+}
+
+.calorie-main strong {
+  font-family: var(--font-display);
+  font-size: 44px;
+  font-weight: 700;
+  letter-spacing: -1.2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.calorie-side b,
+.metric-grid strong,
+.summary-panel strong {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.4px;
+}
+
+.calorie-main span,
+.calorie-side span {
+  color: var(--label-secondary);
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: -0.08px;
+}
+
+/* Progress tracks read as iOS bars: thin, fully rounded, quiet track. */
+.progress-track {
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-tertiary);
+  overflow: hidden;
+}
+
+.progress-track > span {
+  border-radius: var(--radius-pill);
+}
+
+/* ---------------------------------------------------------------------------
+ * 9. Floating Liquid Glass tab bar
+ * ------------------------------------------------------------------------ */
+
+/*
+ * The dock mirrors iOS 26: a glass tab capsule with a separate accessory
+ * button floating next to it, both detached from the screen edge.
+ */
+.tab-dock {
+  position: fixed;
+  left: 50%;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(420px, calc(100% - 24px));
+  transform: translateX(-50%);
+}
+
+body[data-view="food-review"] .tab-dock {
+  display: none;
+}
+
+.tab-bar {
+  position: static;
+  left: auto;
+  bottom: auto;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: auto;
+  height: 60px;
+  padding: 5px;
+  border: 0.5px solid var(--material-edge);
+  border-radius: var(--radius-pill);
+  background: var(--material-regular);
+  box-shadow:
+    var(--shadow-chrome),
+    var(--specular);
+  backdrop-filter: var(--blur-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
+  transform: none;
+  transition:
+    height var(--motion-soft),
+    background var(--motion-soft);
+}
+
+/* Accessory button — the app's primary action, prominent tint on glass. */
+.tab-add {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border: 0.5px solid var(--material-edge);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-text);
+  box-shadow:
+    var(--shadow-chrome),
+    var(--specular);
+  transition:
+    width var(--motion-soft),
+    height var(--motion-soft),
+    transform var(--motion-fast);
+}
+
+.tab-add svg {
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 2.4;
+}
+
+.tab-add span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.tab-bar button {
+  grid-template-rows: 24px auto;
+  gap: 3px;
+  height: 100%;
+  padding: 0 2px;
+  border-radius: var(--radius-pill);
+  color: var(--label-secondary);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: -0.1px;
+}
+
+.tab-bar svg {
+  width: 24px;
+  height: 24px;
+  stroke-width: 1.9;
+}
+
+.tab-bar [data-view="today"] svg,
+.tab-bar [data-view="body"] svg {
+  fill: none;
+}
+
+.tab-bar button.active {
+  background: var(--fill-tertiary);
+  color: var(--accent);
+  box-shadow: none;
+}
+
+.tab-bar button.active svg {
+  transform: none;
+  stroke-width: 2.2;
+  fill: color-mix(in srgb, currentColor 16%, transparent);
+}
+
+/* No idle pulse — native tab bars never animate on their own. */
+.tab-bar [data-view="food"] {
+  animation: none;
+}
+
+.tab-bar [data-view="food"]:active {
+  transform: scale(0.96);
+}
+
+.tab-bar span {
+  transition:
+    opacity var(--motion-fast),
+    max-height var(--motion-fast);
+}
+
+/* iOS 26 minimizes the tab bar while the user scrolls down. */
+body.chrome-compact .tab-bar {
+  height: 52px;
+}
+
+body.chrome-compact .tab-add {
+  width: 52px;
+  height: 52px;
+}
+
+body.chrome-compact .tab-bar button {
+  grid-template-rows: 24px;
+}
+
+body.chrome-compact .tab-bar span {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------------------
+ * 10. Sheets
+ * ------------------------------------------------------------------------ */
+
+.sheet {
+  padding: 0;
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.sheet-panel {
+  position: relative;
+  width: min(560px, 100%);
+  margin: 0 auto;
+  padding-top: 12px;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  border: 0;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-float);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* Grabber handle. */
+.sheet-panel::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  z-index: 2;
+  width: 36px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--label-quaternary);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.sheet-title h2 {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.45px;
+}
+
+/*
+ * The add-food flow is presented as a large-detent sheet: the diary stays
+ * visible behind the top inset, corners are rounded and a grabber is shown.
+ */
+#food-add-sheet {
+  align-items: end;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+#food-add-sheet .food-add-panel {
+  height: calc(100dvh - 12px);
+  max-height: calc(100dvh - 12px);
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-float);
+}
+
+#food-add-sheet .sheet-panel::before {
+  content: "";
+}
+
+#food-add-sheet .food-add-scroll > .sheet-title {
+  min-height: 56px;
+  margin-bottom: 16px;
+  padding: 14px 18px 12px;
+  border-bottom: 0.5px solid var(--separator);
+  background: var(--material-thick);
+  box-shadow: none;
+}
+
+#food-add-sheet #food-add-close {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  background: var(--fill-tertiary);
+  color: var(--label-secondary);
+  font-size: 17px;
+  box-shadow: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * 11. Notices and chips
+ * ------------------------------------------------------------------------ */
+
+.notice {
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--fill-quaternary);
+  color: var(--label-secondary);
+  font-size: 15px;
+  letter-spacing: -0.23px;
+}
+
+.premium-badge,
+.badge {
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.06px;
+}
+
+/* ---------------------------------------------------------------------------
+ * 12. Surface reconciliation
+ *
+ * Earlier style passes painted these surfaces with hardcoded white values, so
+ * they only ever looked right on a light canvas. Re-pointing them at the token
+ * set is what makes both appearances consistent.
+ * ------------------------------------------------------------------------ */
+
+.calorie-card,
+.macro-card,
+.weekly-mission,
+.subscription-status-card,
+.subscription-plan-card,
+.subscription-faq details,
+.food-sheet-head,
+.food-ai-search-card,
+.ai-limit-panel,
+.day-share-card,
+.entry-edit-card {
+  border-color: transparent;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* Inner tiles sit one level up from their parent card. */
+.macro-card article,
+.stats-link,
+.calorie-card .stats-link,
+.food-thumb,
+.food-card .entry-actions button,
+.more-action-grid i,
+.subscription-status-meta span,
+.subscription-pay-methods,
+.plan-fit-grid div,
+.ai-limit-benefits div,
+.ai-limit-promo input,
+.quick-prompts button,
+.promo-plan,
+.media-action,
+.text-button,
+.disclosure,
+.portion-actions button,
+.entry-edit-summary,
+.macro-edit-grid .edit-field,
+.add-mode-actions button {
+  border-color: transparent;
+  background: var(--fill-tertiary);
+  color: var(--text);
+  box-shadow: none;
+}
+
+.macro-edit-grid .edit-field input,
+.food-search-field input {
+  background: transparent;
+}
+
+.macro-ring::after {
+  background: var(--surface);
+}
+
+.macro-card article {
+  border-radius: var(--radius-md);
+}
+
+.add-mode-actions button {
+  border: 0;
+  border-radius: var(--radius-lg);
+}
+
+.add-mode-actions button::before {
+  background: var(--action-tint-soft);
+  color: var(--action-tint);
+}
+
+.add-mode-actions button:hover,
+.add-mode-actions button:active {
+  box-shadow: none;
+}
+
+.add-mode-actions button:active {
+  transform: scale(0.96);
+}
+
+.scan-shortcut {
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--fill-tertiary);
+  color: var(--accent);
+}
+
+.scan-shortcut svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* Sticky bars inside sheets use the same glass as the rest of the chrome. */
+.sheet-actions,
+.food-save-bar,
+.food-add-scroll > .sheet-title,
+.entry-edit-panel .sheet-title {
+  border-bottom-color: var(--separator);
+  background: var(--material-thick);
+  backdrop-filter: var(--blur-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
+}
+
+.toast {
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--material-thick);
+  color: var(--text);
+  box-shadow: var(--shadow-chrome);
+  backdrop-filter: var(--blur-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
+}
+
+/* ---------------------------------------------------------------------------
+ * 13. Motion preferences
+ * ------------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
