@@ -18,6 +18,19 @@
  * 1. Base + type ramp
  * ------------------------------------------------------------------------ */
 
+/* The legacy sheet used to carry these resets; they came out with the rest of
+   its presentation, so the layer that now owns surfaces re-declares them. */
+button,
+input,
+select,
+textarea {
+  border: 0;
+}
+
+button {
+  background: none;
+}
+
 body {
   min-height: 100dvh;
   background: var(--bg);
@@ -82,9 +95,7 @@ h3,
 .app-shell {
   width: min(100%, 560px);
   margin: 0 auto;
-  padding:
-    var(--app-top-pad)
-    var(--space-page-x)
+  padding: var(--app-top-pad) var(--space-page-x)
     calc(112px + env(safe-area-inset-bottom));
 }
 
@@ -123,7 +134,6 @@ h3,
  */
 body.chrome-scrolled .app-header {
   border-bottom-color: transparent;
-  background: transparent;
   /* The mask fades the whole layer out, so the material can stay strong at the
      top where text sits and still disappear into the content below. */
   background: var(--material-chrome);
@@ -424,7 +434,9 @@ textarea {
   box-shadow: none;
 }
 
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus-visible,
+input:not([type="checkbox"]):not([type="radio"]):not(
+    [type="range"]
+  ):focus-visible,
 select:focus-visible,
 textarea:focus-visible {
   outline: none;
@@ -688,7 +700,11 @@ body[data-view="food-review"] .tab-dock {
   border: 0;
   border-radius: var(--radius-pill);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0) 52%),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.24),
+      rgba(255, 255, 255, 0) 52%
+    ),
     var(--accent);
   color: var(--accent-text);
   box-shadow:
@@ -1133,6 +1149,35 @@ body.chrome-compact .tab-bar span {
   -webkit-backdrop-filter: none;
 }
 
+/* Day progress inside the sheet: a track that app.js fills through --progress,
+   and one bar per macro. Their paint came out with the legacy presentation. */
+.food-add-overview > i {
+  background: var(--fill-tertiary);
+  background-image: linear-gradient(
+    to right,
+    var(--accent) var(--progress, 0%),
+    transparent var(--progress, 0%)
+  );
+}
+
+.food-add-macro-row i {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-pill);
+}
+
+.food-add-macro-row .carbs {
+  background: var(--carbs);
+}
+
+.food-add-macro-row .protein {
+  background: var(--protein);
+}
+
+.food-add-macro-row .fat {
+  background: var(--fat);
+}
+
 /* The photo picker is a filled drop target; a dashed outline is a web idiom.
    The id-scoped legacy rule sets that dash, so it has to be matched here. */
 #food-add-sheet .media-action.photo-primary-action svg,
@@ -1187,8 +1232,11 @@ body.chrome-compact .tab-bar span {
 
 /* A field is one surface: the inner input must not add a second fill.
    The :not() chain matches the generic input rule above so this one wins. */
-#food-add-sheet .food-search-field input:not([type="checkbox"]):not([type="radio"]),
-.food-search-field input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
+#food-add-sheet
+  .food-search-field
+  input:not([type="checkbox"]):not([type="radio"]),
+.food-search-field
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) {
   background: transparent;
   box-shadow: none;
 }
@@ -1686,4 +1734,148 @@ body[data-view="today"].chrome-scrolled .app-header {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ---------------------------------------------------------------------------
+ * 18. Surfaces reclaimed from the legacy sheet
+ *
+ * styles.css no longer paints anything; these are the components whose fills
+ * used to live there, restated once, on tokens, grouped by the role each
+ * element plays rather than by the screen it appears on.
+ * ------------------------------------------------------------------------ */
+
+/* Panels that sit directly on the grouped background. */
+.first-day-nudge,
+.missions-panel,
+.weekly-missions,
+.parsed-food-card,
+.parsed-food-editor,
+.food-pick-card,
+.food-ai-cta,
+.ai-limit-panel,
+.progress-insight-card {
+  background: var(--material-card);
+}
+
+/* Blocks nested inside a card use a fill, not a second card. */
+.meal-empty,
+.weekly-mission,
+.preview-summary,
+.preview-advice,
+.refine-details,
+.nested-form,
+.food-pick-main,
+.review-edit-field,
+.review-preview-summary,
+.ai-limit-benefits div,
+.food-thumb.has-photo,
+.skeleton-line,
+.skeleton-add {
+  background: var(--fill-quaternary);
+}
+
+/* Status chips and dots carry meaning through tint. */
+.kcal-compare,
+.food-source-badge,
+.food-impact,
+.toast-icon {
+  background: var(--fill-tertiary);
+  color: var(--label-secondary);
+}
+
+.kcal-compare.tone-down,
+.food-impact.near,
+.toast.success .toast-icon {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.kcal-compare.tone-up,
+.food-impact.over,
+.packaged-warning,
+.toast.warning .toast-icon {
+  background: color-mix(in srgb, var(--warning) 18%, transparent);
+  color: var(--warning);
+}
+
+.food-impact.ai,
+.toast.info .toast-icon {
+  background: color-mix(in srgb, var(--protein) 18%, transparent);
+  color: var(--protein);
+}
+
+.week-legend .under {
+  background: var(--protein);
+}
+
+.week-legend .near {
+  background: var(--accent);
+}
+
+.week-legend .over {
+  background: var(--danger);
+}
+
+.weight-dot {
+  background: var(--accent);
+}
+
+/* Secondary controls. */
+.food-pick-add,
+.toast-action,
+.ai-limit-close,
+#onboarding .onboarding-head button:last-child {
+  background: var(--fill-tertiary);
+  color: var(--accent);
+}
+
+.food-pick-add.is-added,
+.food-pick-card.is-added {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.food-ai-search-button,
+.ai-limit-mark {
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.food-ai-search-orb {
+  background: var(--accent-tint);
+}
+
+/* Full-screen scrims. */
+#onboarding,
+.ai-limit-backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.onboarding-progress {
+  background: var(--label-quaternary);
+}
+
+/* The day card is exported as an image, so it needs its own opaque canvas. */
+#day-share-sheet.day-share-sheet {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.day-share-sheet .day-share-panel {
+  background: var(--bg-elevated);
+}
+
+.day-share-card-top,
+.day-share-card-progress {
+  background: var(--fill-quaternary);
+}
+
+/* The AI review screen reuses the diary card, which is a row inside a list. */
+.food-review-top {
+  background: var(--material-thick);
+  backdrop-filter: var(--blur-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
+}
+
+.food-review-page .parsed-food-card {
+  background: var(--material-card);
 }
