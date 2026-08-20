@@ -2,6 +2,12 @@
 
 ## 2026-08-20
 
+- Fixed search results drawing a grey slab behind their text: the row's tappable
+  button was in the list of blocks that get a nested fill, but it is the row's
+  hit area, not a block inside it. The results are now one grouped list with
+  inset hairlines instead of separate cards, which were invisible against the
+  sheet's own fill anyway, and the add button is an accent-tinted circle.
+
 - Fixed the Mini App failing to load or save anything. The calorie ring helper
   read a module-level `const` declared further down the file, but the helper
   runs during the first render — so evaluating app.js threw a temporal dead zone

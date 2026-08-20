@@ -1768,7 +1768,6 @@ body[data-view="today"].chrome-scrolled .app-header {
 .preview-advice,
 .refine-details,
 .nested-form,
-.food-pick-main,
 .review-edit-field,
 .review-preview-summary,
 .ai-limit-benefits div,
@@ -2450,4 +2449,95 @@ body[data-view="today"].chrome-scrolled .app-header {
 .food-card .entry-main b {
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+/* A search result is one row: text on the left, add button on the right. The
+   inner button is the row's hit area and must not paint a second surface. */
+.food-pick-main {
+  background: none;
+  padding: 0;
+  text-align: left;
+}
+
+.food-pick-card {
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.food-pick-add {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.food-pick-add svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.food-pick-main strong {
+  display: block;
+  font-size: 17px;
+  font-weight: 500;
+  letter-spacing: -0.43px;
+}
+
+.food-pick-main span,
+.food-pick-main em {
+  display: block;
+  color: var(--label-secondary);
+  font-size: 14px;
+  font-style: normal;
+  letter-spacing: -0.15px;
+}
+
+.food-source-badge {
+  margin-left: 6px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+
+.food-impact {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Results are a grouped list, not a stack of cards: one container, rows split
+   by inset hairlines. Separate cards vanish against the sheet's own fill. */
+.food-pick-list {
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--fill-quaternary);
+}
+
+.food-pick-list .food-pick-card {
+  position: relative;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.food-pick-list .food-pick-card + .food-pick-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 16px;
+  height: 0.5px;
+  background: var(--separator);
 }
