@@ -2256,6 +2256,15 @@ body[data-view="today"].chrome-scrolled .app-header {
   text-align: center;
 }
 
+/* The calorie figure is the row's value, not a link — colour was left over from
+   the old palette, where it read as blue against a green accent. */
+.food-card .entry-main b,
+.parsed-food-kcal {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 #food-review-title {
   font-size: 17px;
   font-weight: 600;
