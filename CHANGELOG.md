@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-20
+
+- Fixed the Mini App failing to load or save anything. The calorie ring helper
+  read a module-level `const` declared further down the file, but the helper
+  runs during the first render — so evaluating app.js threw a temporal dead zone
+  error and the whole module died before it could call the API. The value now
+  lives inside the function.
+
 ## 2026-08-19
 
 - Reworked the Mini App interface into an iOS 26 look: system color tokens,

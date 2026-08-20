@@ -1363,12 +1363,14 @@ function previewLockedTheme(theme) {
   window.setTimeout(() => openSubscriptionFlow({ highlight: true }), 720);
 }
 
-const CALORIE_RING_CIRCUMFERENCE = 2 * Math.PI * 88;
-
 function setCalorieRingProgress(progress) {
   if (!nodes.kcalRing) return;
+  // The circumference lives inside the function: this helper is called during
+  // the first render, before a module-level const on this line would have been
+  // initialised, which threw and took the whole module down with it.
+  const circumference = 2 * Math.PI * 88;
   const clamped = Math.max(0, Math.min(Number(progress) || 0, 1));
-  nodes.kcalRing.style.strokeDashoffset = String(CALORIE_RING_CIRCUMFERENCE * (1 - clamped));
+  nodes.kcalRing.style.strokeDashoffset = String(circumference * (1 - clamped));
 }
 
 function triggerHaptic(style = "light") {
