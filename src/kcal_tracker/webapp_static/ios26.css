@@ -320,8 +320,7 @@ body.chrome-scrolled .app-header > div:first-child {
 
 .app-header .icon-button,
 .today-actions .icon-button,
-.today-actions .mission-button,
-.review-back-button {
+.today-actions .mission-button {
   background: var(--material-chrome);
   box-shadow: inset 0 0 0 0.5px var(--material-edge);
   backdrop-filter: var(--blur-chrome);
@@ -2229,4 +2228,65 @@ body[data-view="today"].chrome-scrolled .app-header {
 
 .ai-thinking-label {
   transition: opacity 180ms ease;
+}
+
+/* ---------------------------------------------------------------------------
+ * 21. The review screen wears the same navigation bar as everything else
+ * ------------------------------------------------------------------------ */
+
+.food-review-top {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: calc(var(--app-top-pad) + 52px);
+  margin: calc(var(--app-top-pad) * -1) calc(var(--space-page-x) * -1) 8px;
+  padding: calc(var(--app-top-pad) + 4px) var(--space-page-x) 10px;
+  border-bottom: 0.5px solid var(--separator);
+  background: var(--material-chrome);
+  backdrop-filter: var(--blur-chrome);
+  -webkit-backdrop-filter: var(--blur-chrome);
+}
+
+.food-review-top > div {
+  grid-column: 2;
+  text-align: center;
+}
+
+#food-review-title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.43px;
+}
+
+/* A back button, not a filled pill. */
+.review-back-button {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  justify-self: start;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  color: var(--accent);
+}
+
+.review-back-button span {
+  font-size: 26px;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.review-back-button b {
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.43px;
 }

@@ -63,6 +63,9 @@
   line that narrates each stage, and a result that springs in card by card.
   app.js already toggled a `[data-ai-processing]` element that the markup never
   had, so the state now has something to show.
+- Gave the review screen the same navigation bar as the rest of the app: a
+  chevron back button in the accent colour instead of a filled pill, a centred
+  compact title, and the chrome material with a hairline.
 - Centred only the waiting state, not the whole panel. The mode screen is a
   flex column whose first child is its sticky header, so centring the panel
   pushed that header into the middle of the sheet and left a void above it.
