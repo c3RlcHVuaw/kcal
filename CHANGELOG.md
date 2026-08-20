@@ -63,6 +63,10 @@
   line that narrates each stage, and a result that springs in card by card.
   app.js already toggled a `[data-ai-processing]` element that the markup never
   had, so the state now has something to show.
+- Turned row actions into text buttons: "Добавить" in a section header and
+  "Изменить / В шаблон / Удалить" on a food card were filled pills, which is
+  heavier than any native list row. Delete now carries the system red, and the
+  three actions sit on one line instead of being clipped by equal grid columns.
 - Painted the calorie figure on food cards in the label colour instead of the
   old palette's blue, which clashed with the green accent.
 - Gave the review screen the same navigation bar as the rest of the app: a

@@ -2299,3 +2299,64 @@ body[data-view="today"].chrome-scrolled .app-header {
   font-weight: 400;
   letter-spacing: -0.43px;
 }
+
+/* ---------------------------------------------------------------------------
+ * 22. Row actions read as text buttons, not filled pills
+ * ------------------------------------------------------------------------ */
+
+.section-title .text-button {
+  min-height: 34px;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: -0.43px;
+}
+
+.entry-actions button,
+.food-card .entry-actions button,
+.review-icon-action {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.23px;
+}
+
+.entry-actions button:first-child,
+.review-icon-action:first-child {
+  padding-left: 0;
+}
+
+/* Equal grid columns clipped the middle label ("В шабл…"); text buttons should
+   size to their words. */
+.food-card .entry-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+
+/* Destructive actions carry the system red. */
+.entry-actions button[data-delete-entry],
+.entry-actions button[data-remove-parsed],
+.review-icon-action.danger {
+  color: var(--danger);
+}
+
+.review-icon-action svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+}
+
+.entry-actions button:active,
+.review-icon-action:active {
+  background: var(--fill-quaternary);
+}

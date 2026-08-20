@@ -55,7 +55,7 @@ def test_webapp_shell_is_served() -> None:
     assert response.status_code == 200
     assert "Kcal Tracker" in response.text
     assert "tab-bar" in response.text
-    assert "/app/static/themes.css?v=ios26-v19-20260819" in response.text
+    assert "/app/static/themes.css?v=ios26-v20-20260819" in response.text
     assert response.text.index("/app/static/themes.css") < response.text.index("/app/static/styles.css")
     # The iOS 26 layer overrides earlier passes, so it has to load last.
     assert "/app/static/ios26.css" in response.text
