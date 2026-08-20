@@ -2052,6 +2052,9 @@ function renderFoodEntry(entry) {
         <div class="entry-main">
           <strong>${escapeHtml(entry.name)}</strong>
           <b>${Math.round(entry.kcal)} ккал</b>
+          <button class="entry-more" type="button" data-entry-more aria-expanded="false" aria-label="Действия для ${escapeHtml(entry.name)}">
+            <svg aria-hidden="true"><use href="#icon-more"></use></svg>
+          </button>
         </div>
         <div class="entry-meta">
           <span>${entry.weight_g ? `${formatNumber(entry.weight_g)} г` : "без граммовки"}</span>

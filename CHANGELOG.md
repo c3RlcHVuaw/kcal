@@ -63,6 +63,11 @@
   line that narrates each stage, and a result that springs in card by card.
   app.js already toggled a `[data-ai-processing]` element that the markup never
   had, so the state now has something to show.
+- Rebuilt the diary row as a list row: thumbnail, title, calories aligned to the
+  trailing edge and a menu button. Its three actions now live behind that button
+  instead of sitting under every entry, and the values below the title read as
+  one secondary line rather than spaced-out chips. Swipe actions were removed in
+  an earlier redesign, so the actions themselves had to stay reachable.
 - Turned row actions into text buttons: "Добавить" in a section header and
   "Изменить / В шаблон / Удалить" on a food card were filled pills, which is
   heavier than any native list row. Delete now carries the system red, and the

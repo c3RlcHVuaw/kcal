@@ -2360,3 +2360,94 @@ body[data-view="today"].chrome-scrolled .app-header {
 .review-icon-action:active {
   background: var(--fill-quaternary);
 }
+
+/* ---------------------------------------------------------------------------
+ * 23. Diary rows keep their actions behind a menu button
+ * ------------------------------------------------------------------------ */
+
+.entry-more {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 10px;
+  border-radius: var(--radius-pill);
+  background: var(--fill-tertiary);
+  color: var(--label-secondary);
+}
+
+.entry-more svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.food-card.is-actions-open .entry-more {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+/* Hidden until asked for, then it drops in under the row's values. */
+.food-card .entry-actions {
+  display: none;
+}
+
+.food-card.is-actions-open .entry-actions {
+  display: flex;
+  animation: entryActionsIn var(--motion-fast) both;
+}
+
+@keyframes entryActionsIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The review screen keeps its actions visible: editing is the whole point. */
+.parsed-food-card .entry-actions {
+  display: flex;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .food-card.is-actions-open .entry-actions {
+    animation: none;
+  }
+}
+
+/* One secondary line under the title, separated by middots. */
+.food-card .entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: baseline;
+}
+
+.food-card .entry-meta span + span::before {
+  content: " · ";
+  white-space: pre;
+}
+
+.food-card .entry-main {
+  align-items: center;
+  gap: 8px;
+}
+
+/* Title takes the slack so the value and the menu button hug the trailing
+   edge, instead of the three of them sharing the space evenly. */
+.food-card .entry-main strong {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.food-card .entry-main b {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}

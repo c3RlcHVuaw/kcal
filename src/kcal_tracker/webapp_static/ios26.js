@@ -357,5 +357,26 @@
     attributeFilter: ["class"],
   });
 
+  /* -------------------------------------------------------------------------
+   * A diary row shows its actions on demand. Three text buttons under every
+   * entry is heavier than any native list; the row keeps them behind "…".
+   * ---------------------------------------------------------------------- */
+
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest?.("[data-entry-more]");
+    if (!trigger) return;
+    const row = trigger.closest(".food-card");
+    if (!row) return;
+    const open = row.classList.toggle("is-actions-open");
+    trigger.setAttribute("aria-expanded", String(open));
+    // Only one row keeps its actions open, the way a context menu behaves.
+    if (!open) return;
+    for (const other of document.querySelectorAll(".food-card.is-actions-open")) {
+      if (other === row) continue;
+      other.classList.remove("is-actions-open");
+      other.querySelector("[data-entry-more]")?.setAttribute("aria-expanded", "false");
+    }
+  });
+
   applyScrollState();
 })();
