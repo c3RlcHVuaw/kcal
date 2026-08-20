@@ -962,8 +962,7 @@ body.chrome-compact .tab-bar span {
 .food-sheet-head,
 .food-ai-search-card,
 .ai-limit-panel,
-.day-share-card,
-.entry-edit-card {
+.day-share-card {
   border: 0;
   border-radius: var(--radius-xl);
   background: var(--material-card);
@@ -2540,4 +2539,71 @@ body[data-view="today"].chrome-scrolled .app-header {
   left: 16px;
   height: 0.5px;
   background: var(--separator);
+}
+
+/* ---------------------------------------------------------------------------
+ * 24. Entry editor sheet
+ * ------------------------------------------------------------------------ */
+
+/* Flush navigation bar, matching the add-food sheet. */
+.entry-edit-panel .sheet-title {
+  margin: 0 calc(var(--space-4) * -1) var(--space-4);
+  padding: 14px var(--space-4);
+  border-radius: 0;
+  border-bottom: 0.5px solid var(--separator);
+  background: var(--bg-elevated);
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.entry-edit-panel .sheet-title h2 {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.43px;
+}
+
+.entry-edit-panel .sheet-title .section-subtitle {
+  display: none;
+}
+
+/* A close button in a sheet is a neutral glyph, not an accent action. */
+.icon-mini {
+  width: 30px;
+  height: 30px;
+  background: var(--fill-tertiary);
+  color: var(--label-secondary);
+  font-size: 17px;
+}
+
+/* One surface inside the sheet, not a card the colour of the sheet itself. */
+.entry-edit-card {
+  background: var(--fill-quaternary);
+  border-radius: var(--radius-lg);
+}
+
+.entry-edit-summary {
+  border-radius: var(--radius-md);
+}
+
+/* The save bar hugs the bottom edge of the sheet. */
+.sheet-actions,
+.food-save-bar {
+  margin: var(--space-4) calc(var(--space-4) * -1) 0;
+  padding: var(--space-3) var(--space-4)
+    calc(var(--space-4) + env(safe-area-inset-bottom));
+  border-top: 0.5px solid var(--separator);
+  border-radius: 0;
+}
+
+/* Inside the missions sheet the wrapper would otherwise be the same colour as
+   the panel it sits in, so it takes a fill like every other nested block. */
+.missions-panel .weekly-missions {
+  background: var(--fill-quaternary);
+}
+
+/* The paywall is a floating panel over its own scrim, so it keeps card colour
+   and sheet-sized corners. */
+.ai-limit-panel {
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
 }

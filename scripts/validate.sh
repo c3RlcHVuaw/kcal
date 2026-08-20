@@ -30,6 +30,7 @@ fi
 "$python_bin" -m compileall src tests migrations
 "$python_bin" -m py_compile scripts/*.py
 "$python_bin" -m ruff check src migrations tests scripts/*.py
+"$python_bin" scripts/check-webapp-init-order.py
 for script in scripts/*.sh; do
   sh -n "$script"
 done

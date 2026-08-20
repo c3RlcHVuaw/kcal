@@ -2,6 +2,16 @@
 
 ## 2026-08-20
 
+- Added a check that module-level bindings in the Mini App scripts are declared
+  above the first top-level call. That is exactly the shape of the crash below,
+  and `node --check` cannot see it: the syntax is valid, the failure is at run
+  time. Verified it flags the original bug when reintroduced.
+- Swept the screens that only render with data — entry editor, missions sheet,
+  search results — against the templates app.js actually produces. The editor's
+  header and save bar were floating as separate cards inside the sheet, and both
+  the editor card and the missions wrapper were painted the same colour as the
+  panel containing them, so they read as nothing at all.
+
 - Fixed search results drawing a grey slab behind their text: the row's tappable
   button was in the list of blocks that get a nested fill, but it is the row's
   hit area, not a block inside it. The results are now one grouped list with
